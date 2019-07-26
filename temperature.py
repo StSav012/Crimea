@@ -1,17 +1,17 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+import argparse
 import os
 import sys
-import configparser
-import argparse
+from datetime import datetime
+
 from PyQt5.QtCore import Qt, QMetaObject, QCoreApplication, QTimer, QSettings
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import QApplication, \
     QMainWindow, QWidget, QDesktopWidget, \
     QGridLayout, QFormLayout, \
     QGroupBox, QLabel, QCheckBox, QSpinBox, QStatusBar, QMessageBox
-from datetime import datetime
 
 import temperature_backend
 
@@ -138,8 +138,7 @@ class App(QMainWindow, UiMainWindow):
                 self.arduino.join(timeout=1)
                 self.settings.setValue('windowGeometry', self.saveGeometry())
                 self.settings.setValue('windowState', self.saveState())
-                with open(args.config, 'w') as cout:
-                    config.write(cout)
+                self.settings.sync()
                 event.accept()
             elif close == QMessageBox.Cancel:
                 event.ignore()
@@ -148,10 +147,9 @@ class App(QMainWindow, UiMainWindow):
     def load_config(self):
         self._loading = True
         # common settings
-        if 'common' in config:
-            self.spin_update_interval.setValue(config.getint('common', 'update interval', fallback=1))
-            self.check_update.setCheckState(Qt.Checked if to_bool(config.get('common', 'update enabled', fallback='no'))
-                                            else Qt.Unchecked)
+        self.spin_update_interval.setValue(self.get_config_value('update', 'interval', 1, int))
+        self.check_update.setCheckState(Qt.Checked if to_bool(self.get_config_value('update', 'enabled', 'no', str))
+                                        else Qt.Unchecked)
         if self.settings.contains('windowGeometry'):
             self.restoreGeometry(self.settings.value('windowGeometry', ''))
         else:
@@ -167,19 +165,29 @@ class App(QMainWindow, UiMainWindow):
         self._loading = False
         return
 
+    def get_config_value(self, section, key, default, _type):
+        if section not in self.settings.childGroups():
+            return default
+        self.settings.beginGroup(section)
+        # print('get', section, key)
+        try:
+            v = self.settings.value(key, default, _type)
+        except TypeError:
+            v = default
+        self.settings.endGroup()
+        return v
+
     def set_config_value(self, section, key, value):
         if self._loading:
             return
-        if section not in config:
-            config[section] = {}
-        config[section][key] = str(value)
-        with open(args.config, 'w') as cout:
-            config.write(cout)
-        return
+        self.settings.beginGroup(section)
+        # print('set', section, key, value, type(value))
+        self.settings.setValue(key, value)
+        self.settings.endGroup()
 
     def check_update_changed(self, new_state):
         new_state = bool(new_state == Qt.Checked)
-        self.set_config_value('common', 'update enabled', new_state)
+        self.set_config_value('update', 'enabled', new_state)
         try:
             self.timer.timeout.disconnect()
         except TypeError:
@@ -194,7 +202,7 @@ class App(QMainWindow, UiMainWindow):
             self.status_bar.showMessage(self._translate('main_window', 'Done'))
 
     def spin_update_interval_changed(self, new_value):
-        self.set_config_value('common', 'update interval', new_value)
+        self.set_config_value('update', 'interval', new_value)
         self.timer.setInterval(new_value * 60 * 1000)
 
     def get_temperatures(self):
@@ -203,25 +211,17 @@ class App(QMainWindow, UiMainWindow):
         if temperatures:
             for i in range(len(self.labels_temperature_value)):
                 if i < len(temperatures):
-                    self.labels_temperature_value[i].setText('{:.2f}'.format(temperatures[i]))
+                    self.labels_temperature_value[i].setText(f'{temperatures[i]:.2f}')
                 else:
                     self.labels_temperature_value[i].setText('N/A')
-            self.status_bar.showMessage('{label}: {value}'.format(label=self._translate('main_window', 'Last Update'),
-                                                                  value=time))
+            self.status_bar.showMessage(f'{self._translate("main_window", "Last Update")}: {time}')
             with open('Dallas18B20.csv', 'a') as fout:
-                fout.write(time + '\t' + '\t'.join(map(lambda t: '{:.2f}'.format(t), temperatures)) + '\n')
+                fout.write(time + '\t' + '\t'.join(map(lambda t: f'{t:.2f}', temperatures)) + '\n')
 
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='Arduino Temperature Logger')
-
-    ap.add_argument('-c', '--config', help='configuration file',
-                    default='{filename}.ini'.format(filename=os.path.splitext(__file__)[0]))
-
-    args = ap.parse_args()
-
-    config = configparser.ConfigParser()
-    config.read(args.config)
+    ap.parse_args()
 
     make_desktop_launcher()
 

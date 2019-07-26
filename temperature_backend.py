@@ -1,8 +1,9 @@
-import serial
-import serial.tools.list_ports
 import io
 import time
 from threading import Thread
+
+import serial
+import serial.tools.list_ports
 
 
 class Dallas18B20(Thread):
