@@ -132,13 +132,22 @@ class App(QMainWindow):
         self.vertical_layout_plot = QVBoxLayout(self.plot_frame)
 
         self.tab_settings = QWidget()
-        self.spin_bb_angle = QDoubleSpinBox(self.tab_settings)
-        self.label_bb_angle = QLabel(self.tab_settings)
-        self.spin_measurement_delay = QDoubleSpinBox(self.tab_settings)
-        self.label_measurement_delay = QLabel(self.tab_settings)
-        self.spin_channels = QSpinBox(self.tab_settings)
-        self.label_channels = QLabel(self.tab_settings)
-        self.horizontal_layout_settings = QHBoxLayout()
+
+        self.group_settings_angles = QGroupBox(self.tab_settings)
+        self.spin_bb_angle = QDoubleSpinBox(self.group_settings_angles)
+        self.label_bb_angle = QLabel(self.group_settings_angles)
+        self.spin_max_angle = QDoubleSpinBox(self.group_settings_angles)
+        self.label_max_angle = QLabel(self.group_settings_angles)
+        self.spin_min_angle = QDoubleSpinBox(self.group_settings_angles)
+        self.label_min_angle = QLabel(self.group_settings_angles)
+        self.grid_layout_settings_angles = QGridLayout(self.group_settings_angles)
+
+        self.group_settings_measurement = QGroupBox(self.tab_settings)
+        self.spin_measurement_delay = QDoubleSpinBox(self.group_settings_measurement)
+        self.label_measurement_delay = QLabel(self.group_settings_measurement)
+        self.spin_channels = QSpinBox(self.group_settings_measurement)
+        self.label_channels = QLabel(self.group_settings_measurement)
+        self.grid_layout_settings_measurement = QGridLayout(self.group_settings_measurement)
 
         self.group_settings_motor = QGroupBox(self.tab_settings)
         self.button_move_360degrees_left = QPushButton(self.group_settings_motor)
@@ -154,6 +163,7 @@ class App(QMainWindow):
         self.spin_step_fraction = SpinListBox(self.group_settings_motor, ['1', '½', '¼', '⅟₁₆'])
         self.label_step_fraction = QLabel(self.group_settings_motor)
         self.grid_layout_settings_motor = QGridLayout(self.group_settings_motor)
+
         self.grid_layout_settings = QGridLayout(self.tab_settings)
 
         self.tab_main = QWidget()
@@ -166,7 +176,6 @@ class App(QMainWindow):
         self.button_schedule_action_up = QPushButton(self.group_schedule)
         self.button_schedule_action_remove = QPushButton(self.group_schedule)
         self.button_schedule_action_add = QPushButton(self.group_schedule)
-        self.vertical_layout_schedule_actons = QVBoxLayout()
         self.table_schedule = QTableWidget(self.group_schedule)
         self.grid_layout_schedule = QGridLayout(self.group_schedule)
 
@@ -243,6 +252,8 @@ class App(QMainWindow):
         self.spin_channels.valueChanged.connect(self.spin_channels_changed)
         self.spin_measurement_delay.valueChanged.connect(self.spin_measurement_delay_changed)
         self.spin_bb_angle.valueChanged.connect(self.spin_bb_angle_changed)
+        self.spin_max_angle.valueChanged.connect(self.spin_max_angle_changed)
+        self.spin_min_angle.valueChanged.connect(self.spin_min_angle_changed)
         # dirty hack: the event doesn't work directly for subplots
         self.canvas.mpl_connect('button_press_event', lambda event: self.plot.on_click(event))
         # whatever is written in the design file, “Go” button should be disabled initially
@@ -265,29 +276,30 @@ class App(QMainWindow):
                                           | Qt.TextBrowserInteraction
                                           | Qt.TextSelectableByKeyboard
                                           | Qt.TextSelectableByMouse)
-        self.grid_layout_weather_state.addWidget(self.label_weather_temperature, 0, 0, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_temperature, 0, 0)
         self.label_weather_temperature_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_temperature_value, 0, 1, 1, 1)
-        self.grid_layout_weather_state.addWidget(self.label_weather_humidity, 1, 0, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_temperature_value, 0, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_humidity, 1, 0)
         self.label_weather_humidity_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_humidity_value, 1, 1, 1, 1)
-        self.grid_layout_weather_state.addWidget(self.label_weather_wind_speed, 2, 0, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_humidity_value, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_wind_speed, 2, 0)
         self.label_weather_wind_speed_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_wind_speed_value, 2, 1, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_wind_speed_value, 2, 1)
 
-        self.grid_layout_weather_state.addWidget(self.label_weather_wind_direction, 3, 0, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_wind_direction, 3, 0)
         self.label_weather_wind_direction_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_wind_direction_value, 3, 1, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_wind_direction_value, 3, 1)
 
-        self.grid_layout_weather_state.addWidget(self.label_weather_rain_rate, 4, 0, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_rain_rate, 4, 0)
         self.label_weather_rain_rate_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_rain_rate_value, 4, 1, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_rain_rate_value, 4, 1)
 
-        self.grid_layout_weather_state.addWidget(self.label_weather_solar_radiation, 5, 0, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_solar_radiation, 5, 0)
         self.label_weather_solar_radiation_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_solar_radiation_value, 5, 1, 1, 1)
+        self.grid_layout_weather_state.addWidget(self.label_weather_solar_radiation_value, 5, 1)
 
-        self.grid_layout_tab_main.addWidget(self.group_weather_state, 0, 0, 1, 1)
+        self.grid_layout_tab_main.addWidget(self.group_weather_state, 0, 0)
+
         self.group_schedule.setFlat(True)
         self.table_schedule.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table_schedule.setProperty("showDropIndicator", False)
@@ -296,22 +308,21 @@ class App(QMainWindow):
         self.table_schedule.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.table_schedule.setColumnCount(3)
         self.table_schedule.setRowCount(0)
-        item = QTableWidgetItem()
-        item.setTextAlignment(Qt.AlignCenter)
-        self.table_schedule.setHorizontalHeaderItem(0, item)
-        item = QTableWidgetItem()
-        item.setTextAlignment(Qt.AlignCenter)
-        self.table_schedule.setHorizontalHeaderItem(1, item)
-        item = QTableWidgetItem()
-        item.setTextAlignment(Qt.AlignCenter)
-        self.table_schedule.setHorizontalHeaderItem(2, item)
-        self.grid_layout_schedule.addWidget(self.table_schedule, 0, 0, 1, 1)
-        self.vertical_layout_schedule_actons.addWidget(self.button_schedule_action_add)
-        self.vertical_layout_schedule_actons.addWidget(self.button_schedule_action_remove)
-        self.vertical_layout_schedule_actons.addWidget(self.button_schedule_action_up)
-        self.vertical_layout_schedule_actons.addWidget(self.button_schedule_action_down)
-        self.grid_layout_schedule.addLayout(self.vertical_layout_schedule_actons, 0, 1, 1, 1)
-        self.grid_layout_tab_main.addWidget(self.group_schedule, 1, 0, 1, 1)
+        self.table_schedule.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        for col in range(self.table_schedule.columnCount()):
+            item = QTableWidgetItem()
+            item.setTextAlignment(Qt.AlignCenter)
+            self.table_schedule.setHorizontalHeaderItem(col, item)
+        self.grid_layout_schedule.addWidget(self.table_schedule, 0, 0, 5, 1)
+        self.grid_layout_schedule.addWidget(self.button_schedule_action_add, 0, 1)
+        self.grid_layout_schedule.addWidget(self.button_schedule_action_remove, 1, 1)
+        self.grid_layout_schedule.addWidget(self.button_schedule_action_up, 2, 1)
+        self.grid_layout_schedule.addWidget(self.button_schedule_action_down, 3, 1)
+        self.grid_layout_schedule.setColumnStretch(0, 1)
+        self.grid_layout_tab_main.addWidget(self.group_schedule, 1, 0)
+
+        self.grid_layout_tab_main.setRowStretch(1, 1)
+
         spacer_item = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.horizontal_layout_main.addItem(spacer_item)
         self.button_power.setCheckable(True)
@@ -322,28 +333,27 @@ class App(QMainWindow):
         self.horizontal_layout_main.addWidget(self.button_go)
         spacer_item2 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.horizontal_layout_main.addItem(spacer_item2)
-        self.grid_layout_tab_main.addLayout(self.horizontal_layout_main, 2, 0, 1, 1)
+        self.grid_layout_tab_main.addLayout(self.horizontal_layout_main, 2, 0)
+
         self.tab_widget.addTab(self.tab_main, "")
 
         line = 0
-        self.grid_layout_settings_motor.addWidget(self.label_step_fraction, line, 0, 1, 1)
+        self.grid_layout_settings_motor.addWidget(self.label_step_fraction, line, 0)
         self.spin_step_fraction.setWrapping(True)
-        self.grid_layout_settings_motor.addWidget(self.spin_step_fraction, line, 1, 1, 1)
+        self.grid_layout_settings_motor.addWidget(self.spin_step_fraction, line, 1)
         line += 1
-        self.grid_layout_settings_motor.addWidget(self.label_settings_speed, line, 0, 1, 1)
+        self.grid_layout_settings_motor.addWidget(self.label_settings_speed, line, 0)
         self.spin_settings_speed.setMaximum(10000)
-        self.grid_layout_settings_motor.addWidget(self.spin_settings_speed, line, 1, 1, 1)
-        self.grid_layout_settings_motor.addWidget(self.label_settings_speed_unit, line, 2, 1, 1)
+        self.grid_layout_settings_motor.addWidget(self.spin_settings_speed, line, 1)
+        self.grid_layout_settings_motor.addWidget(self.label_settings_speed_unit, line, 2)
         line += 1
-        self.grid_layout_settings_motor.addWidget(self.label_settings_gear_1, line, 0, 1, 1)
-        self.spin_settings_gear_1.setMinimum(1)
-        self.spin_settings_gear_1.setMaximum(200)
-        self.grid_layout_settings_motor.addWidget(self.spin_settings_gear_1, line, 1, 1, 1)
+        self.grid_layout_settings_motor.addWidget(self.label_settings_gear_1, line, 0)
+        self.spin_settings_gear_1.setRange(1, 200)
+        self.grid_layout_settings_motor.addWidget(self.spin_settings_gear_1, line, 1)
         line += 1
-        self.grid_layout_settings_motor.addWidget(self.label_settings_gear_2, line, 0, 1, 1)
-        self.spin_settings_gear_2.setMinimum(1)
-        self.spin_settings_gear_2.setMaximum(200)
-        self.grid_layout_settings_motor.addWidget(self.spin_settings_gear_2, line, 1, 1, 1)
+        self.grid_layout_settings_motor.addWidget(self.label_settings_gear_2, line, 0)
+        self.spin_settings_gear_2.setRange(1, 200)
+        self.grid_layout_settings_motor.addWidget(self.spin_settings_gear_2, line, 1)
         line += 1
         self.grid_layout_settings_motor.addWidget(self.button_move_90degrees, line, 0, 1, 3)
         line += 1
@@ -351,36 +361,52 @@ class App(QMainWindow):
         line += 1
         self.grid_layout_settings_motor.addWidget(self.button_move_360degrees_left, line, 0, 1, 3)
         self.grid_layout_settings_motor.setColumnStretch(0, 1)
-        self.grid_layout_settings.addWidget(self.group_settings_motor, 0, 0, 1, 2)
+        self.grid_layout_settings.addWidget(self.group_settings_motor, 0, 0)
 
-        self.grid_layout_settings.addWidget(self.label_channels, 2, 0, 1, 1)
+        self.grid_layout_settings_measurement.addWidget(self.label_channels, 2, 0)
         self.spin_channels.setMinimum(1)
         self.spin_channels.setMaximum(8)
-        self.grid_layout_settings.addWidget(self.spin_channels, 2, 1, 1, 1)
+        self.grid_layout_settings_measurement.addWidget(self.spin_channels, 2, 1)
 
-        self.grid_layout_settings.addWidget(self.label_measurement_delay, 3, 0, 1, 1)
+        self.grid_layout_settings_measurement.addWidget(self.label_measurement_delay, 3, 0)
         self.spin_measurement_delay.setRange(0, 86400)
         self.spin_measurement_delay.setDecimals(1)
-        self.spin_measurement_delay.setSuffix(' s')
         self.spin_measurement_delay.setSingleStep(1)
-        self.grid_layout_settings.addWidget(self.spin_measurement_delay, 3, 1, 1, 1)
+        self.grid_layout_settings_measurement.addWidget(self.spin_measurement_delay, 3, 1)
+        self.grid_layout_settings_measurement.setColumnStretch(0, 1)
+        self.grid_layout_settings.addWidget(self.group_settings_measurement, 1, 0)
 
-        self.grid_layout_settings.addWidget(self.label_bb_angle, 4, 0, 1, 1)
+        self.grid_layout_settings_angles.addWidget(self.label_bb_angle, 4, 0)
         self.spin_bb_angle.setRange(-180, 180)
         self.spin_bb_angle.setDecimals(1)
         self.spin_bb_angle.setSuffix('°')
         self.spin_bb_angle.setSingleStep(1)
-        self.grid_layout_settings.addWidget(self.spin_bb_angle, 4, 1, 1, 1)
+        self.grid_layout_settings_angles.addWidget(self.spin_bb_angle, 4, 1)
 
-        self.grid_layout_settings.setColumnStretch(0, 1)
+        self.grid_layout_settings_angles.addWidget(self.label_max_angle, 5, 0)
+        self.spin_max_angle.setRange(-180, 180)
+        self.spin_max_angle.setDecimals(1)
+        self.spin_max_angle.setSuffix('°')
+        self.spin_max_angle.setSingleStep(1)
+        self.grid_layout_settings_angles.addWidget(self.spin_max_angle, 5, 1)
+
+        self.grid_layout_settings_angles.addWidget(self.label_min_angle, 6, 0)
+        self.spin_min_angle.setRange(-180, 180)
+        self.spin_min_angle.setDecimals(1)
+        self.spin_min_angle.setSuffix('°')
+        self.spin_min_angle.setSingleStep(1)
+        self.grid_layout_settings_angles.addWidget(self.spin_min_angle, 6, 1)
+        self.grid_layout_settings_angles.setColumnStretch(0, 1)
+        self.grid_layout_settings.addWidget(self.group_settings_angles, 2, 0)
+
         self.tab_widget.addTab(self.tab_settings, "")
 
-        self.gridLayout.addWidget(self.tab_widget, 0, 1, 1, 1)
+        self.gridLayout.addWidget(self.tab_widget, 0, 1)
 
         self.figure.tight_layout()
         self.vertical_layout_plot.addWidget(self.toolbar)
         self.vertical_layout_plot.addWidget(self.canvas)
-        self.gridLayout.addWidget(self.plot_frame, 0, 0, 1, 1)
+        self.gridLayout.addWidget(self.plot_frame, 0, 0)
         self.gridLayout.setColumnStretch(0, 1)
 
         main_window.setCentralWidget(self.central_widget)
@@ -407,10 +433,10 @@ class App(QMainWindow):
         item.setText(_translate("MainWindow", "Angle"))
         item = self.table_schedule.horizontalHeaderItem(2)
         item.setText(_translate("MainWindow", "Delay"))
-        self.button_schedule_action_add.setText(_translate("MainWindow", "Add"))
-        self.button_schedule_action_remove.setText(_translate("MainWindow", "Remove"))
-        self.button_schedule_action_up.setText(_translate("MainWindow", "Move Up"))
-        self.button_schedule_action_down.setText(_translate("MainWindow", "Move Down"))
+        self.button_schedule_action_add.setText(_translate("MainWindow", "+"))
+        self.button_schedule_action_remove.setText(_translate("MainWindow", "−"))
+        self.button_schedule_action_up.setText(_translate("MainWindow", "↑"))
+        self.button_schedule_action_down.setText(_translate("MainWindow", "↓"))
         self.button_power.setText(_translate("MainWindow", "Power ON"))
         self.button_go.setText(_translate("MainWindow", "Go"))
         self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab_main), _translate("MainWindow", "Main"))
@@ -423,9 +449,14 @@ class App(QMainWindow):
         self.button_move_90degrees.setText(_translate("MainWindow", "Move 90° counter-clockwise"))
         self.button_move_360degrees_right.setText(_translate("MainWindow", "Move 360° counter-clockwise"))
         self.button_move_360degrees_left.setText(_translate("MainWindow", "Move 360° clockwise"))
+        self.group_settings_measurement.setTitle(_translate("MainWindow", "Measurement"))
         self.label_channels.setText(_translate("MainWindow", "Number of ADC Channels") + ':')
         self.label_measurement_delay.setText(_translate("MainWindow", "Delay Before Measuring") + ':')
+        self.spin_measurement_delay.setSuffix(_translate("MainWindow", ' s'))
+        self.group_settings_angles.setTitle(_translate("MainWindow", "Angles"))
         self.label_bb_angle.setText(_translate("MainWindow", "Black Body Position") + ':')
+        self.label_max_angle.setText(_translate("MainWindow", "Zenith Position") + ':')
+        self.label_min_angle.setText(_translate("MainWindow", "Horizon Position") + ':')
 
         self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab_settings), _translate("MainWindow", "Settings"))
 
@@ -491,6 +522,8 @@ class App(QMainWindow):
         self.spin_settings_gear_2.setValue(self.get_config_value('motor', 'gear 2 size', 98, int))
         self.spin_measurement_delay.setValue(self.get_config_value('settings', 'delay before measuring', 8, float))
         self.spin_bb_angle.setValue(self.get_config_value('settings', 'black body position', 0, float))
+        self.spin_max_angle.setValue(self.get_config_value('settings', 'zenith position', 90, float))
+        self.spin_min_angle.setValue(self.get_config_value('settings', 'horizon position', 15, float))
         _v = self.get_config_value('settings', 'number of channels', 1, int)
         # check_states = [to_bool(b) for b in self.get_config_value('settings', 'absorption channels', '', str).split()]
         self.spin_channels.setValue(_v)
@@ -616,7 +649,8 @@ class App(QMainWindow):
         for i in rows_to_be_removed[::-1]:
             self.table_schedule.removeRow(i)
         self.button_go.setEnabled(bool(self.table_schedule.rowCount() > 0 and self.button_power.isChecked()))
-        self._current_row -= np.count_nonzero(np.array(rows_to_be_removed) < self._current_row)
+        if self._current_row is not None:
+            self._current_row -= np.count_nonzero(np.array(rows_to_be_removed) < self._current_row)
         self.highlight_current_row()
         return
 
@@ -683,7 +717,8 @@ class App(QMainWindow):
             self.table_schedule.setRangeSelected(QTableWidgetSelectionRange(r - 1, 0, r - 1,
                                                                             self.table_schedule.columnCount() - 1),
                                                  True)
-        self._current_row -= current_row_shift
+        if self._current_row is not None:
+            self._current_row -= current_row_shift
         self.highlight_current_row()
         return
 
@@ -702,7 +737,8 @@ class App(QMainWindow):
             self.table_schedule.setRangeSelected(QTableWidgetSelectionRange(r + 1, 0, r + 1,
                                                                             self.table_schedule.columnCount() - 1),
                                                  True)
-        self._current_row += current_row_shift
+        if self._current_row is not None:
+            self._current_row += current_row_shift
         self.highlight_current_row()
         return
 
@@ -764,16 +800,17 @@ class App(QMainWindow):
             if self._current_row >= next_row and not ignore_home:
                 max_angle = None
                 min_angle = None
-                zero_angle = None
+                distance_to_bb_angle = None
                 bb_angle = self.spin_bb_angle.value()
                 closest_to_bb_angle = None
                 for angle in self.last_loop_data:
-                    if angle > 15 and (max_angle is None or max_angle < angle):
+                    if abs(angle - bb_angle) > 5 and (max_angle is None or max_angle < angle):
                         max_angle = angle
-                    if angle > 15 and (min_angle is None or min_angle > angle):
+                    if abs(angle - bb_angle) > 5 and (min_angle is None or min_angle > angle):
                         min_angle = angle
-                    if abs(angle - bb_angle) < 5 and (zero_angle is None or zero_angle > abs(angle - bb_angle)):
-                        zero_angle = abs(angle - bb_angle)
+                    if abs(angle - bb_angle) < 5 and (distance_to_bb_angle is None
+                                                      or distance_to_bb_angle > abs(angle - bb_angle)):
+                        distance_to_bb_angle = abs(angle - bb_angle)
                         closest_to_bb_angle = angle
                 if closest_to_bb_angle is not None and max_angle != min_angle:
                     for ch in range(len(self.last_loop_data[closest_to_bb_angle])):
@@ -984,6 +1021,12 @@ class App(QMainWindow):
 
     def spin_bb_angle_changed(self, new_value):
         self.set_config_value('settings', 'black body position', new_value)
+
+    def spin_max_angle_changed(self, new_value):
+        self.set_config_value('settings', 'zenith position', new_value)
+
+    def spin_min_angle_changed(self, new_value):
+        self.set_config_value('settings', 'horizon position', new_value)
 
 
 if __name__ == '__main__':

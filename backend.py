@@ -26,7 +26,7 @@ except ImportError:
 
 
 class Plot(Thread):
-    def __init__(self, serial_device, microstepping_mode, speed, adc_channels, *,
+    def __init__(self, *, serial_device, microstepping_mode, speed, adc_channels,
                  figure,
                  measurement_delay=0, init_angle=0, output_folder=os.path.curdir,
                  results_file_prefix=None, ratio=1.0):
@@ -43,8 +43,8 @@ class Plot(Thread):
         self._plot.format_coord = lambda x, y: f'voltage = {y:.3f} V'
         self._plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self._plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
-        self._plot_data = [self._plot.plot_date(np.empty(0), np.empty(0), label=f'channel {ch + 1}')[0]
-                           for ch in range(len(adc_channels))]
+        self._plot_lines = [self._plot.plot_date(np.empty(0), np.empty(0), label=f'channel {ch + 1}')[0]
+                            for ch in range(len(adc_channels))]
         self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for legline in self._plot_legend.get_lines():
             legline.set_picker(5)
@@ -57,8 +57,8 @@ class Plot(Thread):
         self._τ_plot.set_ylabel('τ')
         self._τ_plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self._τ_plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
-        self._τ_plot_data = [self._τ_plot.plot_date(np.empty(0), np.empty(0), label=f'channel {ch + 1}', ls='-')[0]
-                             for ch in range(len(adc_channels))]
+        self._τ_plot_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0), label=f'channel {ch + 1}', ls='-')[0]
+                              for ch in range(len(adc_channels))]
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for legline in self._τ_plot_legend.get_lines():
             legline.set_picker(5)
@@ -71,7 +71,7 @@ class Plot(Thread):
         self._wind_plot.set_ylabel('Wind')
         self._τ_plot.format_coord = lambda x, y: 'τ = {:.3f}\nwind speed = {:.3f}'.format(
             y, self._wind_plot.transData.inverted().transform(self._τ_plot.transData.transform((x, y)))[-1])
-        self._wind_plot_data, = self._wind_plot.plot_date(np.empty(0), np.empty(0), 'k:')
+        self._wind_plot_line, = self._wind_plot.plot_date(np.empty(0), np.empty(0), 'k:')
 
         def on_pick(event):
             # on the pick event, find the orig line corresponding to the
@@ -79,16 +79,16 @@ class Plot(Thread):
             _legline = event.artist
             if _legline in self._plot_legend.get_lines():
                 _legend = '_plot_legend'
-                _data = '_plot_data'
+                _lines = '_plot_lines'
                 _axes = '_plot'
             elif _legline in self._τ_plot_legend.get_lines():
                 _legend = '_τ_plot_legend'
-                _data = '_τ_plot_data'
+                _lines = '_τ_plot_lines'
                 _axes = '_τ_plot'
             else:
                 return
             _index = getattr(self, _legend).get_lines().index(_legline)
-            _origline = getattr(self, _data)[_index]
+            _origline = getattr(self, _lines)[_index]
             vis = not _origline.get_visible()
             if vis:
                 _alpha = 1.0
@@ -302,7 +302,7 @@ class Plot(Thread):
             self._wind_y = np.concatenate((self._wind_y,
                                            np.array([weather_data['AvgWindSpeed']
                                                      * np.cos(np.radians(weather_data['WindDir']))])))
-            self._wind_plot_data.set_data(self._wind_x, self._wind_y)
+            self._wind_plot_line.set_data(self._wind_x, self._wind_y)
             self._wind_plot.relim(visible_only=True)
             # follow the autoscale settings of self._τ_plot
             self._wind_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), True)
@@ -321,7 +321,7 @@ class Plot(Thread):
                     print(self._x)
                     print(self._y[ch])
                 else:
-                    self._plot_data[ch].set_data(self._x, self._y[ch])
+                    self._plot_lines[ch].set_data(self._x, self._y[ch])
                     self._plot.relim(visible_only=True)
                     # self._plot.autoscale_view(None, self._plot.get_autoscalex_on(), self._plot.get_autoscaley_on())
                     self._plot.autoscale()
@@ -333,21 +333,21 @@ class Plot(Thread):
         self._is_running = False
         self._measured = True
 
-    def purge_obsolete_data(self, purge_all=False):
-        current_time = date2num(datetime.now())
-        time_span = 1.0
-        not_obsolete = (current_time - self._x <= time_span)
+    def purge_obsolete_data(self, purge_all: bool = False):
+        current_time: float = date2num(datetime.now())
+        time_span: float = 1.0
+        not_obsolete: np.ndarray = (current_time - self._x <= time_span)
         self._x = self._x[not_obsolete]
         self._y = [self._y[ch][not_obsolete] for ch in range(len(self._y))]
         if self._x.size > 0 and self._x[0] > np.mean(self._plot.get_xlim()):
             self._plot.set_autoscalex_on(True)
         for ch in range(len(self._τx)):
-            not_obsolete = (current_time - self._τx[ch] <= time_span)
+            not_obsolete: np.ndarray = (current_time - self._τx[ch] <= time_span)
             self._τx[ch] = self._τx[ch][not_obsolete]
             self._τy[ch] = self._τy[ch][not_obsolete]
             if self._τx[ch].size > 0 and self._τx[ch][0] > np.mean(self._τ_plot.get_xlim()):
                 self._τ_plot.set_autoscalex_on(True)
-        not_obsolete = (current_time - self._wind_x <= time_span)
+        not_obsolete: np.ndarray = (current_time - self._wind_x <= time_span)
         self._wind_x = self._wind_x[not_obsolete]
         self._wind_y = self._wind_y[not_obsolete]
         if self._wind_x.size > 0 and self._wind_x[0] > np.mean(self._wind_plot.get_xlim()):
@@ -366,7 +366,7 @@ class Plot(Thread):
         self._τx[channel] = np.concatenate((self._τx[channel], np.array([current_time])))
         self._τy[channel] = np.concatenate((self._τy[channel], np.array([τ])))
         for ch in range(len(self._τy)):
-            self._τ_plot_data[ch].set_data(self._τx[ch], self._τy[ch])
+            self._τ_plot_lines[ch].set_data(self._τx[ch], self._τy[ch])
         self._τ_plot.relim(visible_only=True)
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
