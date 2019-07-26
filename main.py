@@ -798,28 +798,38 @@ class App(QMainWindow):
                 return
             # print(ignore_home, next_row)
             if self._current_row >= next_row and not ignore_home:
-                max_angle = None
-                min_angle = None
+                max_angle = self.spin_max_angle.value()
+                min_angle = self.spin_min_angle.value()
+                distance_to_max_angle = None
+                distance_to_min_angle = None
                 distance_to_bb_angle = None
                 bb_angle = self.spin_bb_angle.value()
                 closest_to_bb_angle = None
+                closest_to_max_angle = None
+                closest_to_min_angle = None
                 for angle in self.last_loop_data:
-                    if abs(angle - bb_angle) > 5 and (max_angle is None or max_angle < angle):
-                        max_angle = angle
-                    if abs(angle - bb_angle) > 5 and (min_angle is None or min_angle > angle):
-                        min_angle = angle
+                    if abs(angle - max_angle) < 5 and (distance_to_max_angle is None
+                                                       or distance_to_max_angle > abs(angle - max_angle)):
+                        distance_to_max_angle = abs(angle - max_angle)
+                        closest_to_max_angle = angle
+                    if abs(angle - min_angle) < 5 and (distance_to_min_angle is None
+                                                       or distance_to_min_angle > abs(angle - min_angle)):
+                        distance_to_min_angle = abs(angle - min_angle)
+                        closest_to_min_angle = angle
                     if abs(angle - bb_angle) < 5 and (distance_to_bb_angle is None
                                                       or distance_to_bb_angle > abs(angle - bb_angle)):
                         distance_to_bb_angle = abs(angle - bb_angle)
                         closest_to_bb_angle = angle
-                if closest_to_bb_angle is not None and max_angle != min_angle:
+                if closest_to_bb_angle is not None and closest_to_max_angle is not None \
+                        and closest_to_min_angle is not None and closest_to_max_angle != closest_to_min_angle:
                     for ch in range(len(self.last_loop_data[closest_to_bb_angle])):
                         try:
                             τ = np.log((self.last_loop_data[closest_to_bb_angle][ch] -
-                                        self.last_loop_data[max_angle][ch]) /
+                                        self.last_loop_data[closest_to_max_angle][ch]) /
                                        (self.last_loop_data[closest_to_bb_angle][ch] -
-                                        self.last_loop_data[min_angle][ch])) / \
-                                (1.0 / np.sin(np.radians(min_angle)) - 1.0 / np.sin(np.radians(max_angle)))
+                                        self.last_loop_data[closest_to_min_angle][ch])) / \
+                                (1.0 / np.sin(np.radians(closest_to_min_angle))
+                                 - 1.0 / np.sin(np.radians(closest_to_max_angle)))
                         except (ValueError, TypeError):
                             print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
                                 d0=self.last_loop_data[closest_to_bb_angle][ch],
