@@ -10,26 +10,27 @@ class MicrosteppingMode:
     HALF = 2
     QUARTER = 4
     TINY = 16
-    UNDEFINED = 0
-
-    def __getitem__(self, item):
-        return list(self.__dict__.items())[item][1]
 
     def __iter__(self):
         for key, value in self.__dict__.items():
             if not key.startswith('__') and not key.endswith('__'):
                 yield value
 
-    def __new__(cls, mode=0):
+    def __new__(cls, *, mode=0, index=None):
         if not isinstance(mode, int):
-            raise TypeError('Invalid value: {}'.format(mode))
+            raise TypeError(f'Invalid value: {mode}')
         found = False
+        _i = 0
         for key, value in cls.__dict__.items():
-            if not key.startswith('__') and not key.endswith('__') and value == mode:
-                found = True
-                break
+            if not key.startswith('__') and not key.endswith('__'):
+                if index is not None and index == _i:
+                    return value
+                if index is None and value == mode:
+                    found = True
+                    break
+                _i += 1
         if not found:
-            raise ValueError('Mode {} not found'.format(mode))
+            raise ValueError(f'Mode {mode} not found')
         return mode
 
 

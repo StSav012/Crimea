@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+# TODO: resume the application mode after crash or an incorrect shutdown
 # TODO: replace the list of channels with a legend and place it besides the corresponding plot
 # TODO: emulate “ldevio” app with a Python script to check the re-connection when the number of the channels changes
-# TODO: resume the application mode after crash or an incorrect shutdown
 # TODO: save and load lines style
 # TODO: translate most of the stuff into Russian
 

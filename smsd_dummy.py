@@ -15,7 +15,7 @@ class MicrosteppingMode:
 
     def __new__(cls, *, mode=0, index=None):
         if not isinstance(mode, int):
-            raise TypeError('Invalid value: {}'.format(mode))
+            raise TypeError(f'Invalid value: {mode}')
         found = False
         _i = 0
         for key, value in cls.__dict__.items():
@@ -27,7 +27,7 @@ class MicrosteppingMode:
                     break
                 _i += 1
         if not found:
-            raise ValueError('Mode {} not found'.format(mode))
+            raise ValueError(f'Mode {mode} not found')
         return mode
 
 
