@@ -12,6 +12,7 @@ import numpy as np
 import os
 import sys
 import time
+import socket
 
 import matplotlib.style as mplstyle
 from PyQt5.QtCore import QCoreApplication, QMetaObject, QSettings, QTimer, Qt
@@ -1044,9 +1045,17 @@ if __name__ == '__main__':
     ap.add_argument('--no-gui', help='run without graphical interface', action='store_true', default=False)
     args = ap.parse_args()
 
-    if not args.no_gui:
-        make_desktop_launcher()
-        app = QApplication(sys.argv)
-        window = App()
-        window.show()
-        app.exec_()
+    # https://stackoverflow.com/a/7758075/8554611
+    # Without holding a reference to our socket somewhere it gets garbage
+    # collected when the function exits
+    _lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    try:
+        _lock_socket.bind('\0' + __file__)
+        if not args.no_gui:
+            make_desktop_launcher()
+            app = QApplication(sys.argv)
+            window = App()
+            window.show()
+            app.exec_()
+    except socket.error:
+        print(f'{__file__} is already running')
