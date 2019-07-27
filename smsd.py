@@ -42,7 +42,7 @@ class Motor(Thread):
         self._ser_device = device
         self._ser_banned = ()
         self._communicating = False
-        self.MICROSTEPPING_MODE = MicrosteppingMode(1)
+        self.MICROSTEPPING_MODE = MicrosteppingMode.SINGLE
         self.set_microstepping_mode(microstepping_mode)
         self.abort = False
         self._gear_ratio = gear_ratio
@@ -58,7 +58,7 @@ class Motor(Thread):
         return int(v)
 
     def set_microstepping_mode(self, new_mode):
-        self.MICROSTEPPING_MODE = MicrosteppingMode(new_mode)
+        self.MICROSTEPPING_MODE = MicrosteppingMode(mode=new_mode)
 
     def time_to_turn(self, angle):
         if self._speed:
@@ -137,7 +137,7 @@ class Motor(Thread):
                     c = c[1:] + self._ser.read(1)
                 self._ser.flush()
                 self._communicating = False
-            except:
+            except (IOError, serial.SerialException, serial.SerialTimeoutException, UnicodeEncodeError):
                 self._communicating = False
                 continue
             if len(c) == 0:
