@@ -824,6 +824,7 @@ class App(QMainWindow):
                 if closest_to_bb_angle is not None and closest_to_max_angle is not None \
                         and closest_to_min_angle is not None and closest_to_max_angle != closest_to_min_angle:
                     for ch in range(len(self.last_loop_data[closest_to_bb_angle])):
+                        np.seterr(invalid='raise', divide='raise')
                         try:
                             τ = np.log((self.last_loop_data[closest_to_bb_angle][ch] -
                                         self.last_loop_data[closest_to_max_angle][ch]) /
@@ -831,15 +832,17 @@ class App(QMainWindow):
                                         self.last_loop_data[closest_to_min_angle][ch])) / \
                                 (1.0 / np.sin(np.radians(closest_to_min_angle))
                                  - 1.0 / np.sin(np.radians(closest_to_max_angle)))
-                        except (ValueError, TypeError):
+                        except FloatingPointError:
                             print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
                                 d0=self.last_loop_data[closest_to_bb_angle][ch],
-                                d1=self.last_loop_data[max_angle][ch],
-                                d2=self.last_loop_data[min_angle][ch],
-                                h1=90 - min_angle,
-                                h2=90 - max_angle))
+                                d1=self.last_loop_data[closest_to_max_angle][ch],
+                                d2=self.last_loop_data[closest_to_min_angle][ch],
+                                h1=90 - closest_to_min_angle,
+                                h2=90 - closest_to_max_angle))
                         else:
                             self.plot.add_τ(ch, τ)
+                        finally:
+                            np.seterr(invalid='warn', divide='warn')
                 self.last_loop_data = {}
                 self.canvas.draw_idle()
                 # FIXME: for some reason, the fallback parameter is None even if set

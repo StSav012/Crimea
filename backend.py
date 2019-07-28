@@ -65,6 +65,7 @@ class Plot(Thread):
 
         self._wind_plot = self._τ_plot.twinx()
         self._wind_plot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        self._wind_plot.set_navigate(False)
         self._τ_plot.set_zorder(self._wind_plot.get_zorder() + 1)
         self._τ_plot.patch.set_visible(False)
         self._wind_plot.patch.set_visible(True)
