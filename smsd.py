@@ -35,7 +35,7 @@ class MicrosteppingMode:
 
 
 class Motor(Thread):
-    def __init__(self, device, microstepping_mode=MicrosteppingMode.SINGLE, speed=90, gear_ratio=1.):
+    def __init__(self, device, microstepping_mode=MicrosteppingMode.SINGLE, speed=90, ratio=1.):
         Thread.__init__(self)
         self.daemon = True
         self._ser = serial.Serial()
@@ -45,7 +45,7 @@ class Motor(Thread):
         self.MICROSTEPPING_MODE = MicrosteppingMode.SINGLE
         self.set_microstepping_mode(microstepping_mode)
         self.abort = False
-        self._gear_ratio = gear_ratio
+        self._gear_ratio = ratio
         self._speed = self.degrees_to_steps(speed)
 
     def steps_to_degrees(self, steps):
