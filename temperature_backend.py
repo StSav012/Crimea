@@ -20,7 +20,8 @@ class Dallas18B20(Thread):
         self._communicating = False
         ports = serial.tools.list_ports.comports()
         for port in ports:
-            if port.pid == 0x0042 and port.vid == 0x2341:
+            if (port.pid == 0x7523 and port.vid == 0x1a86) \
+                    or (port.pid == 0x0042 and port.vid == 0x2341):
                 self._ser.port = port.device
                 self._ser.baudrate = 9600
                 self._ser.parity = serial.PARITY_NONE
@@ -86,7 +87,10 @@ class Dallas18B20(Thread):
     def _get_temperatures(self):
         resp = self.read_text('R')
         if resp is not None:
-            return list(map(float, resp.split(',')))
+            try:
+                return list(map(float, resp.split(',')))
+            except (ValueError, UnicodeEncodeError):
+                return []
         return []
 
     def _get_states(self):
