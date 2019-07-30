@@ -69,7 +69,10 @@ class Dallas18B20(Thread):
 #                print('written', msg.encode('ascii'))
                 self._sio.flush()
 #                print('reading...')
-                resp = [l.strip() for l in self._sio.readlines()]
+                try:
+                    resp = [l.strip() for l in self._sio.readlines()]
+                except UnicodeDecodeError:
+                    resp = []
                 self._sio.flush()
                 self._communicating = False
             except (serial.SerialException, TypeError):
@@ -89,7 +92,7 @@ class Dallas18B20(Thread):
         if resp is not None:
             try:
                 return list(map(float, resp.split(',')))
-            except (ValueError, UnicodeEncodeError):
+            except ValueError:
                 return []
         return []
 
