@@ -148,11 +148,11 @@ class Plot(Thread):
     @staticmethod
     def on_xlim_changed(axes):
         xlim = axes.get_xlim()
-        autoscale = True
         axis_min, axis_max = min(xlim), max(xlim)
         if axis_min < 1.:
             axes.set_xlim(left=1., right=axis_max if axis_max > 1. else 1.001)
             axes.set_autoscalex_on(True)
+        autoscale = axes.get_autoscalex_on()
         data_min, data_max = None, None
         for line in axes.lines:
             data = line.get_xdata()
@@ -178,6 +178,7 @@ class Plot(Thread):
                 axis_min = data_min - xmargin * span
                 axis_max = data_max + xmargin * span
                 axes.set_xlim(left=axis_min, right=axis_max, emit=False, auto=True)
+                autoscale = True
         axes.set_autoscalex_on(autoscale)
 
     # @staticmethod
@@ -324,8 +325,7 @@ class Plot(Thread):
                 else:
                     self._plot_lines[ch].set_data(self._x, self._y[ch])
                     self._plot.relim(visible_only=True)
-                    # self._plot.autoscale_view(None, self._plot.get_autoscalex_on(), self._plot.get_autoscaley_on())
-                    self._plot.autoscale()
+                    self._plot.autoscale_view(None, self._plot.get_autoscalex_on(), self._plot.get_autoscaley_on())
                     self._plot.figure.canvas.draw_idle()
             else:
                 print('empty y for channel', ch + 1)
