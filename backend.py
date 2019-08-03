@@ -7,6 +7,7 @@ import os
 import time
 from datetime import datetime
 from threading import Thread
+from typing import List, Dict, Union
 
 import numpy as np
 from matplotlib.dates import date2num
@@ -23,6 +24,10 @@ try:
     import dallas_dummy as dallas
 except ImportError:
     import dallas
+
+LINE_PROPERTIES: List[str] = ['color', 'dash_capstyle', 'dash_joinstyle', 'drawstyle', 'fillstyle', 'linestyle',
+                              'linewidth', 'marker', 'markeredgecolor', 'markeredgewidth', 'markerfacecolor',
+                              'markerfacecoloralt', 'markersize', 'markevery', 'solid_capstyle', 'solid_joinstyle']
 
 
 class Plot(Thread):
@@ -55,7 +60,7 @@ class Plot(Thread):
         self._τ_plot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         self._τ_plot.set_xlabel('Time')
         self._τ_plot.set_ylabel('τ')
-        self._τ_plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
+        # self._τ_plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self._τ_plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
         self._τ_plot_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0), label=f'channel {ch + 1}', ls='-')[0]
                               for ch in range(len(adc_channels))]
@@ -95,10 +100,6 @@ class Plot(Thread):
                 _alpha = 1.0
             else:
                 _alpha = 0.2
-            # _axes.get_legend_handles_labels()[0][_index].set_alpha(_alpha)
-            # _legline.set_markerfacecolor(ColorConverter.to_rgba(_legline.get_markerfacecolor(), alpha=_alpha))
-            # _legline.set_markeredgecolor(ColorConverter.to_rgba(_legline.get_markeredgecolor(), alpha=_alpha))
-            # _legline.set_alpha(_alpha)
             _origline.set_visible(True)
             _origline.set_alpha(_alpha)
             setattr(self, _legend, getattr(self, _axes).legend(loc='upper left', bbox_to_anchor=(1, 1)))
@@ -243,8 +244,9 @@ class Plot(Thread):
         return self._motor.time_to_turn(360)
 
     def time_to_move_home(self):
-        return self._motor.time_to_turn(self._current_angle) \
-               + self._motor.time_to_turn(360) + 2. * self._motor.time_to_turn(25)
+        return (self._motor.time_to_turn(self._current_angle)
+                + self._motor.time_to_turn(360)
+                + 2. * self._motor.time_to_turn(25))
 
     def move_home(self):
         self._motor.move(-self._current_angle)
@@ -410,7 +412,7 @@ class Plot(Thread):
                         angles_data[a['angle']] = np.mean(a['voltage'][ch])
                     angles_fields = [f'angle {a}' for a in sorted(angles_data)]
                     angles_data = dict((f'angle {i}', angles_data[i]) for i in sorted(angles_data))
-                    csv_writer = csv.DictWriter(csv_file, fieldnames=fields+angles_fields, dialect='excel-tab')
+                    csv_writer = csv.DictWriter(csv_file, fieldnames=fields + angles_fields, dialect='excel-tab')
                     if new_file:
                         csv_writer.writeheader()
                     weather = {'WindDir': -1, 'AvgWindSpeed': -1, 'OutsideHum': -1, 'OutsideTemp': -1,
@@ -432,6 +434,54 @@ class Plot(Thread):
                         weather['SolarRad'],
                     ])), **angles_data})
             self.data = []
+
+    def get_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
+        return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES)) for line in self._plot_lines]
+
+    def set_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
+        for index, line in enumerate(self._plot_lines):
+            for key, value in props[index].items():
+                attr: str = 'set_' + key
+                if hasattr(line, attr):
+                    getattr(line, attr)(value)
+
+    def get_τ_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
+        return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES)) for line in self._τ_plot_lines]
+
+    def set_τ_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
+        for index, line in enumerate(self._τ_plot_lines):
+            for key, value in props[index].items():
+                attr: str = 'set_' + key
+                if hasattr(line, attr):
+                    getattr(line, attr)(value)
+
+    def get_plot_lines_visibility(self):
+        return [line.get_visible() for line in self._plot_lines]
+
+    def set_plot_lines_visibility(self, states: List[bool]):
+        for line, vis in zip(self._plot_lines, states):
+            line.set_visible(True)
+            line.set_alpha(1.0 if vis else 0.2)
+        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        for line, vis in zip(self._plot_lines, states):
+            for _legline in self._plot_legend.get_lines():
+                _legline.set_picker(5)
+            line.set_visible(vis)
+        self._plot.figure.canvas.draw()
+
+    def get_τ_plot_lines_visibility(self):
+        return [line.get_visible() for line in self._τ_plot_lines]
+
+    def set_τ_plot_lines_visibility(self, states: List[bool]):
+        for line, vis in zip(self._τ_plot_lines, states):
+            line.set_visible(True)
+            line.set_alpha(1.0 if vis else 0.2)
+        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        for line, vis in zip(self._τ_plot_lines, states):
+            for _legline in self._τ_plot_legend.get_lines():
+                _legline.set_picker(5)
+            line.set_visible(vis)
+        self._τ_plot.figure.canvas.draw()
 
     def run(self):
         try:

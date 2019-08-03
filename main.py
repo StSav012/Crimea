@@ -1,20 +1,19 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# TODO: resume the application mode after crash or an incorrect shutdown
-# TODO: replace the list of channels with a legend and place it besides the corresponding plot
 # TODO: emulate “ldevio” app with a Python script to check the re-connection when the number of the channels changes
 # TODO: save and load lines style
 # TODO: translate most of the stuff into Russian
 
 import argparse
-import numpy as np
 import os
+import socket
 import sys
 import time
-import socket
+from typing import List, Any, Dict, Union
 
 import matplotlib.style as mplstyle
+import numpy as np
 from PyQt5.QtCore import QCoreApplication, QMetaObject, QSettings, QTimer, Qt
 from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QValidator
 from PyQt5.QtWidgets import QAbstractItemView, QApplication, QCheckBox, QDesktopWidget, QDoubleSpinBox, \
@@ -25,8 +24,6 @@ from matplotlib import rcParams as PlotParams
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, \
     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-
-from typing import Union
 
 import backend
 
@@ -91,22 +88,20 @@ def to_bool(value):
         return bool(value)
 
 
-def stringify_tuple(values, sep=' '):
+def stringify_list(values: List[Any], sep: str = ' '):
     return sep.join([str(v) if not isinstance(v, bool) else ('yes' if v else 'no') for v in values])
 
 
-def make_desktop_launcher():
-    desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
-    desktop_entry_path = os.path.join(desktop_path, 'Crimea Radiometer.desktop')
-    if not os.path.exists(desktop_entry_path):
+def make_launcher(entry_path: str):
+    if not os.path.exists(entry_path):
         try:
             import stat
-            with open(desktop_entry_path, 'w') as fout:
+            with open(entry_path, 'w') as fout:
                 fout.writelines('\n'.join([
                     '[Desktop Entry]',
-                    'Version=1.0',
+                    'Version=1.1',
                     'Name=Crimea Radiometer',
-                    'Comment=Crimea Radiometer Controller, 2018',
+                    f'Comment=Crimea Radiometer Controller, {time.localtime().tm_year}',
                     'Exec=python3 ' + os.path.abspath(__file__),
                     'Icon=' + os.path.join(os.path.split(os.path.abspath(__file__))[0], 'crimea-eng-circle.svg'),
                     'Path=' + os.path.split(os.path.abspath(__file__))[0],
@@ -114,10 +109,22 @@ def make_desktop_launcher():
                     'Type=Application',
                     'Categories=Science;',
                 ]))
-            os.chmod(desktop_entry_path, stat.S_IRUSR | stat.S_IXUSR)
-            print('created shortcut', desktop_entry_path)
-        except (ImportError, PermissionError, IOError):
-            pass
+            os.chmod(entry_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+            print('created shortcut', entry_path)
+        except (ImportError, PermissionError, IOError) as ex:
+            print(f'failed to create {entry_path}: {ex}')
+
+
+def make_desktop_launcher():
+    desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+    desktop_entry_path = os.path.join(desktop_path, 'Crimea Radiometer.desktop')
+    make_launcher(desktop_entry_path)
+
+
+def make_autostart_launcher():
+    autostart_path = os.path.join(os.path.expanduser('~'), '.config', 'autostart')
+    autostart_entry_path = os.path.join(autostart_path, 'Crimea Radiometer.desktop')
+    make_launcher(autostart_entry_path)
 
 
 class App(QMainWindow):
@@ -199,6 +206,8 @@ class App(QMainWindow):
         self.tab_widget = QTabWidget(self.central_widget)
         self.gridLayout = QGridLayout(self.central_widget)
 
+        self.resuming = self.get_config_value('common', 'power', False, bool)
+
         self.setup_ui(self)
         self.timer = QTimer()
         self.pd = QProgressDialog()
@@ -229,6 +238,7 @@ class App(QMainWindow):
                                                                      os.path.join(os.path.curdir, 'data'), str),
                                  results_file_prefix=time.strftime("%Y%m%d%H%M%S"))
         self.plot.start()
+        self.load_plot_config()
         # common
         self.tab_widget.currentChanged.connect(self.tab_widget_changed)
         # tab 1
@@ -256,7 +266,7 @@ class App(QMainWindow):
         self.spin_max_angle.valueChanged.connect(self.spin_max_angle_changed)
         self.spin_min_angle.valueChanged.connect(self.spin_min_angle_changed)
         # dirty hack: the event doesn't work directly for subplots
-        self.canvas.mpl_connect('button_press_event', lambda event: self.plot.on_click(event))
+        self.canvas.mpl_connect('button_press_event', self.plot.on_click)
         # whatever is written in the design file, “Go” button should be disabled initially
         self.button_go.setDisabled(True)
         #
@@ -474,6 +484,19 @@ class App(QMainWindow):
             close = close.exec()
 
             if close == QMessageBox.Yes:
+                self.set_config_value('settings', 'voltage channels',
+                                      stringify_list(self.plot.get_plot_lines_visibility()))
+                self.set_config_value('settings', 'absorption channels',
+                                      stringify_list(self.plot.get_τ_plot_lines_visibility()))
+                props: List[Dict[str, Union[str, float, None]]] = self.plot.get_plot_lines_styles()
+                for index, p in enumerate(props):
+                    for key, value in p.items():
+                        self.set_config_value('settings', f'voltage line {index} {key}', value)
+                props: List[Dict[str, Union[str, float, None]]] = self.plot.get_τ_plot_lines_styles()
+                for index, p in enumerate(props):
+                    for key, value in p.items():
+                        self.set_config_value('settings', f'absorption line {index} {key}', value)
+
                 self.set_config_value('common', 'power', False)
                 self.table_schedule_changed(None)
                 self.settings.setValue("windowGeometry", self.saveGeometry())
@@ -514,6 +537,7 @@ class App(QMainWindow):
                 cells = row.split()
                 cells = [f(x) for f, x in zip(conversions, cells)]
                 self.add_table_row(values=cells)
+        self.button_power.setChecked(self.resuming)
         self.button_go.setEnabled(bool(self.button_power.isChecked() and table))
         self.table_schedule_row_activated(0)
         # tab 2
@@ -525,12 +549,35 @@ class App(QMainWindow):
         self.spin_bb_angle.setValue(self.get_config_value('settings', 'black body position', 0, float))
         self.spin_max_angle.setValue(self.get_config_value('settings', 'zenith position', 90, float))
         self.spin_min_angle.setValue(self.get_config_value('settings', 'horizon position', 15, float))
-        _v = self.get_config_value('settings', 'number of channels', 1, int)
-        # check_states = [to_bool(b) for b in self.get_config_value('settings', 'absorption channels', '', str).split()]
-        self.spin_channels.setValue(_v)
-        # TODO: pass `check_states` to the Plot to make the lines visible or hidden
+        self.spin_channels.setValue(self.get_config_value('settings', 'number of channels', 1, int))
         self._loading = False
         return
+
+    def load_plot_config(self):
+        self._loading = True
+        check_states = [to_bool(b) for b in self.get_config_value('settings', 'voltage channels', '', str).split()]
+        self.plot.set_plot_lines_visibility(check_states)
+        check_states = [to_bool(b) for b in self.get_config_value('settings', 'absorption channels', '', str).split()]
+        self.plot.set_τ_plot_lines_visibility(check_states)
+        props: List[Dict[str, Union[str, float, None]]] = self.plot.get_plot_lines_styles()
+        for index, p in enumerate(props):
+            for key, value in p.items():
+                if p[key] != self.get_config_value('settings', f'voltage line {index} {key}', value, type(p[key])):
+                    print(p[key], self.get_config_value('settings', f'voltage line {index} {key}', value, type(p[key])))
+                p[key] = self.get_config_value('settings', f'voltage line {index} {key}', value, type(p[key]))
+        self.plot.set_plot_lines_styles(props)
+        props: List[Dict[str, Union[str, float, None]]] = self.plot.get_τ_plot_lines_styles()
+        for index, p in enumerate(props):
+            for key, value in p.items():
+                if p[key] != self.get_config_value('settings', f'absorption line {index} {key}', value, type(p[key])):
+                    print(p[key], self.get_config_value('settings', f'absorption line {index} {key}', value, type(p[key])))
+                p[key] = self.get_config_value('settings', f'absorption line {index} {key}', value, type(p[key]))
+        self.plot.set_τ_plot_lines_styles(props)
+        # FIXME: line color does not get saved
+        # FIXME: legend is not updated
+        self.canvas.draw()
+        self._loading = False
+        self.button_power_toggled(self.resuming)
 
     def get_config_value(self, section, key, default, _type):
         if section not in self.settings.childGroups():
@@ -556,17 +603,17 @@ class App(QMainWindow):
         header = 'enabled angle delay'
         lines = [header]
         for r in range(self.table_schedule.rowCount()):
-            values = ()
+            values = []
             w = self.table_schedule.cellWidget(r, 0)
             if w is not None:
                 w2 = w.findChild(QCheckBox, '', Qt.FindDirectChildrenOnly)
                 if w2 is not None:
-                    values += (w2.checkState() == Qt.Checked,)
+                    values.append(w2.checkState() == Qt.Checked)
                     for c in range(1, self.table_schedule.columnCount()):
                         w1 = self.table_schedule.cellWidget(r, c)
                         if w1 is not None:
-                            values += (w1.value(),)
-            lines += [stringify_tuple(values)]
+                            values.append(w1.value())
+            lines += [stringify_list(values)]
         return os.linesep.join(lines), len(header.splitlines())
 
     def tab_widget_changed(self, index):
@@ -845,19 +892,20 @@ class App(QMainWindow):
                             np.seterr(invalid='warn', divide='warn')
                 self.last_loop_data = {}
                 self.canvas.draw_idle()
-                # FIXME: for some reason, the fallback parameter is None even if set
-                # self.pd.setMaximum(1000 * (self.plot._motor.time_to_move_home()))
-                # self.pd.setLabelText('Wait till the motor comes home')
-                # self.pd.reset()
-                # try:
-                #     self.timer.timeout.disconnect()
-                # except TypeError:
-                #     pass
-                # self.timer.timeout.connect(lambda: self.next_pd_tick(
-                #     fallback=lambda: self.measure_next(ignore_home=True)))
-                # self.timer.setSingleShot(True)
-                # self.timer.start(100)       # don't use QTimer.singleShot here to be able to stop the timer later!!
+
+                self.pd.setMaximum(1000 * self.plot.time_to_move_home())
+                self.pd.setLabelText('Wait till the motor comes home')
+                self.pd.reset()
+                try:
+                    self.timer.timeout.disconnect()
+                except TypeError:
+                    pass
+                self.timer.timeout.connect(lambda: self.next_pd_tick(
+                    fallback=lambda: self.measure_next(ignore_home=True)))
+                self.timer.setSingleShot(True)
+                self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
                 # self.plot.enable_motor(True, new_thread=True)
+
                 self.plot.move_home()
                 self.plot.pack_data()
                 self.plot.purge_obsolete_data(purge_all=True)
@@ -909,6 +957,7 @@ class App(QMainWindow):
             self.plot.set_running(False)
             self.highlight_current_row(False)
         self.set_config_value('common', 'running', new_value)
+        self.resuming = False
         return
 
     def next_pd_tick(self, fallback=None):
@@ -919,7 +968,10 @@ class App(QMainWindow):
                 self.timer.timeout.disconnect()
             except TypeError:
                 pass
-            self.timer.timeout.connect(self.next_pd_tick)
+            if fallback is not None:
+                self.timer.timeout.connect(lambda: self.next_pd_tick(fallback=fallback))
+            else:
+                self.timer.timeout.connect(self.next_pd_tick)
             self.timer.setSingleShot(True)
             self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
         else:
@@ -927,11 +979,11 @@ class App(QMainWindow):
             if fallback is not None:
                 fallback()
 
-    def button_power_toggled(self, new_value):
-        if not new_value:
+    def button_power_toggled(self, new_state):
+        if not new_state:
             self.button_go.setChecked(False)
         self.button_power.setDisabled(True)
-        if new_value:
+        if new_state:
             self.pd.setMaximum(1000 * (self.plot.time_to_move_home()))
             self.pd.setLabelText('Wait till the motor comes home')
             self.pd.reset()
@@ -939,12 +991,15 @@ class App(QMainWindow):
                 self.timer.timeout.disconnect()
             except TypeError:
                 pass
-            self.timer.timeout.connect(self.next_pd_tick)
+            self.timer.timeout.connect(lambda: self.next_pd_tick(
+                fallback=lambda: self.button_go.setEnabled(new_state) or self.button_go.setChecked(
+                    new_state and self.resuming)
+            ))
             self.timer.setSingleShot(True)
             self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
-        self.plot.enable_motor(new_value, new_thread=new_value)
+        self.plot.enable_motor(new_state, new_thread=new_state)
         self.button_power.setEnabled(True)
-        self.button_go.setEnabled(new_value)
+        self.set_config_value('common', 'power', new_state)
         return
 
     def step_fraction_changed(self, new_value):
