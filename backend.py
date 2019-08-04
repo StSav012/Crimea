@@ -10,7 +10,11 @@ from threading import Thread
 from typing import List, Dict, Union
 
 import numpy as np
+from PyQt5.QtWidgets import QMessageBox, QInputDialog
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.dates import date2num
+
+import figureoptions
 
 try:
     import smsd_dummy as smsd
@@ -30,6 +34,34 @@ LINE_PROPERTIES: List[str] = ['color', 'dash_capstyle', 'dash_joinstyle', 'draws
                               'markerfacecoloralt', 'markersize', 'markevery', 'solid_capstyle', 'solid_joinstyle']
 
 
+class NavigationToolbar(NavigationToolbar2QT):
+    def edit_parameters(self):
+        axes = self.canvas.figure.get_axes()
+        if not axes:
+            QMessageBox.warning(self.parent, "Error", "There are no axes to edit.")
+            return
+        elif len(axes) == 1:
+            ax, = axes
+        else:
+            titles = [
+                ax.get_label() or
+                ax.get_title() or
+                " - ".join(filter(None, [ax.get_xlabel(), ax.get_ylabel()])) or
+                f"<anonymous {type(ax).__name__}>"
+                for ax in axes]
+            duplicate_titles = [
+                title for title in titles if titles.count(title) > 1]
+            for i, ax in enumerate(axes):
+                if titles[i] in duplicate_titles:
+                    titles[i] += f" (id: {id(ax):#x})"  # Deduplicate titles.
+            item, ok = QInputDialog.getItem(
+                self.parent, 'Customize', 'Select axes:', titles, 0, False)
+            if not ok:
+                return
+            ax = axes[titles.index(item)]
+        figureoptions.figure_edit(ax, self)
+
+
 class Plot(Thread):
     def __init__(self, *, serial_device, microstepping_mode, speed, adc_channels,
                  figure,
@@ -38,12 +70,15 @@ class Plot(Thread):
         Thread.__init__(self)
         self.daemon = True
 
+        self._figure = figure
+
         self._plot = figure.add_subplot(2, 1, 1)
         self._plot.autoscale()
         box = self._plot.get_position()
         self._plot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         self._plot.set_xlabel('Time')
         self._plot.set_ylabel('Voltage [V]')
+        self._plot.set_label('Voltage')
         self._plot.set_autoscale_on(True)
         self._plot.format_coord = lambda x, y: f'voltage = {y:.3f} V'
         self._plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
@@ -60,6 +95,7 @@ class Plot(Thread):
         self._τ_plot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         self._τ_plot.set_xlabel('Time')
         self._τ_plot.set_ylabel('τ')
+        self._τ_plot.set_label('Absorption')
         # self._τ_plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self._τ_plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
         self._τ_plot_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0), label=f'channel {ch + 1}', ls='-')[0]
@@ -75,6 +111,7 @@ class Plot(Thread):
         self._τ_plot.patch.set_visible(False)
         self._wind_plot.patch.set_visible(True)
         self._wind_plot.set_ylabel('Wind')
+        self._wind_plot.set_label('Wind')
         self._τ_plot.format_coord = lambda x, y: 'τ = {:.3f}\nwind speed = {:.3f}'.format(
             y, self._wind_plot.transData.inverted().transform(self._τ_plot.transData.transform((x, y)))[-1])
         self._wind_plot_line, = self._wind_plot.plot_date(np.empty(0), np.empty(0), 'k:')
@@ -435,6 +472,22 @@ class Plot(Thread):
                     ])), **angles_data})
             self.data = []
 
+    def update_plot_legend(self):
+        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        for _legline in self._plot_legend.get_lines():
+            _legline.set_picker(5)
+        self._plot.figure.canvas.draw()
+
+    def update_τ_plot_legend(self):
+        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        for _legline in self._τ_plot_legend.get_lines():
+            _legline.set_picker(5)
+        self._τ_plot.figure.canvas.draw()
+
+    def update_legends(self):
+        self.update_plot_legend()
+        self.update_τ_plot_legend()
+
     def get_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
         return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES)) for line in self._plot_lines]
 
@@ -444,6 +497,7 @@ class Plot(Thread):
                 attr: str = 'set_' + key
                 if hasattr(line, attr):
                     getattr(line, attr)(value)
+        self.update_plot_legend()
 
     def get_τ_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
         return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES)) for line in self._τ_plot_lines]
@@ -454,6 +508,7 @@ class Plot(Thread):
                 attr: str = 'set_' + key
                 if hasattr(line, attr):
                     getattr(line, attr)(value)
+        self.update_τ_plot_legend()
 
     def get_plot_lines_visibility(self):
         return [line.get_visible() for line in self._plot_lines]
@@ -463,9 +518,9 @@ class Plot(Thread):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
         self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        for _legline in self._plot_legend.get_lines():
+            _legline.set_picker(5)
         for line, vis in zip(self._plot_lines, states):
-            for _legline in self._plot_legend.get_lines():
-                _legline.set_picker(5)
             line.set_visible(vis)
         self._plot.figure.canvas.draw()
 
@@ -477,11 +532,20 @@ class Plot(Thread):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        for _legline in self._τ_plot_legend.get_lines():
+            _legline.set_picker(5)
         for line, vis in zip(self._τ_plot_lines, states):
-            for _legline in self._τ_plot_legend.get_lines():
-                _legline.set_picker(5)
             line.set_visible(vis)
         self._τ_plot.figure.canvas.draw()
+
+    def get_subplotpars(self) -> Dict[str, float]:
+        _attrs: List[str] = ["top", "bottom", "left", "right", "hspace", "wspace"]
+        return {attr: float(vars(self._figure.subplotpars)[attr]) for attr in _attrs}
+
+    def set_subplotpars(self, pars: Dict[str, float]):
+        print(pars)
+        self._figure.subplots_adjust(**pars)
+        self._figure.canvas.draw_idle()
 
     def run(self):
         try:

@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 # TODO: emulate “ldevio” app with a Python script to check the re-connection when the number of the channels changes
-# TODO: save and load lines style
 # TODO: translate most of the stuff into Russian
 
 import argparse
@@ -10,7 +9,7 @@ import os
 import socket
 import sys
 import time
-from typing import List, Any, Dict, Union
+from typing import List, Any, Dict, Union, Tuple
 
 import matplotlib.style as mplstyle
 import numpy as np
@@ -21,8 +20,7 @@ from PyQt5.QtWidgets import QAbstractItemView, QApplication, QCheckBox, QDesktop
     QProgressDialog, QPushButton, QShortcut, QSizePolicy, QSpacerItem, QSpinBox, QTabWidget, QTableWidget, \
     QTableWidgetItem, QTableWidgetSelectionRange, QVBoxLayout, QWidget
 from matplotlib import rcParams as PlotParams
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, \
-    NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 import backend
@@ -135,7 +133,7 @@ class App(QMainWindow):
         self.central_widget = QWidget(self, flags=Qt.WindowFlags())
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.toolbar = backend.NavigationToolbar(self.canvas, self)
         self.plot_frame = QFrame(self.central_widget)
         self.vertical_layout_plot = QVBoxLayout(self.plot_frame)
 
@@ -484,19 +482,7 @@ class App(QMainWindow):
             close = close.exec()
 
             if close == QMessageBox.Yes:
-                self.set_config_value('settings', 'voltage channels',
-                                      stringify_list(self.plot.get_plot_lines_visibility()))
-                self.set_config_value('settings', 'absorption channels',
-                                      stringify_list(self.plot.get_τ_plot_lines_visibility()))
-                props: List[Dict[str, Union[str, float, None]]] = self.plot.get_plot_lines_styles()
-                for index, p in enumerate(props):
-                    for key, value in p.items():
-                        self.set_config_value('settings', f'voltage line {index} {key}', value)
-                props: List[Dict[str, Union[str, float, None]]] = self.plot.get_τ_plot_lines_styles()
-                for index, p in enumerate(props):
-                    for key, value in p.items():
-                        self.set_config_value('settings', f'absorption line {index} {key}', value)
-
+                self.save_plot_config()
                 self.set_config_value('common', 'power', False)
                 self.table_schedule_changed(None)
                 self.settings.setValue("windowGeometry", self.saveGeometry())
@@ -528,17 +514,17 @@ class App(QMainWindow):
         else:
             self.restoreState(_v)
         # tab 1
-        table = self.get_config_value('schedule', 'table', '', str)
-        if table:
+        table_text: str = self.get_config_value('schedule', 'table', '', str)
+        if table_text:
             self.table_schedule.setRowCount(0)
-            table = table.splitlines()[self.get_config_value('schedule', 'skip lines', 0, int):]
+            table: List[str] = table_text.splitlines()[self.get_config_value('schedule', 'skip lines', 0, int):]
             conversions = [to_bool, float, float]
             for row in table:
                 cells = row.split()
                 cells = [f(x) for f, x in zip(conversions, cells)]
                 self.add_table_row(values=cells)
         self.button_power.setChecked(self.resuming)
-        self.button_go.setEnabled(bool(self.button_power.isChecked() and table))
+        self.button_go.setEnabled(bool(self.button_power.isChecked() and table_text))
         self.table_schedule_row_activated(0)
         # tab 2
         self.spin_step_fraction.setValue(self.get_config_value('motor', 'step fraction', 3, int))
@@ -562,32 +548,65 @@ class App(QMainWindow):
         props: List[Dict[str, Union[str, float, None]]] = self.plot.get_plot_lines_styles()
         for index, p in enumerate(props):
             for key, value in p.items():
-                if p[key] != self.get_config_value('settings', f'voltage line {index} {key}', value, type(p[key])):
-                    print(p[key], self.get_config_value('settings', f'voltage line {index} {key}', value, type(p[key])))
-                p[key] = self.get_config_value('settings', f'voltage line {index} {key}', value, type(p[key]))
+                if 'color' in key:
+                    p[key] = self.get_config_value('settings', f'voltage line {index} {key}', value,
+                                                   Union[str, Tuple[float, ...]])
+                else:
+                    p[key] = self.get_config_value('settings', f'voltage line {index} {key}', value, type(value))
         self.plot.set_plot_lines_styles(props)
         props: List[Dict[str, Union[str, float, None]]] = self.plot.get_τ_plot_lines_styles()
         for index, p in enumerate(props):
             for key, value in p.items():
-                if p[key] != self.get_config_value('settings', f'absorption line {index} {key}', value, type(p[key])):
-                    print(p[key], self.get_config_value('settings', f'absorption line {index} {key}', value, type(p[key])))
-                p[key] = self.get_config_value('settings', f'absorption line {index} {key}', value, type(p[key]))
+                if 'color' in key:
+                    p[key] = self.get_config_value('settings', f'absorption line {index} {key}', value,
+                                                   Union[str, Tuple[float, ...]])
+                else:
+                    p[key] = self.get_config_value('settings', f'absorption line {index} {key}', value, type(value))
         self.plot.set_τ_plot_lines_styles(props)
-        # FIXME: line color does not get saved
-        # FIXME: legend is not updated
-        self.canvas.draw()
+
+        props: Dict[str, float] = self.plot.get_subplotpars()
+        for key, value in props.items():
+            props[key] = self.get_config_value('subplots', key, value, float)
+        self.plot.set_subplotpars(props)
+
         self._loading = False
         self.button_power_toggled(self.resuming)
 
-    def get_config_value(self, section, key, default, _type):
+    def save_plot_config(self):
+        self.set_config_value('settings', 'voltage channels',
+                              stringify_list(self.plot.get_plot_lines_visibility()))
+        self.set_config_value('settings', 'absorption channels',
+                              stringify_list(self.plot.get_τ_plot_lines_visibility()))
+        props: List[Dict[str, Union[str, float, None]]] = self.plot.get_plot_lines_styles()
+        for index, p in enumerate(props):
+            for key, value in p.items():
+                self.set_config_value('settings', f'voltage line {index} {key}', value)
+        props: List[Dict[str, Union[str, float, None]]] = self.plot.get_τ_plot_lines_styles()
+        for index, p in enumerate(props):
+            for key, value in p.items():
+                self.set_config_value('settings', f'absorption line {index} {key}', value)
+
+        props: Dict[str, float] = self.plot.get_subplotpars()
+        for key, value in props.items():
+            self.set_config_value('subplots', key, value)
+
+    def get_config_value(self, section, key, default, _type) -> Union[bool, int, float, str, Tuple[float, ...]]:
         if section not in self.settings.childGroups():
             return default
         self.settings.beginGroup(section)
-        # print('get', section, key)
-        try:
-            v = self.settings.value(key, default, _type)
-        except TypeError:
-            v = default
+        if _type is Union[str, Tuple[float, ...]]:
+            v = self.settings.value(key, default, str)
+            vs = v.split()
+            if len(vs) > 1:
+                v = tuple(map(float, vs))
+            # print('get', section, key, v, _type)
+        else:
+            try:
+                v = self.settings.value(key, default, _type)
+                # print('get', section, key, v, _type)
+            except TypeError:
+                v = default
+                # print('get', section, key, v, '(default)', _type)
         self.settings.endGroup()
         return v
 
@@ -596,7 +615,10 @@ class App(QMainWindow):
             return
         self.settings.beginGroup(section)
         # print('set', section, key, value, type(value))
-        self.settings.setValue(key, value)
+        if isinstance(value, tuple):
+            self.settings.setValue(key, ' '.join(map(str, value)))
+        else:
+            self.settings.setValue(key, value)
         self.settings.endGroup()
 
     def stringify_table(self):
