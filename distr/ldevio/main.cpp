@@ -218,8 +218,6 @@ static void atomic_dec(atomic_t* v)
 	AO_fetch_and_sub1(&v->counter);
 }
 
-// 0 sucess 1 error
-
 bool LCloseHandle(HANDLE hDevice)
 {
 	return close(hDevice);
@@ -241,47 +239,43 @@ bool LDeviceIoControl(HANDLE hDevice,
 	unsigned int nOutBufferSize,
 	size_t& lpBytesReturned)
 {
-	bool status = false;
 	IOCTL_BUFFER ibuf;
 	unsigned int i;
-	do {
-		if (nInBufferSize > 4096) {
-			printf("err");
-			break;
-		}
-		if (nOutBufferSize > 4096) {
-			printf("err1");
-			break;
-		}
+    if (nInBufferSize > 4096) {
+        printf("nInBufferSize > 4096");
+        return false;
+    }
+    if (nOutBufferSize > 4096) {
+        printf("nOutBufferSize > 4096");
+        return false;
+    }
 
-		memset(&ibuf, 0, sizeof(ibuf));
+    memset(&ibuf, 0, sizeof(ibuf));
 
-		if (lpOutBuffer) {
-			ibuf.outSize = nOutBufferSize;
-			for (i = 0; i < nOutBufferSize; i++) {
-				ibuf.outBuffer[i] = reinterpret_cast<unsigned char*>(lpOutBuffer)[i];
-			}
-		}
+    if (lpOutBuffer) {
+        ibuf.outSize = nOutBufferSize;
+        for (i = 0; i < nOutBufferSize; i++) {
+            ibuf.outBuffer[i] = reinterpret_cast<unsigned char*>(lpOutBuffer)[i];
+        }
+    }
 
-		if (lpInBuffer) {
-			for (i = 0; i < nInBufferSize; i++) {
-				ibuf.inBuffer[i] = reinterpret_cast<unsigned char*>(lpInBuffer)[i];
-			}
-			ibuf.inSize = nInBufferSize;
-		}
+    if (lpInBuffer) {
+        for (i = 0; i < nInBufferSize; i++) {
+            ibuf.inBuffer[i] = reinterpret_cast<unsigned char*>(lpInBuffer)[i];
+        }
+        ibuf.inSize = nInBufferSize;
+    }
 
-		if (ioctl(static_cast<int>(hDevice), dwIoControlCode, &ibuf)) {
-			break;
-		}
-		if (lpOutBuffer) {
-			for (i = 0; i < nOutBufferSize; i++) {
-				reinterpret_cast<unsigned char*>(lpOutBuffer)[i] = ibuf.outBuffer[i];
-			}
-		}
-		lpBytesReturned = ibuf.outSize;
-		status = true;
-	} while (!status);
-	return status;
+    if (ioctl(static_cast<int>(hDevice), dwIoControlCode, &ibuf)) {
+        return false;
+    }
+    if (lpOutBuffer) {
+        for (i = 0; i < nOutBufferSize; i++) {
+            reinterpret_cast<unsigned char*>(lpOutBuffer)[i] = ibuf.outBuffer[i];
+        }
+    }
+    lpBytesReturned = ibuf.outSize;
+	return true;
 }
 
 struct LUnknown {
@@ -301,16 +295,16 @@ public:
 
 	// Common functions
 	HANDLE OpenLDevice();
-	int CloseLDevice();
+	bool CloseLDevice();
 
-	unsigned int SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned short** Data, unsigned int** Sync);
-	unsigned int RequestBufferStream(unsigned int* Size); //in words
-	unsigned int FillDAQparameters(ADC_PAR* sp);
+	bool SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned short** Data, unsigned int** Sync);
+	bool RequestBufferStream(unsigned int* Size); //in words
+	bool FillDAQparameters(ADC_PAR* sp);
 
 	// two step must be
-	unsigned int InitStartLDevice();
-	unsigned int StartLDevice();
-	unsigned int StopLDevice();
+	bool InitStartLDevice();
+	bool StartLDevice();
+	bool StopLDevice();
 
 	DaqL780(unsigned int Slot)
 	{
@@ -336,12 +330,10 @@ public:
 	unsigned int GetWord_DM(unsigned short Addr, unsigned short* Data);
 	unsigned int PutWord_DM(unsigned short Addr, unsigned short Data);
 	unsigned int PutWord_PM(unsigned short Addr, unsigned int Data);
-	unsigned int GetWord_PM(unsigned short Addr, unsigned int* Data);
 
 	unsigned int GetArray_DM(unsigned short Addr, unsigned int Count, unsigned short* Data);
 	unsigned int PutArray_DM(unsigned short Addr, unsigned int Count, unsigned short* Data);
 	unsigned int PutArray_PM(unsigned short Addr, unsigned int Count, unsigned int* Data);
-	unsigned int GetArray_PM(unsigned short Addr, unsigned int Count, unsigned int* Data);
 
 	unsigned int SendCommand(unsigned short cmd);
 
@@ -350,11 +342,10 @@ public:
 
 	unsigned int EnableCorrection(unsigned short Ena);
 
-	unsigned int LoadBios(const char* FileName);
+	bool LoadBios(const char* FileName);
 
 	unsigned int ReadFlashWord(unsigned short Addr, unsigned short* Data);
 	unsigned int ReadPlataDescr(void* pd);
-	unsigned int EnableFlashWrite(unsigned short Flag);
 
 	unsigned int FillADCparameters(ADC_PAR* sp);
 
@@ -438,7 +429,6 @@ unsigned int DaqL780::GetSlotParam(SLOT_PAR* slPar)
 HANDLE DaqL780::OpenLDevice()
 {
 	char szDrvName[18];
-	unsigned int status;
 	size_t cbRet;
 
 	sprintf(szDrvName, "/dev/ldev%d", m_Slot);
@@ -448,12 +438,10 @@ HANDLE DaqL780::OpenLDevice()
 	if (hVxd == INVALID_HANDLE_VALUE) {
 		return INVALID_HANDLE_VALUE;
 	}
-	status = !LDeviceIoControl(hVxd, DIOC_GET_PARAMS,
+	if (!LDeviceIoControl(hVxd, DIOC_GET_PARAMS,
 		nullptr, 0,
 		&sl, sizeof(SLOT_PAR),
-		cbRet);
-
-	if (status) {
+		cbRet)) {
 		return INVALID_HANDLE_VALUE; // must be for register config!!!
 	}
 	hEvent = 0;
@@ -461,11 +449,11 @@ HANDLE DaqL780::OpenLDevice()
 	return hVxd;
 }
 
-int DaqL780::CloseLDevice()
+bool DaqL780::CloseLDevice()
 {
-	int status = L_ERROR;
+	bool status;
 	if (hVxd == INVALID_HANDLE_VALUE) {
-		return status;
+		return false;
 	}
 	status = LCloseHandle(hVxd);
 	hVxd = INVALID_HANDLE_VALUE; ////////////////      !!!!!!!!!!!!!!!!!! close before open
@@ -485,11 +473,11 @@ int DaqL780::CloseLDevice()
 }
 
 // uni stream interface
-unsigned int DaqL780::RequestBufferStream(unsigned int* Size) //in words
+bool DaqL780::RequestBufferStream(unsigned int* Size) //in words
 {
 	size_t cbRet;
 	unsigned int OutBuf;
-	unsigned int status = L_ERROR;
+	bool status;
 
 	unsigned int pb = *Size;
 
@@ -510,20 +498,18 @@ unsigned int DaqL780::RequestBufferStream(unsigned int* Size) //in words
 	map_inBuffer = mmap(nullptr, map_inSize * sizeof(short), PROT_READ, MAP_SHARED /*|MAP_LOCKED*/, hVxd, 0x1000); //may be correct 0x1*sysconf(_SC_PAGE_SIZE));
 	if (map_inBuffer == MAP_FAILED) {
 		map_inBuffer = nullptr;
-		status = L_ERROR;
+		status = false;
 	}
 
 	return status;
 }
 
-unsigned int DaqL780::SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned short** Data, unsigned int** Sync)
+bool DaqL780::SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned short** Data, unsigned int** Sync)
 {
 	size_t cbRet;
 	unsigned int OutBuf[4];
-	unsigned int status = L_ERROR;
+	bool status;
 	unsigned short* d1;
-
-#define ret_val(v) (dp->t1.v)
 
 	WDAQ_PAR* dp;
 	unsigned int sz;
@@ -542,14 +528,14 @@ unsigned int DaqL780::SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, u
 	tFIFO = static_cast<unsigned short>(OutBuf[1]);
 	tIrqStep = static_cast<unsigned short>(OutBuf[2]);
 
-	ret_val(Pages) = tPages;
-	ret_val(FIFO) = tFIFO;
-	ret_val(IrqStep) = tIrqStep;
+	dp->t1.Pages = tPages;
+	dp->t1.FIFO = tFIFO;
+	dp->t1.IrqStep = tIrqStep;
 	*UsedSize = tPages * tIrqStep;
 
 	ptr = map_inBuffer;
 	if (ptr == nullptr) {
-		return L_ERROR;
+		return false;
 	}
 	*Sync = reinterpret_cast<unsigned int*>(ptr);
 	d1 = reinterpret_cast<unsigned short*>(ptr);
@@ -564,50 +550,45 @@ unsigned int DaqL780::SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, u
 	return status;
 }
 
-unsigned int DaqL780::FillDAQparameters(ADC_PAR* sp)
+bool DaqL780::FillDAQparameters(ADC_PAR* sp)
 {
 	if (sp == nullptr || sp->s_Type != L_ADC_PARAM) {
-		return L_ERROR;
+		return false;
 	}
 	return FillADCparameters(sp);
 }
 
 // end of uni stream interface
 
-unsigned int DaqL780::InitStartLDevice()
-{
-	size_t cbRet;
-	unsigned int InBuf, OutBuf, status = L_ERROR;
-	status = !LDeviceIoControl(hVxd, DIOC_INIT_SYNC,
-		&InBuf, sizeof(unsigned int),
-		&OutBuf, sizeof(unsigned int),
-		cbRet);
-	return status;
-}
-
-unsigned int DaqL780::StartLDevice()
-{
-	size_t cbRet;
-	unsigned int InBuf, status = L_ERROR;
-
-	status = !LDeviceIoControl(hVxd, DIOC_START,
-		&InBuf, sizeof(unsigned int),
-		DataBuffer, DataSize, // here we send data buffer parameters to lock in driver
-		cbRet);
-
-	return status;
-}
-
-unsigned int DaqL780::StopLDevice()
+bool DaqL780::InitStartLDevice()
 {
 	size_t cbRet;
 	unsigned int InBuf, OutBuf;
-	unsigned int status = L_ERROR;
-	status = !LDeviceIoControl(hVxd, DIOC_STOP,
+	return = !LDeviceIoControl(hVxd, DIOC_INIT_SYNC,
 		&InBuf, sizeof(unsigned int),
 		&OutBuf, sizeof(unsigned int),
 		cbRet);
-	return status;
+}
+
+bool DaqL780::StartLDevice()
+{
+	size_t cbRet;
+	unsigned int InBuf;
+
+	return !LDeviceIoControl(hVxd, DIOC_START,
+		&InBuf, sizeof(unsigned int),
+		DataBuffer, DataSize, // here we send data buffer parameters to lock in driver
+		cbRet);
+}
+
+bool DaqL780::StopLDevice()
+{
+	size_t cbRet;
+	unsigned int InBuf, OutBuf;
+	return !LDeviceIoControl(hVxd, DIOC_STOP,
+		&InBuf, sizeof(unsigned int),
+		&OutBuf, sizeof(unsigned int),
+		cbRet);
 };
 
 void DaqL780::CopyDAQtoWDAQ(ADC_PAR* adc_par, WADC_PAR_0* wadc_par_t3)
@@ -680,38 +661,28 @@ unsigned int DaqL780::PutWord_PM(unsigned short Addr, unsigned int Data)
 		cbRet);
 }
 
-unsigned int DaqL780::GetWord_PM(unsigned short Addr, unsigned int* Data)
-{
-	size_t cbRet;
-	unsigned short par = Addr;
-	return !LDeviceIoControl(hVxd, DIOC_GET_PM_A,
-		&par, sizeof(par),
-		Data, sizeof(unsigned int),
-		cbRet);
-}
-
 unsigned int DaqL780::PutArray_DM(unsigned short Addr, unsigned int Count, unsigned short* Data)
 {
 	size_t cbRet;
 	unsigned short par = Addr;
 	unsigned int len = 1024;
-	int status;
+	bool status;
 	do {
 		if (Count < len) {
 			len = Count;
 		}
-		status = LDeviceIoControl(hVxd, DIOC_PUT_DM_A,
+		status = !LDeviceIoControl(hVxd, DIOC_PUT_DM_A,
 			&par, sizeof(par),
 			Data, len * sizeof(unsigned short),
 			cbRet);
-		if (!status) {
+		if (status) {
 			break;
 		}
 		Data += len;
 		par += static_cast<unsigned short>(len);
 		Count -= len;
 	} while (Count);
-	return !status;
+	return status;
 }
 
 unsigned int DaqL780::GetArray_DM(unsigned short Addr, unsigned int Count, unsigned short* Data)
@@ -719,23 +690,23 @@ unsigned int DaqL780::GetArray_DM(unsigned short Addr, unsigned int Count, unsig
 	size_t cbRet;
 	unsigned short par = Addr;
 	unsigned int len = 1024;
-	int status;
+	bool status;
 	do {
 		if (Count < len) {
 			len = Count;
 		}
-		status = LDeviceIoControl(hVxd, DIOC_GET_DM_A,
+		status = !LDeviceIoControl(hVxd, DIOC_GET_DM_A,
 			&par, sizeof(par),
 			Data, len * sizeof(unsigned short),
 			cbRet);
-		if (!status) {
+		if (status) {
 			break;
 		}
 		Data += len;
 		par += static_cast<unsigned short>(len);
 		Count -= len;
 	} while (Count);
-	return !status;
+	return status;
 }
 
 unsigned int DaqL780::PutArray_PM(unsigned short Addr, unsigned int Count, unsigned int* Data)
@@ -743,48 +714,23 @@ unsigned int DaqL780::PutArray_PM(unsigned short Addr, unsigned int Count, unsig
 	size_t cbRet;
 	unsigned short par = Addr;
 	unsigned int len = 1024;
-	int status;
+	bool status;
 	do {
 		if (Count < len) {
 			len = Count;
 		}
-		status = LDeviceIoControl(hVxd, DIOC_PUT_PM_A,
+		status = !LDeviceIoControl(hVxd, DIOC_PUT_PM_A,
 			&par, sizeof(par),
 			Data, len * sizeof(unsigned int),
 			cbRet);
-		if (!status) {
+		if (status) {
 			break;
 		}
 		Data += len;
 		par += static_cast<unsigned short>(len);
 		Count -= len;
 	} while (Count);
-	return !status;
-}
-
-unsigned int DaqL780::GetArray_PM(unsigned short Addr, unsigned int Count, unsigned int* Data)
-{
-	size_t cbRet;
-	unsigned short par = Addr;
-	unsigned int len = 1024;
-	int status;
-
-	do {
-		if (Count < len) {
-			len = Count;
-		}
-		status = LDeviceIoControl(hVxd, DIOC_GET_PM_A,
-			&par, sizeof(par),
-			Data, len * sizeof(unsigned int),
-			cbRet);
-		if (!status) {
-			break;
-		}
-		Data += len;
-		par += static_cast<unsigned short>(len);
-		Count -= len;
-	} while (Count);
-	return !status;
+	return status;
 }
 
 unsigned int DaqL780::PlataTest()
@@ -825,7 +771,7 @@ unsigned int DaqL780::PlataTest()
 	return L_SUCCESS;
 }
 
-unsigned int DaqL780::FillADCparameters(ADC_PAR* ap)
+bool DaqL780::FillADCparameters(ADC_PAR* ap)
 {
 	const double max_rate = 3300.0;
 	unsigned int i;
@@ -835,24 +781,24 @@ unsigned int DaqL780::FillADCparameters(ADC_PAR* ap)
 	double framedelay;
 
 	if (ap->dRate < 0) {
-		return L_ERROR;
+		return false;
 	}
 	if (ap->dFrame < 0) {
-		return L_ERROR;
+		return false;
 	}
 	if (ap->FIFO == 0) {
-		return L_ERROR;
+		return false;
 	}
 	if (ap->Pages == 0) {
-		return L_ERROR;
+		return false;
 	}
 	if (ap->IrqStep == 0) {
-		return L_ERROR;
+		return false;
 	}
 	QF = pdu.t1.Quartz / 1000.0;
 	DSP_CLOCK_OUT_PLX = 2.0 * QF;
 	if (DSP_CLOCK_OUT_PLX < 1e-6) {
-		return L_ERROR;
+		return false;
 	}
 	if (ap->dRate < 0.1) {
 		ap->dRate = 0.1;
@@ -913,7 +859,7 @@ unsigned int DaqL780::FillADCparameters(ADC_PAR* ap)
 
 	// make a copy  of adc_par in wadc_par for C-style interface to driver ////////
 	CopyDAQtoWDAQ(&adc_par, &wadc_par.t3);
-	return L_SUCCESS;
+	return true;
 }
 
 unsigned int DaqL780::ReadPlataDescr(void* pd)
@@ -956,17 +902,7 @@ unsigned int DaqL780::ReadFlashWord(unsigned short FlashAddress, unsigned short*
 		cbRet);
 }
 
-unsigned int DaqL780::EnableFlashWrite(unsigned short Flag)
-{
-	size_t cbRet;
-	unsigned short par = 0; // addr not use
-	return !LDeviceIoControl(hVxd, DIOC_ENABLE_FLASH_WRITE, //DIOC_PUT_DM_W,
-		&par, sizeof(par),
-		&Flag, sizeof(unsigned short),
-		cbRet);
-}
-
-unsigned int DaqL780::LoadBios(const char* FileName)
+bool DaqL780::LoadBios(const char* FileName)
 {
 	unsigned short* LCBios;
 	FILE* BiosFile;
@@ -977,7 +913,7 @@ unsigned int DaqL780::LoadBios(const char* FileName)
 	char FName[255];
 	size_t cbRet;
 
-	unsigned int status = L_ERROR;
+	bool status = false;
 	do {
 		strcpy(FName, FileName);
 		strcat(FName, ".bio");
@@ -1035,8 +971,8 @@ unsigned int DaqL780::LoadBios(const char* FileName)
 		if (PutWord_DM(L_ADC_ENABLE_PLX, 0)) {
 			break; // stop adc...
 		}
-		status = L_SUCCESS;
-	} while (status == L_ERROR);
+		status = true;
+	} while (!status);
 	// освободим память и выйдем из функции
 	if (BiosCode)
 		delete[] BiosCode;
@@ -1131,7 +1067,7 @@ int main(int argc, char** argv)
 
 	pI->OpenLDevice();
 
-	if (pI->LoadBios(deviceName) != L_SUCCESS) {
+	if (!pI->LoadBios(deviceName)) {
 		pI->CloseLDevice();
 		pI->Release();
 		return 5;
