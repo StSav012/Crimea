@@ -5,6 +5,7 @@ import argparse
 import os
 import sys
 from datetime import datetime
+from typing import List
 
 from PyQt5.QtCore import Qt, QMetaObject, QCoreApplication, QTimer, QSettings
 from PyQt5.QtGui import QIcon, QPixmap
@@ -18,16 +19,24 @@ import temperature_backend
 
 class UiMainWindow(object):
     def __init__(self):
-        self.labels_temperature = []
-        self.labels_temperature_value = []
-        self.central_widget = QWidget()
-        self.grid_layout_main = QGridLayout(self.central_widget)
-        self.group_temperature = QGroupBox(self.central_widget)
-        self.grid_layout_temperature = QGridLayout(self.group_temperature)
-        self.form_layout_update = QFormLayout()
-        self.check_update = QCheckBox(self.central_widget)
-        self.spin_update_interval = QSpinBox(self.central_widget)
-        self.status_bar = QStatusBar()
+        self.central_widget: QWidget = QWidget()
+        self.grid_layout_main: QGridLayout = QGridLayout(self.central_widget)
+
+        self.group_temperature: QGroupBox = QGroupBox(self.central_widget)
+        self.grid_layout_temperature: QGridLayout = QGridLayout(self.group_temperature)
+        self.labels_sensor: List[QLabel] = []
+        self.label_temperature_label: QLabel = QLabel(self.group_temperature)
+        self.labels_temperature_value: List[QLabel] = []
+        self.label_state_label: QLabel = QLabel(self.group_temperature)
+        self.labels_state_value: List[QLabel] = []
+        self.label_setpoint_label: QLabel = QLabel(self.group_temperature)
+        self.spins_setpoint_value: List[QSpinBox] = []
+
+        self.form_layout_update: QFormLayout = QFormLayout()
+        self.check_update: QCheckBox = QCheckBox(self.central_widget)
+        self.spin_update_interval: QSpinBox = QSpinBox(self.central_widget)
+
+        self.status_bar: QStatusBar = QStatusBar()
         self._translate = QCoreApplication.translate
 
     def setup_ui(self, main_window):
@@ -43,17 +52,28 @@ class UiMainWindow(object):
         main_window.setWindowIcon(icon)
 
         for i in range(5):
-            self.labels_temperature.append(QLabel(self.group_temperature))
-            self.grid_layout_temperature.addWidget(self.labels_temperature[-1], i, 0, 1, 1)
+            self.labels_sensor.append(QLabel(self.group_temperature))
+            self.grid_layout_temperature.addWidget(self.labels_sensor[-1], i + 1, 0, 1, 1)
             self.labels_temperature_value.append(QLabel(self.group_temperature))
             self.labels_temperature_value[-1].setTextInteractionFlags(_value_label_interaction_flags)
-            self.grid_layout_temperature.addWidget(self.labels_temperature_value[-1], i, 1, 1, 1)
+            self.grid_layout_temperature.addWidget(self.labels_temperature_value[-1], i + 1, 1, 1, 1)
+            self.labels_state_value.append(QLabel(self.group_temperature))
+            self.labels_state_value[-1].setTextInteractionFlags(_value_label_interaction_flags)
+            self.grid_layout_temperature.addWidget(self.labels_state_value[-1], i + 1, 2, 1, 1)
+            self.spins_setpoint_value.append(QSpinBox(self.group_temperature))
+            self.spins_setpoint_value[-1].setMaximum(42)
+            self.spins_setpoint_value[-1].valueChanged.connect(self.spin_setpoint_value_changed)
+            self.grid_layout_temperature.addWidget(self.spins_setpoint_value[-1], i + 1, 3, 1, 1)
+
+        self.grid_layout_temperature.addWidget(self.label_temperature_label, 0, 1, 1, 1)
+        self.grid_layout_temperature.addWidget(self.label_state_label, 0, 2, 1, 1)
+        self.grid_layout_temperature.addWidget(self.label_setpoint_label, 0, 3, 1, 1)
 
         self.grid_layout_main.addWidget(self.group_temperature, 0, 0, 1, 1)
         self.form_layout_update.setWidget(0, QFormLayout.LabelRole, self.check_update)
         self.spin_update_interval.setRange(1, 1440)
         self.form_layout_update.setWidget(0, QFormLayout.FieldRole, self.spin_update_interval)
-        self.grid_layout_main.addLayout(self.form_layout_update, 4, 0, 1, 1)
+        self.grid_layout_temperature.addLayout(self.form_layout_update, 6, 0, 1, 4)
         main_window.setCentralWidget(self.central_widget)
         main_window.setStatusBar(self.status_bar)
         self.retranslate_ui(main_window)
@@ -62,23 +82,16 @@ class UiMainWindow(object):
 
     def retranslate_ui(self, main_window):
         main_window.setWindowTitle(self._translate('main_window', 'Arduino Temperature'))
-        self.group_temperature.setTitle(self._translate('main_window', 'Temperature [°C]'))
-        for i in range(len(self.labels_temperature)):
-            self.labels_temperature[i].setText(self._translate('main_window', 'Sensor') + ' {i}:'.format(i=i+1))
+        self.label_temperature_label.setText(self._translate('main_window', 'T [°C]'))
+        self.label_state_label.setText(self._translate('main_window', 'State'))
+        self.label_setpoint_label.setText(self._translate('main_window', 'SP [°C]'))
+        for i in range(len(self.labels_sensor)):
+            self.labels_sensor[i].setText(self._translate('main_window', 'Sensor') + f' {i + 1}:')
         self.check_update.setText(self._translate('main_window', 'Update Every'))
         self.spin_update_interval.setSuffix(self._translate('main_window', ' min'))
 
-
-def to_bool(value):
-    if isinstance(value, str):
-        if value.lower() in ('1', 'yes', 'true', 'on'):
-            return True
-        elif value.lower() in ('0', 'no', 'false', 'off'):
-            return False
-        else:
-            raise ValueError
-    else:
-        return bool(value)
+    def spin_setpoint_value_changed(self, new_value: int):
+        pass
 
 
 def make_desktop_launcher():
@@ -122,6 +135,8 @@ class App(QMainWindow, UiMainWindow):
         # config
         self.load_config()
 
+        self.update_values()
+
     def closeEvent(self, event):
         """ senseless joke in the loop """
         close = QMessageBox.No
@@ -148,7 +163,7 @@ class App(QMainWindow, UiMainWindow):
         self._loading = True
         # common settings
         self.spin_update_interval.setValue(self.get_config_value('update', 'interval', 1, int))
-        self.check_update.setCheckState(Qt.Checked if to_bool(self.get_config_value('update', 'enabled', 'no', str))
+        self.check_update.setCheckState(Qt.Checked if self.get_config_value('update', 'enabled', False, bool)
                                         else Qt.Unchecked)
         if self.settings.contains('windowGeometry'):
             self.restoreGeometry(self.settings.value('windowGeometry', ''))
@@ -193,7 +208,7 @@ class App(QMainWindow, UiMainWindow):
         except TypeError:
             pass
         if new_state:
-            self.timer.timeout.connect(self.get_temperatures)
+            self.timer.timeout.connect(self.update_values)
             self.timer.setSingleShot(False)
             self.timer.start(self.spin_update_interval.value() * 60 * 1000)
             self.status_bar.showMessage(self._translate('main_window', 'Running'))
@@ -205,18 +220,32 @@ class App(QMainWindow, UiMainWindow):
         self.set_config_value('update', 'interval', new_value)
         self.timer.setInterval(new_value * 60 * 1000)
 
-    def get_temperatures(self):
-        temperatures = self.arduino.temperatures
+    def spin_setpoint_value_changed(self, new_value: int):
+        self.arduino.set_setpoint(self.spins_setpoint_value.index(self.sender()), new_value)
+
+    def update_values(self):
+        temperatures: List[float] = self.arduino.temperatures
+        states = self.arduino.states
+        setpoints = self.arduino.setpoints
         time = datetime.now().ctime()
+        for i in range(len(self.labels_temperature_value)):
+            if i < len(temperatures):
+                self.labels_temperature_value[i].setNum(round(temperatures[i], 2))
+            else:
+                self.labels_temperature_value[i].setText('N/A')
+        for i in range(len(self.labels_state_value)):
+            if i < len(states):
+                self.labels_state_value[i].setText('on' if states[i] else 'off')
+            else:
+                self.labels_state_value[i].setText('N/A')
+        for i in range(len(self.spins_setpoint_value)):
+            if i < len(setpoints):
+                self.spins_setpoint_value[i].setValue(setpoints[i])
         if temperatures:
-            for i in range(len(self.labels_temperature_value)):
-                if i < len(temperatures):
-                    self.labels_temperature_value[i].setText(f'{temperatures[i]:.2f}')
-                else:
-                    self.labels_temperature_value[i].setText('N/A')
-            self.status_bar.showMessage(f'{self._translate("main_window", "Last Update")}: {time}')
             with open('Dallas18B20.csv', 'a') as fout:
-                fout.write(time + '\t' + '\t'.join(map(lambda t: f'{t:.2f}', temperatures)) + '\n')
+                sep: str = ','
+                fout.write(time + sep + sep.join(map(lambda t: f'{t:.2f}', temperatures)) + '\n')
+        self.status_bar.showMessage(f'{self._translate("main_window", "Last Update")}: {time}')
 
 
 if __name__ == '__main__':
