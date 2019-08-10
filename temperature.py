@@ -62,7 +62,9 @@ class UiMainWindow(object):
             self.grid_layout_temperature.addWidget(self.labels_state_value[-1], i + 1, 2, 1, 1)
             self.spins_setpoint_value.append(QSpinBox(self.group_temperature))
             self.spins_setpoint_value[-1].setMaximum(42)
+            self.spins_setpoint_value[-1].blockSignals(True)
             self.spins_setpoint_value[-1].valueChanged.connect(self.spin_setpoint_value_changed)
+            self.spins_setpoint_value[-1].blockSignals(False)
             self.grid_layout_temperature.addWidget(self.spins_setpoint_value[-1], i + 1, 3, 1, 1)
 
         self.grid_layout_temperature.addWidget(self.label_temperature_label, 0, 1, 1, 1)
@@ -240,7 +242,9 @@ class App(QMainWindow, UiMainWindow):
                 self.labels_state_value[i].setText('N/A')
         for i in range(len(self.spins_setpoint_value)):
             if i < len(setpoints):
+                self.spins_setpoint_value[i].blockSignals(True)
                 self.spins_setpoint_value[i].setValue(setpoints[i])
+                self.spins_setpoint_value[i].blockSignals(False)
         if temperatures:
             with open('Dallas18B20.csv', 'a') as fout:
                 sep: str = ','
