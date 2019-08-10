@@ -1,7 +1,7 @@
 import io
 import time
 from threading import Thread
-from typing import List, Union
+from typing import List, Union, Dict
 
 import serial
 import serial.tools.list_ports
@@ -18,6 +18,7 @@ class Dallas18B20(Thread):
         self._temperatures: List[float] = []
         self._setpoints: List[float] = []
         self._states: List[bool] = []
+        self._new_setpoints: Dict[str, str] = dict()
 
     def _open_serial(self):
         self._communicating = False
@@ -47,13 +48,13 @@ class Dallas18B20(Thread):
     def _close_serial(self):
         self._ser.close()
 
-    def _block(self, timeout: float = 3.) -> bool:
+    def _block(self, timeout: float = 10.) -> bool:
         i = 0
         dt = 0.1
         while self._communicating:
             time.sleep(dt)
             i += 1
-            if i > dt * timeout:
+            if i > timeout / dt:
                 return False
         return True
 
@@ -86,7 +87,7 @@ class Dallas18B20(Thread):
                 print('restarting ' + self._ser.port)
                 self._open_serial()
                 continue
-            # print(msg.encode('ascii'), resp, resp.split(','))
+            print(cmd, resp, resp.split(','))
             return resp
         return None
 
@@ -94,7 +95,7 @@ class Dallas18B20(Thread):
         if not self._block():
             print("Arduino is very busy to respond to", cmd)
             return False
-#        print('command:', cmd)
+        print('sending', cmd)
         if not self._ser.is_open:
             self._open_serial()
         while self._ser.is_open:
@@ -105,7 +106,7 @@ class Dallas18B20(Thread):
 #                print('written', msg.encode('ascii'))
                 self._sio.flush()
                 self._communicating = False
-            except (serial.SerialException, TypeError):
+            except serial.SerialException:
                 self._communicating = False
                 continue
             return True
@@ -138,8 +139,8 @@ class Dallas18B20(Thread):
                 return []
         return []
 
-    def set_setpoint(self, index: int, value: int) -> bool:
-        return self.send(f'I{index}') and self.send(f'T{value}')
+    def set_setpoint(self, index: int, value: int):
+        self._new_setpoints[f'I{index}'] = f'T{value}'
 
     @property
     def temperatures(self) -> List[float]:
@@ -159,6 +160,13 @@ class Dallas18B20(Thread):
                 self._temperatures = self._get_temperatures()
                 self._setpoints = self._get_setpoints()
                 self._states = self._get_states()
-                time.sleep(10)
+                init_time: float = time.perf_counter()
+                for key, value in self._new_setpoints.items():
+                    if self.send(key):
+                        time.sleep(1)
+                        self.send(value)
+                spent_time: float = time.perf_counter() - init_time
+                if spent_time < 10.:
+                    time.sleep(10. - spent_time)
         except (SystemExit, KeyboardInterrupt):
             return
