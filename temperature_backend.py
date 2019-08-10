@@ -123,7 +123,10 @@ class Dallas18B20(Thread):
     def _get_states(self) -> List[bool]:
         resp = self.read_text('S')
         if resp is not None:
-            return list(map(bool, resp.split(',')))
+            try:
+                return list(map(bool, map(int, resp.split(','))))
+            except ValueError:
+                return []
         return []
 
     def _get_setpoints(self) -> List[float]:
