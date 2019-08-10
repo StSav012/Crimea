@@ -445,7 +445,8 @@ class Dallas:
 
     def __init__(self):
         self._ser = serial.Serial()
-        self._sio = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser), newline='\r')
+        # noinspection PyTypeChecker
+        self._sio = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser, 1), newline='\r')
         self._communicating = False
 
     def open_serial(self):
@@ -462,7 +463,7 @@ class Dallas:
                 try:
                     self._ser.open()
                 except PermissionError:
-                    print('Permission to open {} denied'.format(self._ser.port))
+                    print(f'Permission to open {self._ser.port} denied')
                     time.sleep(1)           # to be changed
                     pass
                 else:
@@ -481,7 +482,7 @@ class Dallas:
         while self._communicating:
             time.sleep(dt)
             i += 1
-            if i > dt * timeout:
+            if dt * i > timeout:
                 return False
         return True
 

@@ -103,7 +103,7 @@ class Motor(Thread):
         while self._communicating:
             time.sleep(dt)
             i += 1
-            if i > dt * timeout:
+            if dt * i > timeout:
                 return False
         return True
 
