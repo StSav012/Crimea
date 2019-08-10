@@ -137,7 +137,7 @@ class App(QMainWindow, UiMainWindow):
         # config
         self.load_config()
 
-        QTimer().singleShot(19999, self.update_values)
+        QTimer().singleShot(12345, self.update_values)
 
     def closeEvent(self, event):
         """ senseless joke in the loop """

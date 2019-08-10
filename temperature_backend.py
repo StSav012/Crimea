@@ -13,7 +13,7 @@ class Dallas18B20(Thread):
         self.daemon = True
         self._ser = serial.Serial()
         # noinspection PyTypeChecker
-        self._sio = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser), newline='\n')
+        self._sio = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser, 1), newline='\n')
         self._communicating = False
         self._temperatures: List[float] = []
         self._setpoints: List[float] = []
@@ -73,21 +73,21 @@ class Dallas18B20(Thread):
                 self._sio.flush()
 #                print('reading...')
                 try:
-                    resp = [l.strip() for l in self._sio.readlines()]
+                    resp = self._sio.readline().strip()
                 except UnicodeDecodeError:
-                    resp = []
+                    resp = ''
                 self._sio.flush()
                 self._communicating = False
             except (serial.SerialException, TypeError):
                 self._communicating = False
                 continue
-            if len(resp) == 0:
+            if not resp:
                 self._close_serial()
                 print('restarting ' + self._ser.port)
                 self._open_serial()
                 continue
-            # print(msg.encode('ascii'), resp, resp[-1].split(','))
-            return resp[-1]
+            # print(msg.encode('ascii'), resp, resp.split(','))
+            return resp
         return None
 
     def send(self, cmd) -> bool:
