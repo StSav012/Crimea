@@ -87,7 +87,7 @@ class Dallas18B20(Thread):
                 print('restarting ' + self._ser.port)
                 self._open_serial()
                 continue
-            print(cmd, resp, resp.split(','))
+            print(cmd, resp.split(','))
             return resp
         return None
 
@@ -161,13 +161,16 @@ class Dallas18B20(Thread):
                 self._setpoints = self._get_setpoints()
                 self._states = self._get_states()
                 init_time: float = time.perf_counter()
-                for key, value in self._new_setpoints.items():
-                    if self._setpoints[key] != value:
-                        if self.send(f'I{key}'):
-                            time.sleep(1)
-                            self.send(f'T{value}')
-                    else:
-                        del self._new_setpoints[key]
+                while self._new_setpoints:
+                    for key, value in self._new_setpoints.copy().items():
+                        if self._setpoints[key] != value:
+                            if self.send(f'I{key}'):
+                                time.sleep(1)
+                                self.send(f'T{value}')
+                                time.sleep(1)
+                                self._setpoints = self._get_setpoints()
+                        else:
+                            del self._new_setpoints[key]
                 spent_time: float = time.perf_counter() - init_time
                 if spent_time < 10.:
                     time.sleep(10. - spent_time)
