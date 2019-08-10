@@ -13,12 +13,12 @@ class Dallas18B20(Thread):
         self.daemon = True
         self._ser = serial.Serial()
         # noinspection PyTypeChecker
-        self._sio = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser, 1), newline='\n')
+        self._sio = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser, 1), newline='\n', write_through=True)
         self._communicating = False
         self._temperatures: List[float] = []
         self._setpoints: List[float] = []
         self._states: List[bool] = []
-        self._new_setpoints: Dict[str, str] = dict()
+        self._new_setpoints: Dict[int, int] = dict()
 
     def _open_serial(self):
         self._communicating = False
@@ -140,7 +140,7 @@ class Dallas18B20(Thread):
         return []
 
     def set_setpoint(self, index: int, value: int):
-        self._new_setpoints[f'I{index}'] = f'T{value}'
+        self._new_setpoints[index] = value
 
     @property
     def temperatures(self) -> List[float]:
@@ -162,9 +162,12 @@ class Dallas18B20(Thread):
                 self._states = self._get_states()
                 init_time: float = time.perf_counter()
                 for key, value in self._new_setpoints.items():
-                    if self.send(key):
-                        time.sleep(1)
-                        self.send(value)
+                    if self._setpoints[key] != value:
+                        if self.send(f'I{key}'):
+                            time.sleep(1)
+                            self.send(f'T{value}')
+                    else:
+                        del self._new_setpoints[key]
                 spent_time: float = time.perf_counter() - init_time
                 if spent_time < 10.:
                     time.sleep(10. - spent_time)
