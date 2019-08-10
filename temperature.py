@@ -137,27 +137,29 @@ class App(QMainWindow, UiMainWindow):
         # config
         self.load_config()
 
-        QTimer().singleShot(2019, self.update_values)
+        QTimer().singleShot(19999, self.update_values)
 
     def closeEvent(self, event):
         """ senseless joke in the loop """
-        close = QMessageBox.No
-        while close == QMessageBox.No:
-            close = QMessageBox()
-            close.setText(self._translate('main_window', 'Are you sure?'))
-            close.setIcon(QMessageBox.Question)
-            close.setWindowIcon(self.windowIcon())
-            close.setWindowTitle(self.windowTitle())
-            close.setStandardButtons(QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
-            close = close.exec()
-
-            if close == QMessageBox.Yes:
+        close_code = QMessageBox.No
+        while close_code == QMessageBox.No:
+            try:
+                close = QMessageBox()
+                close.setText(self._translate('main_window', 'Are you sure?'))
+                close.setIcon(QMessageBox.Question)
+                close.setWindowIcon(self.windowIcon())
+                close.setWindowTitle(self.windowTitle())
+                close.setStandardButtons(QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
+                close_code = close.exec()
+            except (KeyboardInterrupt, SystemExit):
+                close_code = QMessageBox.Yes
+            if close_code == QMessageBox.Yes:
                 self.arduino.join(timeout=1)
                 self.settings.setValue('windowGeometry', self.saveGeometry())
                 self.settings.setValue('windowState', self.saveState())
                 self.settings.sync()
                 event.accept()
-            elif close == QMessageBox.Cancel:
+            elif close_code == QMessageBox.Cancel:
                 event.ignore()
         return
 
