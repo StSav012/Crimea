@@ -83,7 +83,8 @@ class Plot(Thread):
         self._plot.format_coord = lambda x, y: f'voltage = {y:.3f} V'
         self._plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self._plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
-        self._plot_lines = [self._plot.plot_date(np.empty(0), np.empty(0), label=f'channel {ch + 1}')[0]
+        self._plot_lines = [self._plot.plot_date(np.empty(0), np.empty(0),
+                                                 label=f'channel {ch + 1}')[0]
                             for ch in range(len(adc_channels))]
         self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for legline in self._plot_legend.get_lines():
@@ -98,8 +99,14 @@ class Plot(Thread):
         self._τ_plot.set_label('Absorption')
         # self._τ_plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self._τ_plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
-        self._τ_plot_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0), label=f'channel {ch + 1}', ls='-')[0]
+        self._τ_plot_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                     color=self._plot_lines[ch].get_color(),
+                                                     label=f'channel {ch + 1}', ls='-')[0]
                               for ch in range(len(adc_channels))]
+        self._τ_plot_alt_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                         color=self._plot_lines[ch].get_color(),
+                                                         label=f'channel {ch + 1} (alt)', ls='--')[0]
+                                  for ch in range(len(adc_channels))]
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for legline in self._τ_plot_legend.get_lines():
             legline.set_picker(5)
@@ -122,16 +129,16 @@ class Plot(Thread):
             _legline = event.artist
             if _legline in self._plot_legend.get_lines():
                 _legend = '_plot_legend'
-                _lines = '_plot_lines'
-                _axes = '_plot'
+                _lines = self._plot_lines
+                _axes = self._plot
             elif _legline in self._τ_plot_legend.get_lines():
                 _legend = '_τ_plot_legend'
-                _lines = '_τ_plot_lines'
-                _axes = '_τ_plot'
+                _lines = self._τ_plot_lines + self._τ_plot_alt_lines
+                _axes = self._τ_plot
             else:
                 return
             _index = getattr(self, _legend).get_lines().index(_legline)
-            _origline = getattr(self, _lines)[_index]
+            _origline = _lines[_index]
             vis = not _origline.get_visible()
             if vis:
                 _alpha = 1.0
@@ -139,7 +146,7 @@ class Plot(Thread):
                 _alpha = 0.2
             _origline.set_visible(True)
             _origline.set_alpha(_alpha)
-            setattr(self, _legend, getattr(self, _axes).legend(loc='upper left', bbox_to_anchor=(1, 1)))
+            setattr(self, _legend, _axes.legend(loc='upper left', bbox_to_anchor=(1, 1)))
             for _legline in getattr(self, _legend).get_lines():
                 _legline.set_picker(5)
             _origline.set_visible(vis)
@@ -155,6 +162,8 @@ class Plot(Thread):
         self._y = [np.empty(0)] * len(adc_channels)
         self._τx = [np.empty(0)] * len(adc_channels)
         self._τy = [np.empty(0)] * len(adc_channels)
+        self._τx_alt = [np.empty(0)] * len(adc_channels)
+        self._τy_alt = [np.empty(0)] * len(adc_channels)
         self._wind_x = np.empty(0)
         self._wind_y = np.empty(0)
         self._current_x = datetime.now()
@@ -401,12 +410,21 @@ class Plot(Thread):
     def last_weather(self):
         return self.data[-1]['weather'] if len(self.data) > 0 and 'weather' in self.data[-1] else None
 
-    def add_τ(self, channel, τ):
+    def add_τ(self, channel: int, τ: float):
         current_time = date2num(datetime.now())
         self._τx[channel] = np.concatenate((self._τx[channel], np.array([current_time])))
         self._τy[channel] = np.concatenate((self._τy[channel], np.array([τ])))
         for ch in range(len(self._τy)):
             self._τ_plot_lines[ch].set_data(self._τx[ch], self._τy[ch])
+        self._τ_plot.relim(visible_only=True)
+        self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
+
+    def add_τ_alt(self, channel: int, τ: float):
+        current_time = date2num(datetime.now())
+        self._τx_alt[channel] = np.concatenate((self._τx_alt[channel], np.array([current_time])))
+        self._τy_alt[channel] = np.concatenate((self._τy_alt[channel], np.array([τ])))
+        for ch in range(len(self._τy_alt)):
+            self._τ_plot_alt_lines[ch].set_data(self._τx_alt[ch], self._τy_alt[ch])
         self._τ_plot.relim(visible_only=True)
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
@@ -500,10 +518,13 @@ class Plot(Thread):
         self.update_plot_legend()
 
     def get_τ_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
-        return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES)) for line in self._τ_plot_lines]
+        return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES))
+                for line in (self._τ_plot_lines + self._τ_plot_alt_lines)]
 
     def set_τ_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
-        for index, line in enumerate(self._τ_plot_lines):
+        for index, line in enumerate(self._τ_plot_lines + self._τ_plot_alt_lines):
+            if index >= len(props):
+                break
             for key, value in props[index].items():
                 attr: str = 'set_' + key
                 if hasattr(line, attr):
@@ -525,16 +546,17 @@ class Plot(Thread):
         self._plot.figure.canvas.draw()
 
     def get_τ_plot_lines_visibility(self):
-        return [line.get_visible() for line in self._τ_plot_lines]
+        return [line.get_visible() for line in self._τ_plot_lines] \
+               + [line.get_visible() for line in self._τ_plot_alt_lines]
 
     def set_τ_plot_lines_visibility(self, states: List[bool]):
-        for line, vis in zip(self._τ_plot_lines, states):
+        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines, states):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for _legline in self._τ_plot_legend.get_lines():
             _legline.set_picker(5)
-        for line, vis in zip(self._τ_plot_lines, states):
+        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines, states):
             line.set_visible(vis)
         self._τ_plot.figure.canvas.draw()
 
@@ -543,7 +565,6 @@ class Plot(Thread):
         return {attr: float(vars(self._figure.subplotpars)[attr]) for attr in _attrs}
 
     def set_subplotpars(self, pars: Dict[str, float]):
-        print(pars)
         self._figure.subplots_adjust(**pars)
         self._figure.canvas.draw_idle()
 

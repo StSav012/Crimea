@@ -146,6 +146,8 @@ class App(QMainWindow):
         self.label_max_angle = QLabel(self.group_settings_angles)
         self.spin_min_angle = QDoubleSpinBox(self.group_settings_angles)
         self.label_min_angle = QLabel(self.group_settings_angles)
+        self.spin_min_angle_alt = QDoubleSpinBox(self.group_settings_angles)
+        self.label_min_angle_alt = QLabel(self.group_settings_angles)
         self.grid_layout_settings_angles = QGridLayout(self.group_settings_angles)
 
         self.group_settings_measurement = QGroupBox(self.tab_settings)
@@ -263,6 +265,7 @@ class App(QMainWindow):
         self.spin_bb_angle.valueChanged.connect(self.spin_bb_angle_changed)
         self.spin_max_angle.valueChanged.connect(self.spin_max_angle_changed)
         self.spin_min_angle.valueChanged.connect(self.spin_min_angle_changed)
+        self.spin_min_angle_alt.valueChanged.connect(self.spin_min_angle_alt_changed)
         # dirty hack: the event doesn't work directly for subplots
         self.canvas.mpl_connect('button_press_event', self.plot.on_click)
         # whatever is written in the design file, “Go” button should be disabled initially
@@ -385,26 +388,34 @@ class App(QMainWindow):
         self.grid_layout_settings_measurement.setColumnStretch(0, 1)
         self.grid_layout_settings.addWidget(self.group_settings_measurement, 1, 0)
 
-        self.grid_layout_settings_angles.addWidget(self.label_bb_angle, 4, 0)
+        self.grid_layout_settings_angles.addWidget(self.label_bb_angle, 0, 0)
         self.spin_bb_angle.setRange(-180, 180)
         self.spin_bb_angle.setDecimals(1)
         self.spin_bb_angle.setSuffix('°')
         self.spin_bb_angle.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_bb_angle, 4, 1)
+        self.grid_layout_settings_angles.addWidget(self.spin_bb_angle, 0, 1)
 
-        self.grid_layout_settings_angles.addWidget(self.label_max_angle, 5, 0)
+        self.grid_layout_settings_angles.addWidget(self.label_max_angle, 1, 0)
         self.spin_max_angle.setRange(-180, 180)
         self.spin_max_angle.setDecimals(1)
         self.spin_max_angle.setSuffix('°')
         self.spin_max_angle.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_max_angle, 5, 1)
+        self.grid_layout_settings_angles.addWidget(self.spin_max_angle, 1, 1)
 
-        self.grid_layout_settings_angles.addWidget(self.label_min_angle, 6, 0)
+        self.grid_layout_settings_angles.addWidget(self.label_min_angle, 2, 0)
         self.spin_min_angle.setRange(-180, 180)
         self.spin_min_angle.setDecimals(1)
         self.spin_min_angle.setSuffix('°')
         self.spin_min_angle.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_min_angle, 6, 1)
+        self.grid_layout_settings_angles.addWidget(self.spin_min_angle, 2, 1)
+
+        self.grid_layout_settings_angles.addWidget(self.label_min_angle_alt, 3, 0)
+        self.spin_min_angle_alt.setRange(-180, 180)
+        self.spin_min_angle_alt.setDecimals(1)
+        self.spin_min_angle_alt.setSuffix('°')
+        self.spin_min_angle_alt.setSingleStep(1)
+        self.grid_layout_settings_angles.addWidget(self.spin_min_angle_alt, 3, 1)
+
         self.grid_layout_settings_angles.setColumnStretch(0, 1)
         self.grid_layout_settings.addWidget(self.group_settings_angles, 2, 0)
 
@@ -439,7 +450,7 @@ class App(QMainWindow):
         item = self.table_schedule.horizontalHeaderItem(0)
         item.setText(_translate("MainWindow", "On"))
         item = self.table_schedule.horizontalHeaderItem(1)
-        item.setText(_translate("MainWindow", "Angle"))
+        item.setText(_translate("MainWindow", "Angle h"))
         item = self.table_schedule.horizontalHeaderItem(2)
         item.setText(_translate("MainWindow", "Delay"))
         self.button_schedule_action_add.setText(_translate("MainWindow", "+"))
@@ -466,6 +477,7 @@ class App(QMainWindow):
         self.label_bb_angle.setText(_translate("MainWindow", "Black Body Position") + ':')
         self.label_max_angle.setText(_translate("MainWindow", "Zenith Position") + ':')
         self.label_min_angle.setText(_translate("MainWindow", "Horizon Position") + ':')
+        self.label_min_angle_alt.setText(_translate("MainWindow", "Horizon Position (alt)") + ':')
 
         self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab_settings), _translate("MainWindow", "Settings"))
 
@@ -534,7 +546,8 @@ class App(QMainWindow):
         self.spin_measurement_delay.setValue(self.get_config_value('settings', 'delay before measuring', 8, float))
         self.spin_bb_angle.setValue(self.get_config_value('settings', 'black body position', 0, float))
         self.spin_max_angle.setValue(self.get_config_value('settings', 'zenith position', 90, float))
-        self.spin_min_angle.setValue(self.get_config_value('settings', 'horizon position', 15, float))
+        self.spin_min_angle.setValue(self.get_config_value('settings', 'horizon position', 20, float))
+        self.spin_min_angle_alt.setValue(self.get_config_value('settings', 'horizon position alt', 30, float))
         self.spin_channels.setValue(self.get_config_value('settings', 'number of channels', 1, int))
         self._loading = False
         return
@@ -857,6 +870,49 @@ class App(QMainWindow):
             self.label_weather_rain_rate_value.setNum(weather['RainRate'])
             self.label_weather_solar_radiation_value.setNum(weather['SolarRad'])
 
+    def calculate_τ(self, *, callback, min_angle: float, max_angle: float, bb_angle: float, precision: float = 5.):
+        distance_to_max_angle = None
+        distance_to_min_angle = None
+        distance_to_bb_angle = None
+        closest_to_bb_angle = None
+        closest_to_max_angle = None
+        closest_to_min_angle = None
+        for angle in self.last_loop_data:
+            if abs(angle - max_angle) < precision and (distance_to_max_angle is None
+                                                       or distance_to_max_angle > abs(angle - max_angle)):
+                distance_to_max_angle = abs(angle - max_angle)
+                closest_to_max_angle = angle
+            if abs(angle - min_angle) < precision and (distance_to_min_angle is None
+                                                       or distance_to_min_angle > abs(angle - min_angle)):
+                distance_to_min_angle = abs(angle - min_angle)
+                closest_to_min_angle = angle
+            if abs(angle - bb_angle) < precision and (distance_to_bb_angle is None
+                                                      or distance_to_bb_angle > abs(angle - bb_angle)):
+                distance_to_bb_angle = abs(angle - bb_angle)
+                closest_to_bb_angle = angle
+        if closest_to_bb_angle is not None and closest_to_max_angle is not None \
+                and closest_to_min_angle is not None and closest_to_max_angle != closest_to_min_angle:
+            for ch in range(len(self.last_loop_data[closest_to_bb_angle])):
+                np.seterr(invalid='raise', divide='raise')
+                try:
+                    τ = np.log((self.last_loop_data[closest_to_bb_angle][ch] -
+                                self.last_loop_data[closest_to_max_angle][ch]) /
+                               (self.last_loop_data[closest_to_bb_angle][ch] -
+                                self.last_loop_data[closest_to_min_angle][ch])) / \
+                        (1.0 / np.sin(np.radians(closest_to_min_angle))
+                         - 1.0 / np.sin(np.radians(closest_to_max_angle)))
+                except FloatingPointError:
+                    print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
+                        d0=self.last_loop_data[closest_to_bb_angle][ch],
+                        d1=self.last_loop_data[closest_to_max_angle][ch],
+                        d2=self.last_loop_data[closest_to_min_angle][ch],
+                        h1=90 - closest_to_min_angle,
+                        h2=90 - closest_to_max_angle))
+                else:
+                    callback(ch, τ)
+                finally:
+                    np.seterr(invalid='warn', divide='warn')
+
     def measure_next(self, ignore_home=False):
         self.fill_weather(self.plot.last_weather())
         if self.plot.has_measured() or ignore_home:
@@ -868,50 +924,12 @@ class App(QMainWindow):
                 return
             # print(ignore_home, next_row)
             if self._current_row >= next_row and not ignore_home:
-                max_angle = self.spin_max_angle.value()
-                min_angle = self.spin_min_angle.value()
-                distance_to_max_angle = None
-                distance_to_min_angle = None
-                distance_to_bb_angle = None
                 bb_angle = self.spin_bb_angle.value()
-                closest_to_bb_angle = None
-                closest_to_max_angle = None
-                closest_to_min_angle = None
-                for angle in self.last_loop_data:
-                    if abs(angle - max_angle) < 5 and (distance_to_max_angle is None
-                                                       or distance_to_max_angle > abs(angle - max_angle)):
-                        distance_to_max_angle = abs(angle - max_angle)
-                        closest_to_max_angle = angle
-                    if abs(angle - min_angle) < 5 and (distance_to_min_angle is None
-                                                       or distance_to_min_angle > abs(angle - min_angle)):
-                        distance_to_min_angle = abs(angle - min_angle)
-                        closest_to_min_angle = angle
-                    if abs(angle - bb_angle) < 5 and (distance_to_bb_angle is None
-                                                      or distance_to_bb_angle > abs(angle - bb_angle)):
-                        distance_to_bb_angle = abs(angle - bb_angle)
-                        closest_to_bb_angle = angle
-                if closest_to_bb_angle is not None and closest_to_max_angle is not None \
-                        and closest_to_min_angle is not None and closest_to_max_angle != closest_to_min_angle:
-                    for ch in range(len(self.last_loop_data[closest_to_bb_angle])):
-                        np.seterr(invalid='raise', divide='raise')
-                        try:
-                            τ = np.log((self.last_loop_data[closest_to_bb_angle][ch] -
-                                        self.last_loop_data[closest_to_max_angle][ch]) /
-                                       (self.last_loop_data[closest_to_bb_angle][ch] -
-                                        self.last_loop_data[closest_to_min_angle][ch])) / \
-                                (1.0 / np.sin(np.radians(closest_to_min_angle))
-                                 - 1.0 / np.sin(np.radians(closest_to_max_angle)))
-                        except FloatingPointError:
-                            print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
-                                d0=self.last_loop_data[closest_to_bb_angle][ch],
-                                d1=self.last_loop_data[closest_to_max_angle][ch],
-                                d2=self.last_loop_data[closest_to_min_angle][ch],
-                                h1=90 - closest_to_min_angle,
-                                h2=90 - closest_to_max_angle))
-                        else:
-                            self.plot.add_τ(ch, τ)
-                        finally:
-                            np.seterr(invalid='warn', divide='warn')
+                max_angle = self.spin_max_angle.value()
+                for min_angle, callback in [(self.spin_min_angle.value(), self.plot.add_τ),
+                                            (self.spin_min_angle_alt.value(), self.plot.add_τ_alt)]:
+                    self.calculate_τ(callback=callback,
+                                     min_angle=min_angle, max_angle=max_angle, bb_angle=bb_angle)
                 self.last_loop_data = {}
                 self.canvas.draw_idle()
 
@@ -1118,6 +1136,9 @@ class App(QMainWindow):
 
     def spin_min_angle_changed(self, new_value):
         self.set_config_value('settings', 'horizon position', new_value)
+
+    def spin_min_angle_alt_changed(self, new_value):
+        self.set_config_value('settings', 'horizon position alt', new_value)
 
 
 if __name__ == '__main__':
