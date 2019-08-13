@@ -871,12 +871,12 @@ class App(QMainWindow):
             self.label_weather_solar_radiation_value.setNum(weather['SolarRad'])
 
     def calculate_τ(self, *, callback, min_angle: float, max_angle: float, bb_angle: float, precision: float = 5.):
-        distance_to_max_angle = None
-        distance_to_min_angle = None
-        distance_to_bb_angle = None
-        closest_to_bb_angle = None
-        closest_to_max_angle = None
-        closest_to_min_angle = None
+        distance_to_max_angle: Union[None, float] = None
+        distance_to_min_angle: Union[None, float] = None
+        distance_to_bb_angle: Union[None, float] = None
+        closest_to_bb_angle: Union[None, float] = None
+        closest_to_max_angle: Union[None, float] = None
+        closest_to_min_angle: Union[None, float] = None
         for angle in self.last_loop_data:
             if abs(angle - max_angle) < precision and (distance_to_max_angle is None
                                                        or distance_to_max_angle > abs(angle - max_angle)):
@@ -913,7 +913,7 @@ class App(QMainWindow):
                 finally:
                     np.seterr(invalid='warn', divide='warn')
 
-    def measure_next(self, ignore_home=False):
+    def measure_next(self, ignore_home: bool = False):
         self.fill_weather(self.plot.last_weather())
         if self.plot.has_measured() or ignore_home:
             self.canvas.draw_idle()
