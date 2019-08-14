@@ -870,7 +870,7 @@ class App(QMainWindow):
             self.label_weather_rain_rate_value.setNum(weather['RainRate'])
             self.label_weather_solar_radiation_value.setNum(weather['SolarRad'])
 
-    def calculate_τ(self, *, callback, min_angle: float, max_angle: float, bb_angle: float, precision: float = 5.):
+    def calculate_bb_τ(self, *, callback, min_angle: float, max_angle: float, bb_angle: float, precision: float = 5.):
         distance_to_max_angle: Union[None, float] = None
         distance_to_min_angle: Union[None, float] = None
         distance_to_bb_angle: Union[None, float] = None
@@ -893,25 +893,85 @@ class App(QMainWindow):
         if closest_to_bb_angle is not None and closest_to_max_angle is not None \
                 and closest_to_min_angle is not None and closest_to_max_angle != closest_to_min_angle:
             for ch in range(len(self.last_loop_data[closest_to_bb_angle])):
+                d0 = self.last_loop_data[closest_to_bb_angle][ch]
+                d1 = self.last_loop_data[closest_to_max_angle][ch]
+                d2 = self.last_loop_data[closest_to_min_angle][ch]
                 np.seterr(invalid='raise', divide='raise')
                 try:
-                    τ = np.log((self.last_loop_data[closest_to_bb_angle][ch] -
-                                self.last_loop_data[closest_to_max_angle][ch]) /
-                               (self.last_loop_data[closest_to_bb_angle][ch] -
-                                self.last_loop_data[closest_to_min_angle][ch])) / \
-                        (1.0 / np.sin(np.radians(closest_to_min_angle))
-                         - 1.0 / np.sin(np.radians(closest_to_max_angle)))
+                    if (d0 > d1 and d0 > d2) or (d0 < d1 and d0 < d2):
+                        τ = np.log((d0 - d1) / (d0 - d2)) / \
+                            (1.0 / np.sin(np.radians(closest_to_min_angle))
+                             - 1.0 / np.sin(np.radians(closest_to_max_angle)))
+                    else:
+                        τ = np.nan
                 except FloatingPointError:
                     print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
-                        d0=self.last_loop_data[closest_to_bb_angle][ch],
-                        d1=self.last_loop_data[closest_to_max_angle][ch],
-                        d2=self.last_loop_data[closest_to_min_angle][ch],
+                        d0=d0,
+                        d1=d1,
+                        d2=d2,
                         h1=90 - closest_to_min_angle,
                         h2=90 - closest_to_max_angle))
                 else:
-                    callback(ch, τ)
+                    if not np.isnan(τ):
+                        callback(ch, τ)
                 finally:
                     np.seterr(invalid='warn', divide='warn')
+
+    def calculate_leastsq_τ(self, ch: int) -> (float, float):
+        h: np.ndarray = np.array(list(self.last_loop_data))
+        d: np.ndarray = np.array([self.last_loop_data[a][ch] for a in self.last_loop_data])
+        d0: np.float64 = d[np.argmin(np.abs(h))]
+        good: np.ndarray = (h >= 15) & (d0 > d)
+        if not np.any(good):
+            return np.nan, np.nan
+        h = h[good]
+        d = d[good]
+        x = -1. / np.sin(np.deg2rad(h))
+        y = np.log(d0 - d)
+        p, residuals, *_ = np.polyfit(x, y, deg=1, full=True)
+        return p[0], residuals[0] if residuals.size else np.nan
+
+    def calculate_magic_angles_τ(self, ch: int) -> float:
+        h: np.ndarray = np.array(list(self.last_loop_data))
+        d: np.ndarray = np.array([self.last_loop_data[a][ch] for a in self.last_loop_data])
+        good: np.ndarray = (h >= 15)
+        h = h[good]
+        d = d[good]
+        if not np.any(good):
+            return np.nan
+        min_diff: float = 1.
+        best_angles: Tuple[int, int] = tuple()
+        k = np.argmin(np.abs(h - 90.))
+        z = np.deg2rad(h[k])
+        for i in range(h.size):
+            for j in range(h.size):
+                if i == j or i == k or j == k:
+                    continue
+                diff = np.abs(1. / np.sin(z) - 2. / np.sin(np.deg2rad(h[j])) + 1. / np.sin(np.deg2rad(h[i])))
+                if min_diff > diff:
+                    best_angles = (i, j)
+                    min_diff = diff
+        if min_diff > 0.00399:
+            return np.nan
+        i, j = best_angles
+        np.seterr(invalid='raise', divide='raise')
+        try:
+            if d[i] < d[j] < d[k] or d[i] > d[j] > d[k]:
+                τ = np.log((d[j] - d[k]) / (d[i] - d[j])) / \
+                    (1. / np.sin(np.deg2rad(h[i])) - 1. / np.sin(np.deg2rad(h[j])))
+            else:
+                τ = np.nan
+        except FloatingPointError:
+            print('τ = ln(({d0} - {d1})/({d2} - {d0})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
+                d0=d[j],
+                d1=d[k],
+                d2=d[i],
+                h1=90 - h[j],
+                h2=90 - h[i]))
+            τ = np.nan
+        finally:
+            np.seterr(invalid='warn', divide='warn')
+        return τ
 
     def measure_next(self, ignore_home: bool = False):
         self.fill_weather(self.plot.last_weather())
@@ -924,12 +984,21 @@ class App(QMainWindow):
                 return
             # print(ignore_home, next_row)
             if self._current_row >= next_row and not ignore_home:
+                # calculate τ in different manners
                 bb_angle = self.spin_bb_angle.value()
                 max_angle = self.spin_max_angle.value()
                 for min_angle, callback in [(self.spin_min_angle.value(), self.plot.add_τ),
                                             (self.spin_min_angle_alt.value(), self.plot.add_τ_alt)]:
-                    self.calculate_τ(callback=callback,
-                                     min_angle=min_angle, max_angle=max_angle, bb_angle=bb_angle)
+                    self.calculate_bb_τ(callback=callback,
+                                        min_angle=min_angle, max_angle=max_angle, bb_angle=bb_angle)
+                for ch in range(len(self.last_loop_data[current_angle])):
+                    _τ, _error = self.calculate_leastsq_τ(ch)
+                    if not np.isnan(_error):
+                        self.plot.add_τ_leastsq(ch, _τ)
+                    _τ = self.calculate_magic_angles_τ(ch)
+                    if not np.isnan(_τ):
+                        self.plot.add_τ_magic_angles(ch, _τ)
+
                 self.last_loop_data = {}
                 self.canvas.draw_idle()
 
@@ -949,7 +1018,7 @@ class App(QMainWindow):
                 self.plot.move_home()
                 self.plot.pack_data()
                 self.plot.purge_obsolete_data(purge_all=True)
-                # return
+
             if self.button_go.isChecked():
                 angle = self.table_schedule.cellWidget(next_row, 1).value()
                 duration = self.table_schedule.cellWidget(next_row, 2).value()

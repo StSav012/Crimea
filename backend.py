@@ -107,6 +107,14 @@ class Plot(Thread):
                                                          color=self._plot_lines[ch].get_color(),
                                                          label=f'channel {ch + 1} (alt)', ls='--')[0]
                                   for ch in range(len(adc_channels))]
+        self._τ_plot_leastsq_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                             color=self._plot_lines[ch].get_color(),
+                                                             label=f'channel {ch + 1} (leastsq)', ls=':')[0]
+                                      for ch in range(len(adc_channels))]
+        self._τ_plot_magic_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                           color=self._plot_lines[ch].get_color(),
+                                                           label=f'channel {ch + 1} (3 angles)', ls='-.')[0]
+                                    for ch in range(len(adc_channels))]
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for legline in self._τ_plot_legend.get_lines():
             legline.set_picker(5)
@@ -133,7 +141,8 @@ class Plot(Thread):
                 _axes = self._plot
             elif _legline in self._τ_plot_legend.get_lines():
                 _legend = '_τ_plot_legend'
-                _lines = self._τ_plot_lines + self._τ_plot_alt_lines
+                _lines = (self._τ_plot_lines + self._τ_plot_alt_lines
+                          + self._τ_plot_leastsq_lines + self._τ_plot_magic_lines)
                 _axes = self._τ_plot
             else:
                 return
@@ -164,6 +173,10 @@ class Plot(Thread):
         self._τy = [np.empty(0)] * len(adc_channels)
         self._τx_alt = [np.empty(0)] * len(adc_channels)
         self._τy_alt = [np.empty(0)] * len(adc_channels)
+        self._τx_leastsq = [np.empty(0)] * len(adc_channels)
+        self._τy_leastsq = [np.empty(0)] * len(adc_channels)
+        self._τx_magic = [np.empty(0)] * len(adc_channels)
+        self._τy_magic = [np.empty(0)] * len(adc_channels)
         self._wind_x = np.empty(0)
         self._wind_y = np.empty(0)
         self._current_x = datetime.now()
@@ -428,6 +441,24 @@ class Plot(Thread):
         self._τ_plot.relim(visible_only=True)
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
+    def add_τ_leastsq(self, channel: int, τ: float):
+        current_time = date2num(datetime.now())
+        self._τx_leastsq[channel] = np.concatenate((self._τx_leastsq[channel], np.array([current_time])))
+        self._τy_leastsq[channel] = np.concatenate((self._τy_leastsq[channel], np.array([τ])))
+        for ch in range(len(self._τy_leastsq)):
+            self._τ_plot_leastsq_lines[ch].set_data(self._τx_leastsq[ch], self._τy_leastsq[ch])
+        self._τ_plot.relim(visible_only=True)
+        self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
+
+    def add_τ_magic_angles(self, channel: int, τ: float):
+        current_time = date2num(datetime.now())
+        self._τx_magic[channel] = np.concatenate((self._τx_magic[channel], np.array([current_time])))
+        self._τy_magic[channel] = np.concatenate((self._τy_magic[channel], np.array([τ])))
+        for ch in range(len(self._τy_magic)):
+            self._τ_plot_magic_lines[ch].set_data(self._τx_magic[ch], self._τy_magic[ch])
+        self._τ_plot.relim(visible_only=True)
+        self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
+
     def pack_data(self):
         self.purge_obsolete_data()
         if not self.data:
@@ -519,10 +550,12 @@ class Plot(Thread):
 
     def get_τ_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
         return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES))
-                for line in (self._τ_plot_lines + self._τ_plot_alt_lines)]
+                for line in (self._τ_plot_lines + self._τ_plot_alt_lines
+                             + self._τ_plot_leastsq_lines + self._τ_plot_magic_lines)]
 
     def set_τ_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
-        for index, line in enumerate(self._τ_plot_lines + self._τ_plot_alt_lines):
+        for index, line in enumerate(self._τ_plot_lines + self._τ_plot_alt_lines
+                                     + self._τ_plot_leastsq_lines + self._τ_plot_magic_lines):
             if index >= len(props):
                 break
             for key, value in props[index].items():
@@ -547,16 +580,22 @@ class Plot(Thread):
 
     def get_τ_plot_lines_visibility(self):
         return [line.get_visible() for line in self._τ_plot_lines] \
-               + [line.get_visible() for line in self._τ_plot_alt_lines]
+               + [line.get_visible() for line in self._τ_plot_alt_lines] \
+               + [line.get_visible() for line in self._τ_plot_leastsq_lines] \
+               + [line.get_visible() for line in self._τ_plot_magic_lines]
 
     def set_τ_plot_lines_visibility(self, states: List[bool]):
-        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines, states):
+        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines
+                             + self._τ_plot_leastsq_lines + self._τ_plot_magic_lines,
+                             states):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for _legline in self._τ_plot_legend.get_lines():
             _legline.set_picker(5)
-        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines, states):
+        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines
+                             + self._τ_plot_leastsq_lines + self._τ_plot_magic_lines,
+                             states):
             line.set_visible(vis)
         self._τ_plot.figure.canvas.draw()
 
