@@ -84,7 +84,7 @@ def process(data, ch: int) -> (Dict, List[str], int):
             angles_data[item['angle']] = sum(item['voltage'][ch]) / len(item['voltage'][ch])
         else:
             angles_data[item['angle']] = None
-    angles_data = dict((f'Angle {i}', angles_data[i])
+    angles_data = dict((f'Angle h {i}', angles_data[i])
                        for i in sorted(angles_data))
     weather = {'WindDir': None, 'AvgWindSpeed': None, 'OutsideHum': None, 'OutsideTemp': None,
                'RainRate': None, 'UVLevel': None, 'SolarRad': None}
@@ -200,7 +200,7 @@ for filename in filenames:
                     written_rows[channel] += 1
                 channel += 1
 
-if workbook is not None:
+if workbook is not None and any(written_rows):
     workbook.close()
     if args.send_email and config is not None:
         server = config.get('email', 'server', fallback='')
