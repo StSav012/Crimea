@@ -962,15 +962,16 @@ class App(QMainWindow):
             else:
                 τ = np.nan
         except FloatingPointError:
-            print('τ = ln(({d0} - {d1})/({d2} - {d0})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
-                d0=d[j],
-                d1=d[k],
-                d2=d[i],
-                h1=90 - h[j],
-                h2=90 - h[i]))
             τ = np.nan
         finally:
             np.seterr(invalid='warn', divide='warn')
+        if np.isnan(τ):
+            print('τ = ln(({d1} - {d0})/({d2} - {d1})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
+                d0=d[k],
+                d1=d[j],
+                d2=d[i],
+                h1=90 - h[j],
+                h2=90 - h[i]))
         return τ
 
     def measure_next(self, ignore_home: bool = False):

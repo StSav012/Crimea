@@ -409,6 +409,24 @@ class Plot(Thread):
             self._τy[ch] = self._τy[ch][not_obsolete]
             if self._τx[ch].size > 0 and self._τx[ch][0] > np.mean(self._τ_plot.get_xlim()):
                 self._τ_plot.set_autoscalex_on(True)
+        for ch in range(len(self._τx_alt)):
+            not_obsolete: np.ndarray = (current_time - self._τx_alt[ch] <= time_span)
+            self._τx_alt[ch] = self._τx_alt[ch][not_obsolete]
+            self._τy_alt[ch] = self._τy_alt[ch][not_obsolete]
+            if self._τx_alt[ch].size > 0 and self._τx_alt[ch][0] > np.mean(self._τ_plot.get_xlim()):
+                self._τ_plot.set_autoscalex_on(True)
+        for ch in range(len(self._τx_leastsq)):
+            not_obsolete: np.ndarray = (current_time - self._τx_leastsq[ch] <= time_span)
+            self._τx_leastsq[ch] = self._τx_leastsq[ch][not_obsolete]
+            self._τy_leastsq[ch] = self._τy_leastsq[ch][not_obsolete]
+            if self._τx_leastsq[ch].size > 0 and self._τx_leastsq[ch][0] > np.mean(self._τ_plot.get_xlim()):
+                self._τ_plot.set_autoscalex_on(True)
+        for ch in range(len(self._τx_magic)):
+            not_obsolete: np.ndarray = (current_time - self._τx_magic[ch] <= time_span)
+            self._τx_magic[ch] = self._τx_magic[ch][not_obsolete]
+            self._τy_magic[ch] = self._τy_magic[ch][not_obsolete]
+            if self._τx_magic[ch].size > 0 and self._τx_magic[ch][0] > np.mean(self._τ_plot.get_xlim()):
+                self._τ_plot.set_autoscalex_on(True)
         not_obsolete: np.ndarray = (current_time - self._wind_x <= time_span)
         self._wind_x = self._wind_x[not_obsolete]
         self._wind_y = self._wind_y[not_obsolete]
