@@ -931,7 +931,7 @@ class App(QMainWindow):
         p, residuals, *_ = np.polyfit(x, y, deg=1, full=True)
         return p[0], residuals[0] if residuals.size else np.nan
 
-    def calculate_magic_angles_τ(self, ch: int) -> float:
+    def calculate_magic_angles_τ(self, ch: int, lower_angle: float) -> float:
         h: np.ndarray = np.array(list(self.last_loop_data))
         d: np.ndarray = np.array([self.last_loop_data[a][ch] for a in self.last_loop_data])
         good: np.ndarray = (h >= 15)
@@ -940,25 +940,27 @@ class App(QMainWindow):
         if not np.any(good):
             return np.nan
         min_diff: float = 1.
-        best_angles: Tuple[int, int] = tuple()
-        k = np.argmin(np.abs(h - 90.))
-        z = np.deg2rad(h[k])
-        for i in range(h.size):
-            for j in range(h.size):
-                if i == j or i == k or j == k:
-                    continue
-                diff = np.abs(1. / np.sin(z) - 2. / np.sin(np.deg2rad(h[j])) + 1. / np.sin(np.deg2rad(h[i])))
-                if min_diff > diff:
-                    best_angles = (i, j)
-                    min_diff = diff
-        if min_diff > 0.00399:
+        j: int = -1
+        k: int = int(np.argmin(np.abs(h - self.spin_max_angle.value())))
+        i: int = int(np.argmin(np.abs(h - lower_angle)))
+        if i == k:
             return np.nan
-        i, j = best_angles
+        z_a: float = float(np.deg2rad(h[k]))
+        h_a: float = float(np.deg2rad(h[i]))
+        for _j in range(h.size):
+            if _j in (i, k):
+                continue
+            diff = np.abs(1. / np.sin(z_a) - 2. / np.sin(np.deg2rad(h[_j])) + 1. / np.sin(h_a))
+            if min_diff > diff:
+                j = _j
+                min_diff = diff
+        if min_diff > 0.01:
+            return np.nan
         np.seterr(invalid='raise', divide='raise')
         try:
             if d[i] < d[j] < d[k] or d[i] > d[j] > d[k]:
                 τ = np.log((d[j] - d[k]) / (d[i] - d[j])) / \
-                    (1. / np.sin(np.deg2rad(h[i])) - 1. / np.sin(np.deg2rad(h[j])))
+                    (1. / np.sin(h_a) - 1. / np.sin(np.deg2rad(h[j])))
             else:
                 τ = np.nan
         except FloatingPointError:
@@ -996,9 +998,12 @@ class App(QMainWindow):
                     _τ, _error = self.calculate_leastsq_τ(ch)
                     if not np.isnan(_error):
                         self.plot.add_τ_leastsq(ch, _τ)
-                    _τ = self.calculate_magic_angles_τ(ch)
+                    _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle.value())
                     if not np.isnan(_τ):
                         self.plot.add_τ_magic_angles(ch, _τ)
+                    _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle_alt.value())
+                    if not np.isnan(_τ):
+                        self.plot.add_τ_magic_angles_alt(ch, _τ)
 
                 self.last_loop_data = {}
                 self.canvas.draw_idle()
