@@ -1,4 +1,3 @@
-import io
 import time
 from threading import Thread
 from typing import List, Union, Dict
@@ -8,17 +7,22 @@ import serial.tools.list_ports
 
 
 class Dallas18B20(Thread):
+    D_MIN: int = 22
+    D_MAX: int = 51
+
     def __init__(self):
         super().__init__()
         self.daemon = True
         self._ser = serial.Serial()
         # noinspection PyTypeChecker
-        self._sio = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser, 1), newline='\n', write_through=True)
         self._communicating = False
         self._temperatures: List[float] = []
         self._setpoints: List[float] = []
         self._states: List[bool] = []
+        self._enabled: Union[None, bool] = None
         self._new_setpoints: Dict[int, int] = dict()
+        self._new_digitals: Dict[int, bool] = dict()
+        self._new_enabled: Union[None, bool] = None
 
     def _open_serial(self):
         self._communicating = False
@@ -54,7 +58,7 @@ class Dallas18B20(Thread):
         while self._communicating:
             time.sleep(dt)
             i += 1
-            if i > timeout / dt:
+            if i * dt > timeout:
                 return False
         return True
 
@@ -69,15 +73,15 @@ class Dallas18B20(Thread):
             msg = cmd + '\n'
             try:
                 self._communicating = True
-                self._sio.write(msg)
-#                print('written', msg.encode('ascii'))
-                self._sio.flush()
-#                print('reading...')
+                self._ser.write(msg.encode())
+                # print('written', msg.encode('ascii'))
+                self._ser.flush()
+                # print('reading...')
                 try:
-                    resp = self._sio.readline().strip()
+                    resp = self._ser.read_until().decode().rstrip()
                 except UnicodeDecodeError:
                     resp = ''
-                self._sio.flush()
+                self._ser.flush()
                 self._communicating = False
             except (serial.SerialException, TypeError):
                 self._communicating = False
@@ -102,9 +106,9 @@ class Dallas18B20(Thread):
             msg = cmd + '\n'
             try:
                 self._communicating = True
-                self._sio.write(msg)
-#                print('written', msg.encode('ascii'))
-                self._sio.flush()
+                self._ser.write(msg.encode())
+                # print('written', msg.encode('ascii'))
+                self._ser.flush()
                 self._communicating = False
             except serial.SerialException:
                 self._communicating = False
@@ -139,8 +143,26 @@ class Dallas18B20(Thread):
                 return []
         return []
 
+    def _get_enabled(self) -> Union[None, bool]:
+        resp = self.read_text('Q')
+        if resp is not None:
+            try:
+                return bool(int(resp))
+            except ValueError:
+                return None
+        return None
+
     def set_setpoint(self, index: int, value: int):
         self._new_setpoints[index] = value
+
+    def set_digital(self, index: int, value: bool):
+        self._new_digitals[index] = value
+
+    def enable(self):
+        self._new_enabled = True
+
+    def disable(self):
+        self._new_enabled = False
 
     @property
     def temperatures(self) -> List[float]:
@@ -154,24 +176,40 @@ class Dallas18B20(Thread):
     def setpoints(self) -> List[float]:
         return self._setpoints
 
+    @property
+    def enabled(self) -> Union[None, bool]:
+        return self._enabled
+
     def run(self):
         try:
             while True:
+                init_time: float = time.perf_counter()
                 self._temperatures = self._get_temperatures()
                 self._setpoints = self._get_setpoints()
                 self._states = self._get_states()
-                init_time: float = time.perf_counter()
+                self._enabled = self._get_enabled()
                 while self._new_setpoints:
                     for key, value in self._new_setpoints.copy().items():
                         if self._setpoints[key] != value:
                             if self.send(f'I{key}'):
-                                time.sleep(1)
+                                # time.sleep(1)
                                 self.send(f'T{value}')
-                                time.sleep(1)
+                                # time.sleep(1)
                                 self._setpoints = self._get_setpoints()
                         else:
                             del self._new_setpoints[key]
+                while self._new_digitals:
+                    for key, value in self._new_digitals.copy().items():
+                        if self.send(f'H{key}' if value else f'L{key}'):
+                            del self._new_digitals[key]
+                while self._new_enabled is not None and self._enabled is not self._new_enabled:
+                    if self._new_enabled is True:
+                        self.send('E')
+                    elif self._new_enabled is False:
+                        self.send('D')
+                    self._enabled = self._get_enabled()
                 spent_time: float = time.perf_counter() - init_time
+                # print(spent_time)
                 if spent_time < 10.:
                     time.sleep(10. - spent_time)
         except (SystemExit, KeyboardInterrupt):
