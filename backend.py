@@ -28,6 +28,7 @@ try:
     import dallas_dummy as dallas
 except ImportError:
     import dallas
+import temperature_backend
 
 LINE_PROPERTIES: List[str] = ['color', 'dash_capstyle', 'dash_joinstyle', 'drawstyle', 'fillstyle', 'linestyle',
                               'linewidth', 'marker', 'markeredgecolor', 'markeredgewidth', 'markerfacecolor',
@@ -184,6 +185,7 @@ class Plot(Thread):
         self._τy_alt = [np.empty(0)] * len(adc_channels)
         self._τx_leastsq = [np.empty(0)] * len(adc_channels)
         self._τy_leastsq = [np.empty(0)] * len(adc_channels)
+        # self._τy_error_leastsq = [np.empty(0)] * len(adc_channels)
         self._τx_magic = [np.empty(0)] * len(adc_channels)
         self._τy_magic = [np.empty(0)] * len(adc_channels)
         self._τx_magic_alt = [np.empty(0)] * len(adc_channels)
@@ -192,16 +194,24 @@ class Plot(Thread):
         self._wind_y = np.empty(0)
         self._current_x = datetime.now()
         self._current_y = [np.empty(0)] * len(adc_channels)
+
         self._adc = radiometer.ADC(channels=adc_channels, timeout=0.1)
         self._adc.start()
+
         self._motor = smsd.Motor(device=serial_device, microstepping_mode=microstepping_mode, speed=speed, ratio=ratio)
         self._motor.start()
         self._motor.open()
+
         self._measurement_delay = measurement_delay
         self._start_time = None
         self._stop_time = None
         self._current_angle = init_angle
+
         self._meteo = dallas.Dallas()
+
+        self.arduino = temperature_backend.Dallas18B20()
+        self.arduino.start()
+
         self.output_folder = output_folder
         self.summary_file_prefix = results_file_prefix
         if results_file_prefix:
@@ -214,6 +224,7 @@ class Plot(Thread):
         self._adc.join()
         self._motor.disable()
         self._motor.join()
+        self.arduino.join(timeout=1)
         self._closing = True
 
     @staticmethod
@@ -380,6 +391,10 @@ class Plot(Thread):
             self._wind_plot.relim(visible_only=True)
             # follow the autoscale settings of self._τ_plot
             self._wind_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), True)
+        data_item['temperatures'] = self.arduino.temperatures
+        data_item['setpoints'] = self.arduino.setpoints
+        data_item['states'] = self.arduino.states
+        data_item['enabled'] = self.arduino.enabled
         data_item['timestamp'] = self._current_x.timestamp()
         data_item['time'] = self._current_x.isoformat()
         data_item['angle'] = self._current_angle
@@ -430,6 +445,7 @@ class Plot(Thread):
             not_obsolete: np.ndarray = (current_time - self._τx_leastsq[ch] <= time_span)
             self._τx_leastsq[ch] = self._τx_leastsq[ch][not_obsolete]
             self._τy_leastsq[ch] = self._τy_leastsq[ch][not_obsolete]
+            # self._τy_error_leastsq[ch] = self._τy_error_leastsq[ch][not_obsolete]
             if self._τx_leastsq[ch].size > 0 and self._τx_leastsq[ch][0] > np.mean(self._τ_plot.get_xlim()):
                 self._τ_plot.set_autoscalex_on(True)
         for ch in range(len(self._τx_magic)):
@@ -476,10 +492,12 @@ class Plot(Thread):
         self._τ_plot.relim(visible_only=True)
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
-    def add_τ_leastsq(self, channel: int, τ: float):
+    def add_τ_leastsq(self, channel: int, τ: float, error: float = np.nan):
         current_time = date2num(datetime.now())
         self._τx_leastsq[channel] = np.concatenate((self._τx_leastsq[channel], np.array([current_time])))
         self._τy_leastsq[channel] = np.concatenate((self._τy_leastsq[channel], np.array([τ])))
+        # self._τy_error_leastsq[channel] = np.concatenate((self._τy_error_leastsq[channel], np.array([error])))
+        del error
         for ch in range(len(self._τy_leastsq)):
             self._τ_plot_leastsq_lines[ch].set_data(self._τx_leastsq[ch], self._τy_leastsq[ch])
         self._τ_plot.relim(visible_only=True)
@@ -518,13 +536,12 @@ class Plot(Thread):
                     f'{datetime.fromtimestamp(self.data[0]["timestamp"]).strftime("%Y%m%d%H%M%S%f")}.json.gz'
                 ), 'wb') as f:
             f.write(json.dumps(
-                {'raw_data': self.data, 'τ': [a[-1] if a.size else None for a in self._τy]},
+                {'raw_data': self.data},
                 indent=4).encode())
         if self.summary_file_prefix is not None:
             fields = [
                 'time',
                 'timestamp',
-                '\u03c4',
                 'wind direction',
                 'wind speed',
                 'humidity',
@@ -554,7 +571,6 @@ class Plot(Thread):
                     csv_writer.writerow({**dict(zip(fields, [
                         self.data[0]['time'],
                         self.data[0]['timestamp'],
-                        self._τy[ch][-1] if self._τy[ch].size else -1,
                         weather['WindDir'],
                         weather['AvgWindSpeed'],
                         weather['OutsideHum'],

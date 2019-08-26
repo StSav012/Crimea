@@ -475,8 +475,8 @@ class Dallas:
             data['SolarRad'] = None
         if data['StormStart'] == 0xffff:
             data['StormStart'] = None
-        data['InsideTemp'] = (data['InsideTemp'] / 10.0 - 32.0) / 9.0 * 5.0
-        data['OutsideTemp'] = (data['OutsideTemp'] / 10.0 - 32.0) / 9.0 * 5.0
+        data['InsideTemp'] = round((data['InsideTemp'] / 10.0 - 32.0) / 9.0 * 5.0, 2)
+        data['OutsideTemp'] = round((data['OutsideTemp'] / 10.0 - 32.0) / 9.0 * 5.0, 2)
         data['StormRain'] /= 100.0
         data['RainDay'] /= 100.0
         data['RainMonth'] /= 100.0

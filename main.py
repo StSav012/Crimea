@@ -179,6 +179,18 @@ class App(QMainWindow):
         self.button_power = QPushButton(self.tab_main)
         self.horizontal_layout_main = QHBoxLayout()
 
+        self.group_temperature: QGroupBox = QGroupBox(self.central_widget)
+        self.grid_layout_temperature: QGridLayout = QGridLayout(self.group_temperature)
+        self.labels_sensor: List[QLabel] = []
+        self.label_temperature_label: QLabel = QLabel(self.group_temperature)
+        self.labels_temperature_value: List[QLabel] = []
+        self.label_state_label: QLabel = QLabel(self.group_temperature)
+        self.checks_state_value: List[QCheckBox] = []
+        self.label_setpoint_label: QLabel = QLabel(self.group_temperature)
+        self.spins_setpoint_value: List[QSpinBox] = []
+
+        self.check_auto_temperature_mode: QCheckBox = QCheckBox(self.group_temperature)
+
         self.group_schedule = QGroupBox(self.tab_main)
         self.button_schedule_action_down = QPushButton(self.group_schedule)
         self.button_schedule_action_up = QPushButton(self.group_schedule)
@@ -242,6 +254,9 @@ class App(QMainWindow):
         # common
         self.tab_widget.currentChanged.connect(self.tab_widget_changed)
         # tab 1
+        self.check_auto_temperature_mode.blockSignals(True)
+        self.check_auto_temperature_mode.stateChanged.connect(self.check_auto_mode_changed)
+        self.check_auto_temperature_mode.blockSignals(False)
         self.button_schedule_action_add.clicked.connect(self.button_schedule_action_add_clicked)
         self.button_schedule_action_remove.clicked.connect(self.button_schedule_action_remove_clicked)
         self.button_schedule_action_up.clicked.connect(self.button_schedule_action_up_clicked)
@@ -312,6 +327,34 @@ class App(QMainWindow):
 
         self.grid_layout_tab_main.addWidget(self.group_weather_state, 0, 0)
 
+        line = 0
+        for i in range(5):
+            line = i + 1
+            self.labels_sensor.append(QLabel(self.group_temperature))
+            self.grid_layout_temperature.addWidget(self.labels_sensor[-1], line, 0, 1, 1)
+            self.labels_temperature_value.append(QLabel(self.group_temperature))
+            self.labels_temperature_value[-1].setTextInteractionFlags(_value_label_interaction_flags)
+            self.grid_layout_temperature.addWidget(self.labels_temperature_value[-1], line, 1, 1, 1)
+            self.checks_state_value.append(QCheckBox(self.group_temperature))
+            self.checks_state_value[-1].toggled.connect(self.check_state_value_toggled)
+            self.checks_state_value[-1].setEnabled(False)
+            self.grid_layout_temperature.addWidget(self.checks_state_value[-1], line, 2, 1, 1, Qt.AlignHCenter)
+            self.spins_setpoint_value.append(QSpinBox(self.group_temperature))
+            self.spins_setpoint_value[-1].setMaximum(42)
+            self.spins_setpoint_value[-1].blockSignals(True)
+            self.spins_setpoint_value[-1].valueChanged.connect(self.spin_setpoint_value_changed)
+            self.spins_setpoint_value[-1].blockSignals(False)
+            self.grid_layout_temperature.addWidget(self.spins_setpoint_value[-1], line, 3, 1, 1, Qt.AlignHCenter)
+
+        self.grid_layout_temperature.addWidget(self.label_temperature_label, 0, 1, 1, 1)
+        self.grid_layout_temperature.addWidget(self.label_state_label, 0, 2, 1, 1, Qt.AlignHCenter)
+        self.grid_layout_temperature.addWidget(self.label_setpoint_label, 0, 3, 1, 1, Qt.AlignHCenter)
+
+        line += 1
+        self.grid_layout_temperature.addWidget(self.check_auto_temperature_mode, line, 0, 1, 4)
+
+        self.grid_layout_tab_main.addWidget(self.group_temperature, 1, 0)
+
         self.group_schedule.setFlat(True)
         self.table_schedule.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table_schedule.setProperty("showDropIndicator", False)
@@ -331,9 +374,9 @@ class App(QMainWindow):
         self.grid_layout_schedule.addWidget(self.button_schedule_action_up, 2, 1)
         self.grid_layout_schedule.addWidget(self.button_schedule_action_down, 3, 1)
         self.grid_layout_schedule.setColumnStretch(0, 1)
-        self.grid_layout_tab_main.addWidget(self.group_schedule, 1, 0)
+        self.grid_layout_tab_main.addWidget(self.group_schedule, 2, 0)
 
-        self.grid_layout_tab_main.setRowStretch(1, 1)
+        self.grid_layout_tab_main.setRowStretch(2, 1)
 
         spacer_item = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.horizontal_layout_main.addItem(spacer_item)
@@ -345,7 +388,7 @@ class App(QMainWindow):
         self.horizontal_layout_main.addWidget(self.button_go)
         spacer_item2 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.horizontal_layout_main.addItem(spacer_item2)
-        self.grid_layout_tab_main.addLayout(self.horizontal_layout_main, 2, 0)
+        self.grid_layout_tab_main.addLayout(self.horizontal_layout_main, 3, 0)
 
         self.tab_widget.addTab(self.tab_main, "")
 
@@ -446,6 +489,12 @@ class App(QMainWindow):
         self.label_weather_wind_direction.setText(_translate("MainWindow", "Wind Direction [°]") + ':')
         self.label_weather_rain_rate.setText(_translate("MainWindow", "Rain Rate") + ':')
         self.label_weather_solar_radiation.setText(_translate("MainWindow", "Solar Radiation") + ':')
+        self.label_temperature_label.setText(_translate('main_window', 'T [°C]'))
+        self.label_state_label.setText(_translate('main_window', 'State'))
+        self.label_setpoint_label.setText(_translate('main_window', 'SP [°C]'))
+        for i in range(len(self.labels_sensor)):
+            self.labels_sensor[i].setText(_translate('main_window', 'Sensor') + f' {i + 1}:')
+        self.check_auto_temperature_mode.setText(_translate('main_window', 'Automatic'))
         self.group_schedule.setTitle(_translate("MainWindow", "Schedule"))
         item = self.table_schedule.horizontalHeaderItem(0)
         item.setText(_translate("MainWindow", "On"))
@@ -546,8 +595,8 @@ class App(QMainWindow):
         self.spin_measurement_delay.setValue(self.get_config_value('settings', 'delay before measuring', 8, float))
         self.spin_bb_angle.setValue(self.get_config_value('settings', 'black body position', 0, float))
         self.spin_max_angle.setValue(self.get_config_value('settings', 'zenith position', 90, float))
-        self.spin_min_angle.setValue(self.get_config_value('settings', 'horizon position', 20, float))
-        self.spin_min_angle_alt.setValue(self.get_config_value('settings', 'horizon position alt', 30, float))
+        self.spin_min_angle.setValue(self.get_config_value('settings', 'horizon position', 15, float))
+        self.spin_min_angle_alt.setValue(self.get_config_value('settings', 'horizon position alt', 20, float))
         self.spin_channels.setValue(self.get_config_value('settings', 'number of channels', 1, int))
         self._loading = False
         return
@@ -655,9 +704,59 @@ class App(QMainWindow):
         self.set_config_value('common', 'current tab', index)
         return
 
+    def check_auto_mode_changed(self, new_state):
+        if new_state in (Qt.Unchecked, Qt.Checked):
+            {Qt.Unchecked: self.plot.arduino.disable, Qt.Checked: self.plot.arduino.enable}[new_state]()
+            for cb in self.checks_state_value:
+                cb.setEnabled(new_state == Qt.Unchecked)
+            for sb in self.spins_setpoint_value:
+                sb.setEnabled(new_state == Qt.Checked)
+
     def button_schedule_action_add_clicked(self):
         self.add_table_row(self.table_schedule.currentRow() + 1)
         return
+
+    def check_state_value_toggled(self, new_state):
+        index: int = self.plot.arduino.D_MAX - self.checks_state_value.index(self.sender())
+        if self.plot.arduino.D_MIN <= index <= self.plot.arduino.D_MAX:
+            self.plot.arduino.set_digital(index,
+                                          new_state == Qt.Unchecked)  # remember the reversed logic
+
+    def spin_setpoint_value_changed(self, new_value: int):
+        self.plot.arduino.set_setpoint(self.spins_setpoint_value.index(self.sender()), new_value)
+
+    def update_temperature_values(self):
+        temperatures: List[float] = self.plot.arduino.temperatures
+        states = self.plot.arduino.states
+        setpoints = self.plot.arduino.setpoints
+        enabled = self.plot.arduino.enabled
+        for i in range(len(self.labels_temperature_value)):
+            if i < len(temperatures):
+                self.labels_temperature_value[i].setNum(round(temperatures[i], 2))
+            else:
+                self.labels_temperature_value[i].setText('N/A')
+        for i in range(len(self.checks_state_value)):
+            self.checks_state_value[i].blockSignals(True)
+            if i < len(states):
+                self.checks_state_value[i].setCheckState(Qt.Checked if states[i] else Qt.Unchecked)
+            else:
+                self.checks_state_value[i].setCheckState(Qt.PartiallyChecked)
+            self.checks_state_value[i].blockSignals(False)
+        for i in range(len(self.spins_setpoint_value)):
+            if i < len(setpoints):
+                self.spins_setpoint_value[i].blockSignals(True)
+                self.spins_setpoint_value[i].setValue(setpoints[i])
+                self.spins_setpoint_value[i].blockSignals(False)
+        self.check_auto_temperature_mode.blockSignals(True)
+        self.check_auto_temperature_mode.setTristate(enabled is None)
+        self.check_auto_temperature_mode.setCheckState(
+            {False: Qt.Unchecked, None: Qt.PartiallyChecked, True: Qt.Checked}[enabled])
+        self.check_auto_temperature_mode.blockSignals(False)
+        if enabled in (Qt.Unchecked, Qt.Checked):
+            for cb in self.checks_state_value:
+                cb.setEnabled(enabled == Qt.Unchecked)
+            for sb in self.spins_setpoint_value:
+                sb.setEnabled(enabled == Qt.Checked)
 
     def add_table_row(self, row_position=None, values=None):
         if row_position is None:
@@ -905,12 +1004,12 @@ class App(QMainWindow):
                     else:
                         τ = np.nan
                 except FloatingPointError:
-                    print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
+                    print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({θ2}°) - 1/cos({θ1}°))'.format(
                         d0=d0,
                         d1=d1,
                         d2=d2,
-                        h1=90 - closest_to_min_angle,
-                        h2=90 - closest_to_max_angle))
+                        θ1=90 - closest_to_min_angle,
+                        θ2=90 - closest_to_max_angle))
                 else:
                     if not np.isnan(τ):
                         callback(ch, τ)
@@ -931,7 +1030,7 @@ class App(QMainWindow):
         p, residuals, *_ = np.polyfit(x, y, deg=1, full=True)
         return p[0], residuals[0] if residuals.size else np.nan
 
-    def calculate_magic_angles_τ(self, ch: int, lower_angle: float) -> float:
+    def calculate_magic_angles_τ(self, ch: int, lower_angle: float, higher_angle: float) -> float:
         h: np.ndarray = np.array(list(self.last_loop_data))
         d: np.ndarray = np.array([self.last_loop_data[a][ch] for a in self.last_loop_data])
         good: np.ndarray = (h >= 15)
@@ -941,7 +1040,7 @@ class App(QMainWindow):
             return np.nan
         min_diff: float = 1.
         j: int = -1
-        k: int = int(np.argmin(np.abs(h - self.spin_max_angle.value())))
+        k: int = int(np.argmin(np.abs(h - higher_angle)))
         i: int = int(np.argmin(np.abs(h - lower_angle)))
         if i == k:
             return np.nan
@@ -957,27 +1056,25 @@ class App(QMainWindow):
         if min_diff > 0.01:
             return np.nan
         np.seterr(invalid='raise', divide='raise')
+        τ = np.nan
         try:
             if d[i] < d[j] < d[k] or d[i] > d[j] > d[k]:
                 τ = np.log((d[j] - d[k]) / (d[i] - d[j])) / \
                     (1. / np.sin(h_a) - 1. / np.sin(np.deg2rad(h[j])))
-            else:
-                τ = np.nan
-        except FloatingPointError:
-            τ = np.nan
         finally:
             np.seterr(invalid='warn', divide='warn')
         if np.isnan(τ):
-            print('τ = ln(({d1} - {d0})/({d2} - {d1})) / (1/cos({h2}°) - 1/cos({h1}°))'.format(
+            print('τ = ln(({d1} - {d0})/({d2} - {d1})) / (1/cos({θ2}°) - 1/cos({θ1}°))'.format(
                 d0=d[k],
                 d1=d[j],
                 d2=d[i],
-                h1=90 - h[j],
-                h2=90 - h[i]))
+                θ1=90 - h[j],
+                θ2=90 - h[i]))
         return τ
 
     def measure_next(self, ignore_home: bool = False):
         self.fill_weather(self.plot.last_weather())
+        self.update_temperature_values()
         if self.plot.has_measured() or ignore_home:
             self.canvas.draw_idle()
             current_angle = self.table_schedule.cellWidget(self._current_row, 1).value()
@@ -997,11 +1094,11 @@ class App(QMainWindow):
                 for ch in range(len(self.last_loop_data[current_angle])):
                     _τ, _error = self.calculate_leastsq_τ(ch)
                     if not np.isnan(_error):
-                        self.plot.add_τ_leastsq(ch, _τ)
-                    _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle.value())
+                        self.plot.add_τ_leastsq(ch, _τ, _error)
+                    _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle.value(), self.spin_max_angle.value())
                     if not np.isnan(_τ):
                         self.plot.add_τ_magic_angles(ch, _τ)
-                    _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle_alt.value())
+                    _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle_alt.value(), self.spin_max_angle.value())
                     if not np.isnan(_τ):
                         self.plot.add_τ_magic_angles_alt(ch, _τ)
 
@@ -1023,7 +1120,7 @@ class App(QMainWindow):
 
                 self.plot.move_home()
                 self.plot.pack_data()
-                self.plot.purge_obsolete_data(purge_all=True)
+                # self.plot.purge_obsolete_data(purge_all=True)
 
             if self.button_go.isChecked():
                 angle = self.table_schedule.cellWidget(next_row, 1).value()
@@ -1073,7 +1170,6 @@ class App(QMainWindow):
             self.highlight_current_row(False)
         self.set_config_value('common', 'running', new_value)
         self.resuming = False
-        return
 
     def next_pd_tick(self, fallback=None):
         next_value = self.pd.value() + self.timer.interval()
@@ -1115,31 +1211,24 @@ class App(QMainWindow):
         self.plot.enable_motor(new_state, new_thread=new_state)
         self.button_power.setEnabled(True)
         self.set_config_value('common', 'power', new_state)
-        return
 
     def step_fraction_changed(self, new_value):
         self.set_config_value('motor', 'step fraction', new_value)
         if hasattr(self, 'plot'):  # if already defined
             self.plot.set_microstepping_mode(MicrosteppingMode(index=new_value))
-        return
 
     def spin_settings_speed_changed(self, new_value):
         self.set_config_value('motor', 'speed', new_value)
         if hasattr(self, 'plot'):  # if already defined
             self.plot.set_motor_speed(new_value)
-        return
 
     def spin_settings_gear_1_changed(self, new_value):
         self.set_config_value('motor', 'gear 1 size', new_value)
-        if hasattr(self, 'plot'):  # if already defined
-            self.plot.set_gear_ratio(new_value / self.spin_settings_gear_2.value())
-        return
 
     def spin_settings_gear_2_changed(self, new_value):
         self.set_config_value('motor', 'gear 2 size', new_value)
         if hasattr(self, 'plot'):  # if already defined
             self.plot.set_gear_ratio(self.spin_settings_gear_1.value() / new_value)
-        return
 
     def button_move_90degrees_clicked(self):
         self.pd.setMaximum(1000 * self.plot.move_90degrees())
@@ -1152,7 +1241,6 @@ class App(QMainWindow):
         self.timer.timeout.connect(self.next_pd_tick)
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
-        return
 
     def button_move_360degrees_right_clicked(self):
         self.pd.setMaximum(1000 * self.plot.move_360degrees_right())
@@ -1165,7 +1253,6 @@ class App(QMainWindow):
         self.timer.timeout.connect(self.next_pd_tick)
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
-        return
 
     def button_move_360degrees_left_clicked(self):
         self.pd.setMaximum(1000 * self.plot.move_360degrees_left())
@@ -1178,10 +1265,10 @@ class App(QMainWindow):
         self.timer.timeout.connect(self.next_pd_tick)
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
-        return
 
     def spin_channels_changed(self, new_value):
         self.set_config_value('settings', 'number of channels', new_value)
+        self.settings.sync()
         if hasattr(self, 'plot'):
             self.figure.clf()
             self.plot.close()
@@ -1197,7 +1284,6 @@ class App(QMainWindow):
                                                                          os.path.join(os.path.curdir, 'data'), str),
                                      results_file_prefix=time.strftime("%Y%m%d%H%M%S"))
             self.plot.start()
-        return
 
     def spin_measurement_delay_changed(self, new_value):
         self.set_config_value('settings', 'delay before measuring', new_value)
@@ -1205,15 +1291,19 @@ class App(QMainWindow):
 
     def spin_bb_angle_changed(self, new_value):
         self.set_config_value('settings', 'black body position', new_value)
+        self.settings.sync()
 
     def spin_max_angle_changed(self, new_value):
         self.set_config_value('settings', 'zenith position', new_value)
+        self.settings.sync()
 
     def spin_min_angle_changed(self, new_value):
         self.set_config_value('settings', 'horizon position', new_value)
+        self.settings.sync()
 
     def spin_min_angle_alt_changed(self, new_value):
         self.set_config_value('settings', 'horizon position alt', new_value)
+        self.settings.sync()
 
 
 if __name__ == '__main__':
