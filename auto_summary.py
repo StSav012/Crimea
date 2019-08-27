@@ -185,12 +185,16 @@ def preprocess(text):
     if 'raw_data' in data:
         raw_data = data['raw_data']
     else:
-        raw_data = data
-    pre_last_angle = raw_data[-2]['angle'] if len(raw_data) > 2 else None
+        if isinstance(data, list):
+            raw_data = data
+        else:
+            return {'raw_data': [{'weather': data, 'angle': 90, 'voltage': [[]], **data}]}
     length = len(raw_data)
-    for i in range(2, length):
-        if raw_data[length - i - 1]['angle'] == pre_last_angle:
-            return {'raw_data': raw_data[length - i:]}
+    if length > 2:
+        pre_last_angle = raw_data[-2]['angle']
+        for i in range(2, length):
+            if raw_data[length - i - 1]['angle'] == pre_last_angle:
+                return {'raw_data': raw_data[length - i:]}
     return {'raw_data': raw_data}
 
 
