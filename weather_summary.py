@@ -229,9 +229,7 @@ def main():
             with gzip.GzipFile(filename, 'r') as fin:
                 content = fin.read().decode()
                 json_data = preprocess(content)
-                channels: int = 1
-                channel: int = 0
-                if json_data is not None and channel < channels:
+                if json_data is not None:
                     d, f = process(json_data)
                     # print(f)
                     if initial_fields is None:
@@ -249,15 +247,13 @@ def main():
                         header_format: Format = workbook.add_format({'bold': True})
                     if worksheet is None:
                         worksheet = workbook.add_worksheet(f'Weather')
-                        if len(header_fields) <= channel:
-                            header_fields = GENERAL_FIELDS + initial_fields
+                        worksheet.freeze_panes(1, 0)  # freeze first row
+                        header_fields = GENERAL_FIELDS + initial_fields
                         write_header(worksheet, header_fields, header_format)
                         written_rows = 1
 
                     if write_row(worksheet, written_rows, d, header_fields):
                         written_rows += 1
-
-                    channel += 1
 
     if workbook is not None:
         workbook.close()
