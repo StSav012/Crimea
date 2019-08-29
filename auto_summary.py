@@ -530,7 +530,7 @@ def main():
                         if len(header_fields) <= channel:
                             header_fields.append(GENERAL_FIELDS + initial_fields)
                         write_header(workbook.worksheets()[channel], header_fields[channel], header_format)
-                        workbook.worksheets()[channel].freeze_panes(1, 0)  # freeze first row
+                        workbook.worksheets()[channel].freeze_panes(1, 1)  # freeze first row and first column
                         if len(written_rows) <= channel:
                             written_rows.append(1)
 

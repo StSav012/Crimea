@@ -247,7 +247,7 @@ def main():
                         header_format: Format = workbook.add_format({'bold': True})
                     if worksheet is None:
                         worksheet = workbook.add_worksheet(f'Weather')
-                        worksheet.freeze_panes(1, 0)  # freeze first row
+                        worksheet.freeze_panes(1, 1)  # freeze first row and first column
                         header_fields = GENERAL_FIELDS + initial_fields
                         write_header(worksheet, header_fields, header_format)
                         written_rows = 1
