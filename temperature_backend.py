@@ -40,6 +40,8 @@ class Dallas18B20(Thread):
                     self._ser.open()
                 except PermissionError:
                     print(f'Permission to open {self._ser.port} denied')
+                except serial.serialutil.SerialException as ex:
+                    print(ex.strerror)
                 else:
                     print(f'{self._ser.port} opened for the Arduino Mega 2560 R3 (CDC ACM)')
                     self._communicating = False
@@ -62,11 +64,11 @@ class Dallas18B20(Thread):
                 return False
         return True
 
-    def read_text(self, cmd) -> Union[None, str]:
+    def read_text(self, cmd: str, terminator: bytes = serial.serialutil.LF) -> Union[None, str]:
         if not self._block():
             print("Arduino is very busy to respond to", cmd)
             return None
-#        print('command:', cmd)
+        # print('command:', cmd)
         if not self._ser.is_open:
             self._open_serial()
         while self._ser.is_open:
@@ -78,8 +80,9 @@ class Dallas18B20(Thread):
                 self._ser.flush()
                 # print('reading...')
                 try:
-                    resp = self._ser.read_until().decode().rstrip()
+                    resp = self._ser.read_until(terminator=terminator).decode().rstrip()
                 except UnicodeDecodeError:
+                    print('UnicodeDecodeError')
                     resp = ''
                 self._ser.flush()
                 self._communicating = False
@@ -88,14 +91,14 @@ class Dallas18B20(Thread):
                 continue
             if not resp:
                 self._close_serial()
-                print('restarting ' + self._ser.port)
+                print('restarting', self._ser.port)
                 self._open_serial()
                 continue
             print(cmd, resp.split(','))
             return resp
         return None
 
-    def send(self, cmd) -> bool:
+    def send(self, cmd: str) -> bool:
         if not self._block():
             print("Arduino is very busy to respond to", cmd)
             return False
@@ -115,6 +118,32 @@ class Dallas18B20(Thread):
                 continue
             return True
         return False
+
+    def voltage(self, pin: Union[int, str]) -> Union[None, int]:
+        mega_pins: Dict[str, int] = {
+            'A0': 54,
+            'A1': 55,
+            'A2': 56,
+            'A3': 57,
+            'A4': 58,
+            'A5': 59,
+            'A6': 60,
+            'A7': 61,
+            'A8': 62,
+            'A9': 63,
+            'A10': 64,
+            'A11': 65,
+            'A12': 66,
+            'A13': 67,
+            'A14': 68,
+            'A15': 69,
+        }
+        if isinstance(pin, str):
+            pin = mega_pins[pin]
+        try:
+            return int(self.read_text(f'V{pin}', terminator=b'\n\r'))  # arduino firmware bug
+        except ValueError:
+            return None
 
     def _get_temperatures(self) -> List[float]:
         resp = self.read_text('R')

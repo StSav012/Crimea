@@ -332,9 +332,12 @@ class Plot(Thread):
     def move_home(self):
         self._motor.move(-self._current_angle)
         time.sleep(self._motor.time_to_turn(self._current_angle))
-        self._motor.forward()
-        self._motor.move_home()
-        time.sleep(self._motor.time_to_turn(360))
+        v = self.arduino.voltage('A0')
+        if v is not None and v < 512:
+            print('making whole turn')
+            self._motor.forward()
+            self._motor.move_home()
+            time.sleep(self._motor.time_to_turn(360))
         self._motor.move(-25)
         time.sleep(self._motor.time_to_turn(25))
         self._motor.forward()
