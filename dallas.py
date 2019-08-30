@@ -25,8 +25,8 @@ def expand_keys(l: List[str]) -> List[str]:
     return l
 
 
-def collect_keys(d: Dict[str, Union[None, int, float, str, List[None, int, float, str]]]) \
-        -> Dict[str, Union[None, int, float, str, List[None, int, float, str]]]:
+def collect_keys(d: Dict[str, Union[None, int, float, str, List[Union[None, int, float, str]]]]) \
+        -> Dict[str, Union[None, int, float, str, List[Union[None, int, float, str]]]]:
     dd = {}
     for key in d.copy():
         m = re.search(r'\[\d+\]$', key)
