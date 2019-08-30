@@ -27,6 +27,7 @@ EXCLUDED_WEATHER_FIELDS: List[str] = [
     'time',
     'timestamp',
     'PacketType',
+    'NextRec',
     'SoilMoist',
     'LeafWet',
     'AlarmInside',
@@ -67,6 +68,10 @@ def process(data) -> (Dict, List[str], int):
             weather = dict((key, value)
                            for key, value in _d['weather'].items()
                            if not isinstance(value, list) and key not in EXCLUDED_WEATHER_FIELDS)
+            if not weather['Barometer']:
+                weather['Barometer'] = None
+            elif weather['Barometer'] > 1000:
+                weather['Barometer'] = weather['Barometer'] * 0.0254
             _fields = list(weather.keys())
             break
 
