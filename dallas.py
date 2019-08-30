@@ -593,7 +593,7 @@ class Dallas:
             # correcting values to get human-readable format
             data['BarometerTrend'] = self.barometer_trends[data['BarometerTrend']] \
                 if data['BarometerTrend'] in self.barometer_trends else None
-            data['Barometer'] = data['Barometer'] * 0.0254 if data['Barometer'] else None
+            data['Barometer'] = round(data['Barometer'] * 0.0254, 4) if data['Barometer'] else None
             data['RainRate'] /= 100.0
             data['UVLevel'] = None if data['UVLevel'] == 0xff else data['UVLevel'] / 100.0
             if data['SolarRad'] == 0x7fff:
