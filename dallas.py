@@ -625,8 +625,7 @@ class Dallas:
                             data[key][index] = None
             data = dict((key, value)
                         for key, value in data.items()
-                        if ((value is not None
-                             or (isinstance(value, list) and any([item is not None for item in value])))
+                        if ((any(item is not None for item in value) if isinstance(value, list) else value is not None)
                             and key not in EXCLUDED_WEATHER_FIELDS))
         else:
             print('invalid data size:', len(r), struct.calcsize(self.realtime_data_types))
