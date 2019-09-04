@@ -142,7 +142,7 @@ class Dallas18B20(Thread):
             pin = mega_pins[pin]
         try:
             return int(self.read_text(f'V{pin}', terminator=b'\n\r'))  # arduino firmware bug
-        except ValueError:
+        except (TypeError, ValueError):
             return None
 
     def _get_temperatures(self) -> List[float]:
