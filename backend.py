@@ -333,7 +333,7 @@ class Plot(Thread):
         self._motor.move(-self._current_angle)
         time.sleep(self._motor.time_to_turn(self._current_angle))
         v = self.arduino.voltage('A0')
-        if v is not None and v < 512:
+        if v is not None and v > 512:
             print('making whole turn')
             self._motor.forward()
             self._motor.move_home()
