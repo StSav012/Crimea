@@ -87,9 +87,9 @@ class Dallas:
         'RainDay',  # 50 Rain Today
         'RainMonth',  # 52 Rain this Month
         'RainYear',  # 54 Rain this Year
-        'ETDay',  # 56 Day ET
-        'ETMonth',  # 58 Month ET
-        'ETYear',  # 60 Year ET
+        'ETDay',  # 56 Day EvapoTranspiration
+        'ETMonth',  # 58 Month EvapoTranspiration
+        'ETYear',  # 60 Year EvapoTranspiration
         'SoilMoist',  # 62 Soil Moistures
         'LeafWet',  # 66 Leaf Wetness
         'AlarmInside',  # 70 Inside Alarm bits
@@ -99,7 +99,7 @@ class Dallas:
         'AlarmSL',  # 82 Soil and Leaf Alarms
         'XmitBatt',  # 86 Transmitter battery status
         'BattLevel',  # 87 Console Battery Level:
-        #    Voltage = ((wBattLevel * 300)/512)/100.0
+        #               Voltage = ((wBattLevel * 300)/512)/100.0
         'ForecastIcon',  # 89 Forecast Icon
         'Forecast',  # 90 Forecast rule number
         'Sunrise',  # 91 Sunrise time (BCD encoded, 24hr)
