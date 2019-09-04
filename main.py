@@ -489,6 +489,7 @@ class App(QMainWindow):
         self.label_weather_wind_direction.setText(_translate("MainWindow", "Wind Direction [°]") + ':')
         self.label_weather_rain_rate.setText(_translate("MainWindow", "Rain Rate") + ':')
         self.label_weather_solar_radiation.setText(_translate("MainWindow", "Solar Radiation") + ':')
+        self.group_temperature.setTitle(_translate("MainWindow", "Temperature"))
         self.label_temperature_label.setText(_translate('main_window', 'T [°C]'))
         self.label_state_label.setText(_translate('main_window', 'State'))
         self.label_setpoint_label.setText(_translate('main_window', 'SP [°C]'))
@@ -934,6 +935,8 @@ class App(QMainWindow):
             cw = self.table_schedule.cellWidget(self._current_row, 0)
             if cw:
                 cw.setStyleSheet("background-color: green")
+            # scroll to the next row
+            self.table_schedule.scrollToItem(self.table_schedule.item(self._current_row, 0))
         return
 
     def enabled_rows(self):
@@ -1082,7 +1085,7 @@ class App(QMainWindow):
             next_row = self.next_enabled_row(self._current_row)
             if next_row is None:
                 return
-            # print(ignore_home, next_row)
+
             if self._current_row >= next_row and not ignore_home:
                 # calculate τ in different manners
                 bb_angle = self.spin_bb_angle.value()
