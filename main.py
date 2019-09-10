@@ -1036,7 +1036,7 @@ class App(QMainWindow):
     def calculate_magic_angles_τ(self, ch: int, lower_angle: float, higher_angle: float) -> float:
         h: np.ndarray = np.array(list(self.last_loop_data))
         d: np.ndarray = np.array([self.last_loop_data[a][ch] for a in self.last_loop_data])
-        good: np.ndarray = (h >= 15)
+        good: np.ndarray = (h >= 10)
         h = h[good]
         d = d[good]
         if not np.any(good):
@@ -1056,7 +1056,7 @@ class App(QMainWindow):
             if min_diff > diff:
                 j = _j
                 min_diff = diff
-        if min_diff > 0.01:
+        if min_diff > 0.02:
             return np.nan
         np.seterr(invalid='raise', divide='raise')
         τ = np.nan

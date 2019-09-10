@@ -147,7 +147,7 @@ def best_magic_angle(h: np.ndarray, lower_angle: Union[int, float], higher_angle
 def calculate_magic_angles_τ(loop_data, lower_angle: float, higher_angle: float) -> float:
     h: np.ndarray = np.array(list(loop_data))
     d: np.ndarray = np.array([loop_data[a] for a in loop_data])
-    good: np.ndarray = (h >= 15)
+    good: np.ndarray = (h >= 10)
     h = h[good]
     d = d[good]
     if not np.any(good):
@@ -157,7 +157,7 @@ def calculate_magic_angles_τ(loop_data, lower_angle: float, higher_angle: float
     if i == k:
         return np.nan
     j, min_diff = best_magic_angle(h, i, k)
-    if min_diff > 0.01:
+    if min_diff > 0.02:
         return np.nan
     np.seterr(invalid='raise', divide='raise')
     τ = np.nan
@@ -214,7 +214,8 @@ def process(data, ch: int, principial_angles: PrincipialAngles) \
             angles_data[item['angle']] = sum(item['voltage'][ch]) / len(item['voltage'][ch])
         else:
             angles_data[item['angle']] = None
-    al, ic2pa, ac2pa = get_absorption_labels(angles_data, principial_angles)
+    al, ic2pa, ac2pa = get_absorption_labels(dict((i, angles_data[i]) for i in sorted(angles_data)),
+                                             principial_angles)
     _fields = list(al)
     if any(angles_data.values()):
         leastsq_τ = calculate_leastsq_τ(angles_data)
@@ -239,6 +240,7 @@ def process(data, ch: int, principial_angles: PrincipialAngles) \
     else:
         absorptions = dict()
     # rename `angles_data` keys
+    # TODO: avoid repeating
     angles_data = dict((f'θ = {90 - i}°', angles_data[i])
                        for i in sorted(angles_data))
     _fields.extend(angles_data.keys())
