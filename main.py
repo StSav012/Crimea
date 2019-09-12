@@ -142,6 +142,8 @@ class App(QMainWindow):
         self.group_settings_angles = QGroupBox(self.tab_settings)
         self.spin_bb_angle = QDoubleSpinBox(self.group_settings_angles)
         self.label_bb_angle = QLabel(self.group_settings_angles)
+        self.spin_bb_angle_alt = QDoubleSpinBox(self.group_settings_angles)
+        self.label_bb_angle_alt = QLabel(self.group_settings_angles)
         self.spin_max_angle = QDoubleSpinBox(self.group_settings_angles)
         self.label_max_angle = QLabel(self.group_settings_angles)
         self.spin_min_angle = QDoubleSpinBox(self.group_settings_angles)
@@ -278,6 +280,7 @@ class App(QMainWindow):
         self.spin_channels.valueChanged.connect(self.spin_channels_changed)
         self.spin_measurement_delay.valueChanged.connect(self.spin_measurement_delay_changed)
         self.spin_bb_angle.valueChanged.connect(self.spin_bb_angle_changed)
+        self.spin_bb_angle_alt.valueChanged.connect(self.spin_bb_angle_alt_changed)
         self.spin_max_angle.valueChanged.connect(self.spin_max_angle_changed)
         self.spin_min_angle.valueChanged.connect(self.spin_min_angle_changed)
         self.spin_min_angle_alt.valueChanged.connect(self.spin_min_angle_alt_changed)
@@ -431,33 +434,41 @@ class App(QMainWindow):
         self.grid_layout_settings_measurement.setColumnStretch(0, 1)
         self.grid_layout_settings.addWidget(self.group_settings_measurement, 1, 0)
 
-        self.grid_layout_settings_angles.addWidget(self.label_bb_angle, 0, 0)
+        line = 0
+        self.grid_layout_settings_angles.addWidget(self.label_bb_angle, line, 0)
         self.spin_bb_angle.setRange(-180, 180)
         self.spin_bb_angle.setDecimals(1)
         self.spin_bb_angle.setSuffix('°')
         self.spin_bb_angle.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_bb_angle, 0, 1)
-
-        self.grid_layout_settings_angles.addWidget(self.label_max_angle, 1, 0)
+        self.grid_layout_settings_angles.addWidget(self.spin_bb_angle, line, 1)
+        line += 1
+        self.grid_layout_settings_angles.addWidget(self.label_bb_angle_alt, line, 0)
+        self.spin_bb_angle_alt.setRange(-180, 180)
+        self.spin_bb_angle_alt.setDecimals(1)
+        self.spin_bb_angle_alt.setSuffix('°')
+        self.spin_bb_angle_alt.setSingleStep(1)
+        self.grid_layout_settings_angles.addWidget(self.spin_bb_angle_alt, line, 1)
+        line += 1
+        self.grid_layout_settings_angles.addWidget(self.label_max_angle, line, 0)
         self.spin_max_angle.setRange(-180, 180)
         self.spin_max_angle.setDecimals(1)
         self.spin_max_angle.setSuffix('°')
         self.spin_max_angle.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_max_angle, 1, 1)
-
-        self.grid_layout_settings_angles.addWidget(self.label_min_angle, 2, 0)
+        self.grid_layout_settings_angles.addWidget(self.spin_max_angle, line, 1)
+        line += 1
+        self.grid_layout_settings_angles.addWidget(self.label_min_angle, line, 0)
         self.spin_min_angle.setRange(-180, 180)
         self.spin_min_angle.setDecimals(1)
         self.spin_min_angle.setSuffix('°')
         self.spin_min_angle.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_min_angle, 2, 1)
-
-        self.grid_layout_settings_angles.addWidget(self.label_min_angle_alt, 3, 0)
+        self.grid_layout_settings_angles.addWidget(self.spin_min_angle, line, 1)
+        line += 1
+        self.grid_layout_settings_angles.addWidget(self.label_min_angle_alt, line, 0)
         self.spin_min_angle_alt.setRange(-180, 180)
         self.spin_min_angle_alt.setDecimals(1)
         self.spin_min_angle_alt.setSuffix('°')
         self.spin_min_angle_alt.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_min_angle_alt, 3, 1)
+        self.grid_layout_settings_angles.addWidget(self.spin_min_angle_alt, line, 1)
 
         self.grid_layout_settings_angles.setColumnStretch(0, 1)
         self.grid_layout_settings.addWidget(self.group_settings_angles, 2, 0)
@@ -525,6 +536,7 @@ class App(QMainWindow):
         self.spin_measurement_delay.setSuffix(_translate("MainWindow", ' s'))
         self.group_settings_angles.setTitle(_translate("MainWindow", "Angles"))
         self.label_bb_angle.setText(_translate("MainWindow", "Black Body Position") + ':')
+        self.label_bb_angle_alt.setText(_translate("MainWindow", "Black Body Position (alt)") + ':')
         self.label_max_angle.setText(_translate("MainWindow", "Zenith Position") + ':')
         self.label_min_angle.setText(_translate("MainWindow", "Horizon Position") + ':')
         self.label_min_angle_alt.setText(_translate("MainWindow", "Horizon Position (alt)") + ':')
@@ -595,6 +607,7 @@ class App(QMainWindow):
         self.spin_settings_gear_2.setValue(self.get_config_value('motor', 'gear 2 size', 98, int))
         self.spin_measurement_delay.setValue(self.get_config_value('settings', 'delay before measuring', 8, float))
         self.spin_bb_angle.setValue(self.get_config_value('settings', 'black body position', 0, float))
+        self.spin_bb_angle_alt.setValue(self.get_config_value('settings', 'black body position alt', 0, float))
         self.spin_max_angle.setValue(self.get_config_value('settings', 'zenith position', 90, float))
         self.spin_min_angle.setValue(self.get_config_value('settings', 'horizon position', 15, float))
         self.spin_min_angle_alt.setValue(self.get_config_value('settings', 'horizon position alt', 20, float))
@@ -1088,10 +1101,12 @@ class App(QMainWindow):
 
             if self._current_row >= next_row and not ignore_home:
                 # calculate τ in different manners
-                bb_angle = self.spin_bb_angle.value()
                 max_angle = self.spin_max_angle.value()
-                for min_angle, callback in [(self.spin_min_angle.value(), self.plot.add_τ),
-                                            (self.spin_min_angle_alt.value(), self.plot.add_τ_alt)]:
+                for min_angle, bb_angle, callback in [
+                    (self.spin_min_angle.value(), self.spin_bb_angle.value(), self.plot.add_τ),
+                    (self.spin_min_angle_alt.value(), self.spin_bb_angle.value(), self.plot.add_τ_alt),
+                    (self.spin_min_angle_alt.value(), self.spin_bb_angle_alt.value(), self.plot.add_τ_bb_alt),
+                ]:
                     self.calculate_bb_τ(callback=callback,
                                         min_angle=min_angle, max_angle=max_angle, bb_angle=bb_angle)
                 for ch in range(len(self.last_loop_data[current_angle])):
@@ -1294,6 +1309,10 @@ class App(QMainWindow):
 
     def spin_bb_angle_changed(self, new_value):
         self.set_config_value('settings', 'black body position', new_value)
+        self.settings.sync()
+
+    def spin_bb_angle_alt_changed(self, new_value):
+        self.set_config_value('settings', 'black body position alt', new_value)
         self.settings.sync()
 
     def spin_max_angle_changed(self, new_value):

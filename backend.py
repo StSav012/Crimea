@@ -85,7 +85,7 @@ class Plot(Thread):
         self._plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self._plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
         self._plot_lines = [self._plot.plot_date(np.empty(0), np.empty(0),
-                                                 label=f'channel {ch + 1}')[0]
+                                                 label=f'ch {ch + 1}')[0]
                             for ch in range(len(adc_channels))]
         self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for legline in self._plot_legend.get_lines():
@@ -102,23 +102,27 @@ class Plot(Thread):
         self._τ_plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
         self._τ_plot_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
                                                      color=self._plot_lines[ch].get_color(),
-                                                     label=f'channel {ch + 1}', ls='-')[0]
+                                                     label=f'ch {ch + 1}', ls='-')[0]
                               for ch in range(len(adc_channels))]
         self._τ_plot_alt_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
                                                          color=self._plot_lines[ch].get_color(),
-                                                         label=f'channel {ch + 1} (alt)', ls='--')[0]
+                                                         label=f'ch {ch + 1} (alt)', ls='--')[0]
                                   for ch in range(len(adc_channels))]
+        self._τ_plot_alt_bb_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                            color=self._plot_lines[ch].get_color(),
+                                                            label=f'ch {ch + 1} (alt, bb alt)', ls='--')[0]
+                                     for ch in range(len(adc_channels))]
         self._τ_plot_leastsq_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
                                                              color=self._plot_lines[ch].get_color(),
-                                                             label=f'channel {ch + 1} (leastsq)', ls=':')[0]
+                                                             label=f'ch {ch + 1} (leastsq)', ls=':')[0]
                                       for ch in range(len(adc_channels))]
         self._τ_plot_magic_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
                                                            color=self._plot_lines[ch].get_color(),
-                                                           label=f'channel {ch + 1} (3 angles)', ls='-.')[0]
+                                                           label=f'ch {ch + 1} (3 angles)', ls='-.')[0]
                                     for ch in range(len(adc_channels))]
         self._τ_plot_magic_alt_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
                                                                color=self._plot_lines[ch].get_color(),
-                                                               label=f'channel {ch + 1} (3 angles alt)', ls='-.')[0]
+                                                               label=f'ch {ch + 1} (3 angles alt)', ls='-.')[0]
                                         for ch in range(len(adc_channels))]
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for legline in self._τ_plot_legend.get_lines():
@@ -146,7 +150,7 @@ class Plot(Thread):
                 _axes = self._plot
             elif _legline in self._τ_plot_legend.get_lines():
                 _legend = '_τ_plot_legend'
-                _lines = (self._τ_plot_lines + self._τ_plot_alt_lines
+                _lines = (self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
                           + self._τ_plot_leastsq_lines
                           + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines)
                 _axes = self._τ_plot
@@ -183,6 +187,8 @@ class Plot(Thread):
         self._τy = [np.empty(0)] * len(adc_channels)
         self._τx_alt = [np.empty(0)] * len(adc_channels)
         self._τy_alt = [np.empty(0)] * len(adc_channels)
+        self._τx_bb_alt = [np.empty(0)] * len(adc_channels)
+        self._τy_bb_alt = [np.empty(0)] * len(adc_channels)
         self._τx_leastsq = [np.empty(0)] * len(adc_channels)
         self._τy_leastsq = [np.empty(0)] * len(adc_channels)
         # self._τy_error_leastsq = [np.empty(0)] * len(adc_channels)
@@ -444,6 +450,12 @@ class Plot(Thread):
             self._τy_alt[ch] = self._τy_alt[ch][not_obsolete]
             if self._τx_alt[ch].size > 0 and self._τx_alt[ch][0] > np.mean(self._τ_plot.get_xlim()):
                 self._τ_plot.set_autoscalex_on(True)
+        for ch in range(len(self._τx_bb_alt)):
+            not_obsolete: np.ndarray = (current_time - self._τx_bb_alt[ch] <= time_span)
+            self._τx_bb_alt[ch] = self._τx_bb_alt[ch][not_obsolete]
+            self._τy_bb_alt[ch] = self._τy_bb_alt[ch][not_obsolete]
+            if self._τx_bb_alt[ch].size > 0 and self._τx_bb_alt[ch][0] > np.mean(self._τ_plot.get_xlim()):
+                self._τ_plot.set_autoscalex_on(True)
         for ch in range(len(self._τx_leastsq)):
             not_obsolete: np.ndarray = (current_time - self._τx_leastsq[ch] <= time_span)
             self._τx_leastsq[ch] = self._τx_leastsq[ch][not_obsolete]
@@ -492,6 +504,15 @@ class Plot(Thread):
         self._τy_alt[channel] = np.concatenate((self._τy_alt[channel], np.array([τ])))
         for ch in range(len(self._τy_alt)):
             self._τ_plot_alt_lines[ch].set_data(self._τx_alt[ch], self._τy_alt[ch])
+        self._τ_plot.relim(visible_only=True)
+        self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
+
+    def add_τ_bb_alt(self, channel: int, τ: float):
+        current_time = date2num(datetime.now())
+        self._τx_bb_alt[channel] = np.concatenate((self._τx_bb_alt[channel], np.array([current_time])))
+        self._τy_bb_alt[channel] = np.concatenate((self._τy_bb_alt[channel], np.array([τ])))
+        for ch in range(len(self._τy_bb_alt)):
+            self._τ_plot_alt_bb_lines[ch].set_data(self._τx_bb_alt[ch], self._τy_bb_alt[ch])
         self._τ_plot.relim(visible_only=True)
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
@@ -613,12 +634,12 @@ class Plot(Thread):
 
     def get_τ_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
         return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES))
-                for line in (self._τ_plot_lines + self._τ_plot_alt_lines
+                for line in (self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
                              + self._τ_plot_leastsq_lines
                              + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines)]
 
     def set_τ_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
-        for index, line in enumerate(self._τ_plot_lines + self._τ_plot_alt_lines
+        for index, line in enumerate(self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
                                      + self._τ_plot_leastsq_lines
                                      + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines):
             if index >= len(props):
@@ -646,13 +667,14 @@ class Plot(Thread):
     def get_τ_plot_lines_visibility(self):
         return [line.get_visible() for line in self._τ_plot_lines] \
                + [line.get_visible() for line in self._τ_plot_alt_lines] \
+               + [line.get_visible() for line in self._τ_plot_alt_bb_lines] \
                + [line.get_visible() for line in self._τ_plot_leastsq_lines] \
                + [line.get_visible() for line in self._τ_plot_magic_lines] \
                + [line.get_visible() for line in self._τ_plot_magic_alt_lines]
 
     def set_τ_plot_lines_visibility(self, states: List[bool]):
         # FIXME: when setting line visibility to False, lines disappear from the legend, too
-        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines
+        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
                              + self._τ_plot_leastsq_lines
                              + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines,
                              states):
@@ -661,7 +683,7 @@ class Plot(Thread):
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
         for _legline in self._τ_plot_legend.get_lines():
             _legline.set_picker(5)
-        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines
+        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
                              + self._τ_plot_leastsq_lines
                              + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines,
                              states):
