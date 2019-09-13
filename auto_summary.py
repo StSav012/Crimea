@@ -6,6 +6,7 @@ import gzip
 import json
 import os.path
 import re
+import warnings
 
 # sending email
 import smtplib
@@ -111,8 +112,14 @@ def calculate_leastsq_τ(loop_data) -> (float, float):
         y = np.log(d - d0)
     else:
         y = np.log(d0 - d)
-    p, residuals, *_ = np.polyfit(x, y, deg=1, full=True)
-    return (p[0], residuals[0]) if residuals.size else (np.nan, np.nan)
+    with warnings.catch_warnings():
+        warnings.filterwarnings('error')
+        try:
+            p = np.polyfit(x, y, deg=1)
+        except np.RankWarning:
+            return np.nan, np.nan
+    error = np.sqrt(np.nanmean(np.square(np.polyval(p, x) - y)))
+    return p[0], error
 
 
 def best_magic_angle(h: np.ndarray, lower_angle: Union[int, float], higher_angle: Union[int, float]) -> (int, float):
