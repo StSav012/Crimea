@@ -7,16 +7,15 @@ import json
 import os.path
 import re
 import warnings
-
-# sending email
-import smtplib
 from collections import namedtuple
 from datetime import datetime
+from typing import Any, Dict, List, Union
+# sending email
+import smtplib
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import List, Dict, Union, Any
 
 import numpy as np
 import xlsxwriter
@@ -24,6 +23,9 @@ from PyQt5.QtCore import QSettings
 from xlsxwriter.format import Format
 from xlsxwriter.utility import xl_col_to_name
 
+CURRENT_TIME: float = datetime.now().timestamp()
+
+DAY: float = 86400.
 TIME_FIELD: str = 'Time'
 GENERAL_FIELDS: List[str] = [TIME_FIELD]
 
@@ -342,17 +344,37 @@ def fit_dict(_d: Dict, keys: List, default: Any = None) -> Dict:
     return new_dict
 
 
-def list_files(path):
+def list_files(path, *, max_age: float = -1.):
     files: List[str] = []
     if os.path.isdir(path):
         for file in os.listdir(path):
             if os.path.isfile(os.path.join(path, file)):
-                files.append(os.path.join(path, file))
+                ok: bool = True
+                if max_age > 0.:
+                    mod_time: float = os.path.getmtime(os.path.join(path, file))
+                    if CURRENT_TIME - mod_time > max_age:
+                        ok = False
+                if ok:
+                    files.append(os.path.join(path, file))
             elif os.path.isdir(os.path.join(path, file)):
                 files.extend(list_files(os.path.join(path, file)))
     elif os.path.isfile(path):
         files.append(path)
     return files
+
+
+def take_screenshot() -> bytes:
+    from PyQt5.QtWidgets import QApplication
+    from PyQt5.Qt import QBuffer, QIODevice
+    app = QApplication([])
+    buffer = QBuffer()
+    buffer.open(QIODevice.ReadWrite)
+    app.primaryScreen().grabWindow(app.desktop().winId()).save(buffer, 'png')
+    buffer.seek(0)
+    data: bytes = buffer.readAll().data()
+    buffer.close()
+    del app
+    return data
 
 
 def send_email(config_name: str, results_file_name: str):
@@ -380,8 +402,17 @@ def send_email(config_name: str, results_file_name: str):
                 part = MIMEBase('application', 'octet-stream')
                 part.set_payload(attachment.read())
                 encoders.encode_base64(part)
-                part.add_header('Content-Disposition', 'attachment; filename=' + results_file_name)
+                part.add_header('Content-Disposition', 'attachment', filename=os.path.split(results_file_name)[-1])
                 msg.attach(part)
+
+                screenshot: bytes = take_screenshot()
+                if screenshot:
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(screenshot)
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', 'attachment', filename='screenshot.png')
+                    msg.attach(part)
+
                 server = smtplib.SMTP(server, port)
                 server.starttls()
                 server.login(sender, password)
@@ -389,13 +420,12 @@ def send_email(config_name: str, results_file_name: str):
                 server.quit()
 
 
-def check_new_files_given(filenames: List[str], timeout: float = 86400) -> bool:
+def check_new_files_given(filenames: List[str], timeout: float = DAY) -> bool:
     new_files_given = False
-    current_time = datetime.now().timestamp()
     for filename in filenames:
         if filename.endswith('.json.gz') and os.path.exists(filename) and os.path.isfile(filename):
-            mod_time = os.path.getmtime(filename)
-            if current_time - mod_time < timeout:
+            mod_time: float = os.path.getmtime(filename)
+            if CURRENT_TIME - mod_time < timeout:
                 new_files_given = True
                 break
     return new_files_given
@@ -480,6 +510,8 @@ def main():
                     action='store_true', default=False)
     ap.add_argument('-o', '--output-prefix', help='prefix for the result files',
                     default='results_' + datetime.date(datetime.now()).isoformat())
+    ap.add_argument('-m', '--max-age', help='maximal age of files to take into account (in days)',
+                    default=-1., type=float)
     ap.add_argument('files', metavar='PATH', nargs='+', help='path to a file to process')
     args = ap.parse_args()
 
@@ -490,7 +522,7 @@ def main():
 
     filenames: List[str] = []
     for filename in args.files:
-        filenames.extend(list_files(filename))
+        filenames.extend(list_files(filename, max_age=args.max_age * DAY))
     filenames.sort(key=lambda fn: os.path.basename(fn), reverse=True)
 
     if not args.anyway and not check_new_files_given(filenames):
@@ -617,6 +649,7 @@ def main():
 
                     channel += 1
 
+    # print('data collected')
     if workbook is not None:
         workbook.close()
         if args.send_email and any(written_rows):
