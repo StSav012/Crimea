@@ -213,33 +213,37 @@ class Dallas18B20(Thread):
         try:
             while True:
                 init_time: float = time.perf_counter()
-                self._temperatures = self._get_temperatures()
-                self._setpoints = self._get_setpoints()
-                self._states = self._get_states()
-                self._enabled = self._get_enabled()
-                while self._new_setpoints:
-                    for key, value in self._new_setpoints.copy().items():
-                        if self._setpoints[key] != value:
-                            if self.send(f'I{key}'):
-                                # time.sleep(1)
-                                self.send(f'T{value}')
-                                # time.sleep(1)
-                                self._setpoints = self._get_setpoints()
-                        else:
-                            del self._new_setpoints[key]
-                while self._new_digitals:
-                    for key, value in self._new_digitals.copy().items():
-                        if self.send(f'H{key}' if value else f'L{key}'):
-                            del self._new_digitals[key]
-                while self._new_enabled is not None and self._enabled is not self._new_enabled:
-                    if self._new_enabled is True:
-                        self.send('E')
-                    elif self._new_enabled is False:
-                        self.send('D')
+                try:
+                    self._temperatures = self._get_temperatures()
+                    self._setpoints = self._get_setpoints()
+                    self._states = self._get_states()
                     self._enabled = self._get_enabled()
-                spent_time: float = time.perf_counter() - init_time
-                # print(spent_time)
-                if spent_time < 10.:
-                    time.sleep(10. - spent_time)
+                    while self._new_setpoints:
+                        for key, value in self._new_setpoints.copy().items():
+                            if self._setpoints[key] != value:
+                                if self.send(f'I{key}'):
+                                    # time.sleep(1)
+                                    self.send(f'T{value}')
+                                    # time.sleep(1)
+                                    self._setpoints = self._get_setpoints()
+                            else:
+                                del self._new_setpoints[key]
+                    while self._new_digitals:
+                        for key, value in self._new_digitals.copy().items():
+                            if self.send(f'H{key}' if value else f'L{key}'):
+                                del self._new_digitals[key]
+                    while self._new_enabled is not None and self._enabled is not self._new_enabled:
+                        if self._new_enabled is True:
+                            self.send('E')
+                        elif self._new_enabled is False:
+                            self.send('D')
+                        self._enabled = self._get_enabled()
+                except (SystemExit, KeyboardInterrupt):
+                    return
+                finally:
+                    spent_time: float = time.perf_counter() - init_time
+                    # print(spent_time)
+                    if spent_time < 10.:
+                        time.sleep(10. - spent_time)
         except (SystemExit, KeyboardInterrupt):
             return
