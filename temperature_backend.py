@@ -138,12 +138,13 @@ class Dallas18B20(Thread):
             'A14': 68,
             'A15': 69,
         }
+        v = None
         if isinstance(pin, str):
             pin = mega_pins[pin]
         try:
-            return int(self.read_text(f'V{pin}', terminator=b'\n\r'))  # arduino firmware bug
-        except (TypeError, ValueError):
-            return None
+            v = int(self.read_text(f'V{pin}', terminator=b'\n\r'))  # arduino firmware bug
+        finally:
+            return v
 
     def _get_temperatures(self) -> List[float]:
         resp = self.read_text('R')
