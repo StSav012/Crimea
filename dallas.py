@@ -14,15 +14,15 @@ EXCLUDED_WEATHER_FIELDS: List[str] = [
 ]
 
 
-def expand_keys(l: List[str]) -> List[str]:
-    for item in l.copy():
+def expand_keys(_l: List[str]) -> List[str]:
+    for item in _l.copy():
         m = re.search(r'\[\d+\]$', item)
         if m:
             i = item[:m.start()]
             for n in range(int(m.group()[1:-1])):
-                l.insert(l.index(item), '{key}[{index}]'.format(key=i, index=n))
-            del l[l.index(item)]
-    return l
+                _l.insert(_l.index(item), '{key}[{index}]'.format(key=i, index=n))
+            del _l[_l.index(item)]
+    return _l
 
 
 def collect_keys(d: Dict[str, Union[None, int, float, str, List[Union[None, int, float, str]]]]) \
@@ -509,7 +509,7 @@ class Dallas:
                 # print('written', msg.encode('ascii'))
                 self._sio.flush()
                 # print('reading...')
-                resp = [l.strip() for l in self._sio.readlines()]
+                resp = [_l.strip() for _l in self._sio.readlines()]
                 self._sio.flush()
                 self._communicating = False
             except (serial.SerialException, TypeError):
