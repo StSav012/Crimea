@@ -30,7 +30,12 @@ class Dallas18B20(Thread):
         for port in ports:
             if (port.pid == 0x7523 and port.vid == 0x1a86) \
                     or (port.pid == 0x0042 and port.vid == 0x2341):
-                self._ser.port = port.device
+                try:
+                    self._ser.port = port.device
+                except TypeError:
+                    print(f'Incorrect device: {port}')
+                    time.sleep(1)
+                    continue
                 self._ser.baudrate = 9600
                 self._ser.parity = serial.PARITY_NONE
                 self._ser.bytesize = serial.EIGHTBITS
@@ -40,6 +45,8 @@ class Dallas18B20(Thread):
                     self._ser.open()
                 except PermissionError:
                     print(f'Permission to open {self._ser.port} denied')
+                except TypeError:
+                    print(f'Incorrect device: {port}')
                 except serial.serialutil.SerialException as ex:
                     print(ex.strerror)
                 else:
@@ -71,9 +78,10 @@ class Dallas18B20(Thread):
         # print('command:', cmd)
         if not self._ser.is_open:
             self._open_serial()
-        while self._ser.is_open:
-            msg = cmd + '\n'
-            try:
+        resp = None
+        try:
+            if self._ser.is_open:
+                msg = cmd + '\n'
                 self._communicating = True
                 self._ser.write(msg.encode())
                 # print('written', msg.encode('ascii'))
@@ -86,17 +94,14 @@ class Dallas18B20(Thread):
                     resp = ''
                 self._ser.flush()
                 self._communicating = False
-            except (serial.SerialException, TypeError):
-                self._communicating = False
-                continue
-            if not resp:
-                self._close_serial()
-                print('restarting', self._ser.port)
-                self._open_serial()
-                continue
-            print(cmd, resp.split(','))
+                if not resp:
+                    self._close_serial()
+                    print('restarting', self._ser.port)
+                print(cmd, resp.split(','))
+                return resp
+        finally:
+            self._communicating = False
             return resp
-        return None
 
     def send(self, cmd: str) -> bool:
         if not self._block():
