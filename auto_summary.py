@@ -377,6 +377,37 @@ def take_screenshot() -> bytes:
     return data
 
 
+def take_webcam_shot() -> bytes:
+    import cv2
+
+    """ 
+    use 
+    v4l2-ctl -d /dev/video0 --all
+    to get the supproted properties
+    """
+    cap: cv2.VideoCapture = cv2.VideoCapture(0)
+
+    params = list()
+    params.append(cv2.IMWRITE_JPEG_OPTIMIZE)
+    params.append(8)
+
+    image = bytes()
+
+    try:
+        if cap.isOpened():
+            # Read picture. ret === True on success
+            ret, frame = cap.read()
+            if ret:
+                ret, image = cv2.imencode('.jpg', frame, params)
+                if not ret:
+                    image = bytes()
+    finally:
+        # Close device
+        cap.release()
+
+    return image
+
+
 def send_email(config_name: str, results_file_name: str):
     if os.path.exists(config_name):
         config = configparser.ConfigParser()
@@ -411,6 +442,14 @@ def send_email(config_name: str, results_file_name: str):
                     part.set_payload(screenshot)
                     encoders.encode_base64(part)
                     part.add_header('Content-Disposition', 'attachment', filename='screenshot.png')
+                    msg.attach(part)
+
+                photo: bytes = take_webcam_shot()
+                if photo:
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(photo)
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', 'attachment', filename='webcam_photo.png')
                     msg.attach(part)
 
                 server = smtplib.SMTP(server, port)
