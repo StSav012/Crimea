@@ -6,6 +6,7 @@ import gzip
 import json
 import os.path
 import re
+import time
 import warnings
 from collections import namedtuple
 from datetime import datetime
@@ -391,16 +392,19 @@ def take_webcam_shot() -> bytes:
     params.append(cv2.IMWRITE_JPEG_OPTIMIZE)
     params.append(8)
 
-    image = bytes()
+    image: bytes = bytes()
 
     try:
         if cap.isOpened():
             # Read picture. ret === True on success
             ret, frame = cap.read()
             if ret:
-                ret, image = cv2.imencode('.jpg', frame, params)
+                image_np: np.ndarray
+                ret, image_np = cv2.imencode('.jpg', frame, params)
                 if not ret:
                     image = bytes()
+                else:
+                    image = image_np.tostring()
     finally:
         # Close device
         cap.release()
@@ -452,7 +456,14 @@ def send_email(config_name: str, results_file_name: str):
                     part.add_header('Content-Disposition', 'attachment', filename='webcam_photo.png')
                     msg.attach(part)
 
-                server = smtplib.SMTP(server, port)
+                mail_server_connected: bool = False
+                while not mail_server_connected:
+                    try:
+                        server = smtplib.SMTP(server, port)
+                    except OSError:
+                        time.sleep(60)
+                    else:
+                        mail_server_connected = True
                 server.starttls()
                 server.login(sender, password)
                 server.sendmail(sender, cc + [sender], msg.as_string())
