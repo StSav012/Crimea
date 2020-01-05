@@ -218,12 +218,13 @@ def process(data, ch: int, principial_angles: PrincipialAngles) \
     if ch < 0 or ch >= channels_count:
         raise ValueError('invalid channel number')
 
-    angles_data: Dict[Union[str, float], Union[None, float]] = {}
+    angles_data: Dict[float, float] = {}
+    # TODO: avoid repeating of `angles_data` keys
     for item in raw_data:
         if len(item['voltage'][ch]) > 0:
-            angles_data[item['angle']] = sum(item['voltage'][ch]) / len(item['voltage'][ch])
-        else:
-            angles_data[item['angle']] = None
+            angles_data[item['angle']] = float(np.mean(item['voltage'][ch]))
+        elif item['angle'] not in angles_data:
+            angles_data[item['angle']] = np.nan
     al, ic2pa, ac2pa = get_absorption_labels(dict((i, angles_data[i]) for i in sorted(angles_data)),
                                              principial_angles)
     _fields = list(al)
@@ -250,10 +251,9 @@ def process(data, ch: int, principial_angles: PrincipialAngles) \
     else:
         absorptions = dict()
     # rename `angles_data` keys
-    # TODO: avoid repeating
-    angles_data = dict((f'θ = {90 - i}°', angles_data[i])
-                       for i in sorted(angles_data))
-    _fields.extend(angles_data.keys())
+    angles_data_str: Dict[str, float] = dict((f'θ = {90 - i}°', angles_data[i])
+                                             for i in sorted(angles_data))
+    _fields.extend(angles_data_str.keys())
 
     weather: Dict[str, Union[None, str, int, float]] = {'WindDir': None, 'AvgWindSpeed': None, 'OutsideHum': None,
                                                         'OutsideTemp': None, 'RainRate': None, 'UVLevel': None,
@@ -304,7 +304,7 @@ def process(data, ch: int, principial_angles: PrincipialAngles) \
                 weather['UVLevel'],
                 weather['SolarRad'],
             ])),
-            **angles_data,
+            **angles_data_str,
             **arduino_state
             }, _fields, al, ic2pa, ac2pa, channels_count
 
@@ -345,22 +345,20 @@ def fit_dict(_d: Dict, keys: List, default: Any = None) -> Dict:
     return new_dict
 
 
-def list_files(path, *, max_age: float = -1.):
+def list_files(path, *, max_age: float = -1., suffix: str = ''):
     files: List[str] = []
     if os.path.isdir(path):
         for file in os.listdir(path):
-            if os.path.isfile(os.path.join(path, file)):
-                ok: bool = True
-                if max_age > 0.:
-                    mod_time: float = os.path.getmtime(os.path.join(path, file))
-                    if CURRENT_TIME - mod_time > max_age:
-                        ok = False
-                if ok:
-                    files.append(os.path.join(path, file))
-            elif os.path.isdir(os.path.join(path, file)):
-                files.extend(list_files(os.path.join(path, file)))
-    elif os.path.isfile(path):
-        files.append(path)
+            full_path: str = os.path.join(path, file)
+            files.extend(list_files(full_path, max_age=max_age, suffix=suffix))
+    elif os.path.isfile(path) and (not suffix or path.endswith(suffix)):
+        new_enough: bool = True
+        if max_age > 0.:
+            mod_time: float = os.path.getmtime(path)
+            if CURRENT_TIME - mod_time > max_age:
+                new_enough = False
+        if new_enough:
+            files.append(path)
     return files
 
 
@@ -448,13 +446,26 @@ def send_email(config_name: str, results_file_name: str):
                     part.add_header('Content-Disposition', 'attachment', filename='screenshot.png')
                     msg.attach(part)
 
-                photo: bytes = take_webcam_shot()
-                if photo:
-                    part = MIMEBase('application', 'octet-stream')
-                    part.set_payload(photo)
-                    encoders.encode_base64(part)
-                    part.add_header('Content-Disposition', 'attachment', filename='webcam_photo.png')
-                    msg.attach(part)
+                photos = list_files('/tmp/tmpfs', max_age=2 * DAY, suffix='.jpg')
+                if photos:
+                    for photo_file_name in photos:
+                        with open(photo_file_name, 'rb') as photo_file:
+                            photo: bytes = photo_file.read()
+                            if photo:
+                                part = MIMEBase('application', 'octet-stream')
+                                part.set_payload(photo)
+                                encoders.encode_base64(part)
+                                part.add_header('Content-Disposition', 'attachment',
+                                                filename=os.path.basename(photo_file_name))
+                                msg.attach(part)
+                else:
+                    photo: bytes = take_webcam_shot()
+                    if photo:
+                        part = MIMEBase('application', 'octet-stream')
+                        part.set_payload(photo)
+                        encoders.encode_base64(part)
+                        part.add_header('Content-Disposition', 'attachment', filename='webcam_photo.jpg')
+                        msg.attach(part)
 
                 mail_server_connected: bool = False
                 while not mail_server_connected:
@@ -559,7 +570,8 @@ def main():
     ap.add_argument('-a', '--anyway', help='process files even if no new files given (younger than a day)',
                     action='store_true', default=False)
     ap.add_argument('-o', '--output-prefix', help='prefix for the result files',
-                    default='results_' + datetime.date(datetime.now()).isoformat())
+                    default=(('/tmp/tmpfs/results_' if os.path.exists('/tmp/tmpfs') else 'results_')
+                             + datetime.date(datetime.now()).isoformat()))
     ap.add_argument('-m', '--max-age', help='maximal age of files to take into account (in days)',
                     default=-1., type=float)
     ap.add_argument('files', metavar='PATH', nargs='+', help='path to a file to process')
@@ -572,7 +584,7 @@ def main():
 
     filenames: List[str] = []
     for filename in args.files:
-        filenames.extend(list_files(filename, max_age=args.max_age * DAY))
+        filenames.extend(list_files(filename, max_age=args.max_age * DAY, suffix='.json.gz'))
     filenames.sort(key=lambda fn: os.path.basename(fn), reverse=True)
 
     if not args.anyway and not check_new_files_given(filenames):
@@ -587,7 +599,7 @@ def main():
     initial_fields: Union[None, List[str]] = None
 
     for filename in filenames:
-        if filename.endswith('.json.gz') and os.path.exists(filename) and os.path.isfile(filename):
+        if os.path.exists(filename) and os.path.isfile(filename):
             # print(filename)
             with gzip.GzipFile(filename, 'r') as fin:
                 content = fin.read().decode()
