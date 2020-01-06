@@ -4,6 +4,7 @@ import argparse
 import configparser
 import gzip
 import json
+import os
 import os.path
 import re
 import time
@@ -716,6 +717,8 @@ def main():
         workbook.close()
         if args.send_email and any(written_rows):
             send_email(args.config, results_file_name)
+    if results_file_name.startswith('/tmp/') and os.path.exists(results_file_name):
+        os.remove(results_file_name)
 
 
 if __name__ == '__main__':
