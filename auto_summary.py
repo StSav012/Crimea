@@ -447,7 +447,7 @@ def send_email(config_name: str, results_file_name: str):
                     part.add_header('Content-Disposition', 'attachment', filename='screenshot.png')
                     msg.attach(part)
 
-                photos = list_files('/tmp/tmpfs', max_age=2 * DAY, suffix='.jpg')
+                photos = list_files('/tmp/tmpfs', max_age=DAY, suffix='.jpg')
                 if photos:
                     for photo_file_name in photos:
                         with open(photo_file_name, 'rb') as photo_file:
@@ -570,7 +570,7 @@ def main():
                     action='store_true', default=False)
     ap.add_argument('-a', '--anyway', help='process files even if no new files given (younger than a day)',
                     action='store_true', default=False)
-    ap.add_argument('-o', '--output-prefix', help='prefix for the result files',
+    ap.add_argument('-o', '--output-prefix', help='prefix for the result workbook; if in /tmp, gets removed afterwards',
                     default=(('/tmp/tmpfs/results_' if os.path.exists('/tmp/tmpfs') else 'results_')
                              + datetime.date(datetime.now()).isoformat()))
     ap.add_argument('-m', '--max-age', help='maximal age of files to take into account (in days)',
