@@ -459,6 +459,7 @@ def send_email(config_name: str, results_file_name: str):
                                 part.add_header('Content-Disposition', 'attachment',
                                                 filename=os.path.basename(photo_file_name))
                                 msg.attach(part)
+                        os.remove(photo_file_name)
                 else:
                     photo: bytes = take_webcam_shot()
                     if photo:
