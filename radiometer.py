@@ -1,5 +1,5 @@
-from subprocess import Popen, PIPE
 import time
+from subprocess import PIPE, Popen
 from threading import Thread
 
 

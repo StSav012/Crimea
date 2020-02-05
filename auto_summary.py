@@ -7,6 +7,7 @@ import json
 import os
 import os.path
 import re
+import socket
 import time
 import warnings
 from collections import namedtuple
@@ -389,12 +390,15 @@ def take_webcam_shot() -> bytes:
 
     params = list()
     params.append(cv2.IMWRITE_JPEG_OPTIMIZE)
-    params.append(8)
+    params.append(1)
 
     image: bytes = bytes()
 
     try:
         if cap.isOpened():
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 10000)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 10000)
+            cap.set(cv2.CAP_PROP_AUTO_WB, 0)
             # Read picture. ret === True on success
             ret, frame = cap.read()
             if ret:
@@ -459,21 +463,23 @@ def send_email(config_name: str, results_file_name: str):
                                 part.add_header('Content-Disposition', 'attachment',
                                                 filename=os.path.basename(photo_file_name))
                                 msg.attach(part)
-                        os.remove(photo_file_name)
                 else:
                     photo: bytes = take_webcam_shot()
                     if photo:
                         part = MIMEBase('application', 'octet-stream')
                         part.set_payload(photo)
                         encoders.encode_base64(part)
-                        part.add_header('Content-Disposition', 'attachment', filename='webcam_photo.jpg')
+                        part.add_header('Content-Disposition', 'attachment',
+                                        filename=f'webcam_photo_{time.strftime("%Y-%m-%d_%H-%M")}.jpg')
                         msg.attach(part)
 
                 mail_server_connected: bool = False
+                # FIXME: sometimes, it becomes an infinite loop
                 while not mail_server_connected:
                     try:
                         server = smtplib.SMTP(server, port)
                     except OSError:
+                        print(socket.gethostbyname(server))
                         time.sleep(60)
                     else:
                         mail_server_connected = True
@@ -481,6 +487,10 @@ def send_email(config_name: str, results_file_name: str):
                 server.login(sender, password)
                 server.sendmail(sender, cc + [sender], msg.as_string())
                 server.quit()
+
+                # if the email is sent, clean up
+                for photo_file_name in photos:
+                    os.remove(photo_file_name)
 
 
 def check_new_files_given(filenames: List[str], timeout: float = DAY) -> bool:
@@ -642,11 +652,11 @@ def main():
                     if write_row(workbook.worksheets()[channel], written_rows[channel], d, header_fields[channel]):
                         # for bb_τ_label
                         formula: str = '=LN((${d0_c}{row} - ${d2_c}{row})/(${d0_c}{row} - ${d1_c}{row})) ' \
-                                       '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))'\
+                                       '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))' \
                             .format(d0_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.bb_angle),
                                     d1_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.min_angle),
                                     d2_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.max_angle),
-                                    row=written_rows[channel]+1,
+                                    row=written_rows[channel] + 1,
                                     θ1=90 - ac2pa.min_angle,
                                     θ2=90 - ac2pa.max_angle)
                         # print(formula)
@@ -659,11 +669,11 @@ def main():
                                 value=absorptions[label])
                         # for bb_τ_label_alt
                         formula: str = '=LN((${d0_c}{row} - ${d2_c}{row})/(${d0_c}{row} - ${d1_c}{row})) ' \
-                                       '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))'\
+                                       '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))' \
                             .format(d0_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.bb_angle),
                                     d1_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.min_angle_alt),
                                     d2_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.max_angle),
-                                    row=written_rows[channel]+1,
+                                    row=written_rows[channel] + 1,
                                     θ1=90 - ac2pa.min_angle_alt,
                                     θ2=90 - ac2pa.max_angle)
                         # print(formula)
@@ -676,11 +686,11 @@ def main():
                                 value=absorptions[label])
                         # for magic_angles_τ_label
                         formula: str = '=LN((${d2_c}{row} - ${d3_c}{row})/(${d1_c}{row} - ${d2_c}{row})) ' \
-                                       '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))'\
+                                       '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))' \
                             .format(d1_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.min_angle),
                                     d2_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.magic_angle),
                                     d3_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.max_angle),
-                                    row=written_rows[channel]+1,
+                                    row=written_rows[channel] + 1,
                                     θ1=90 - ac2pa.min_angle,
                                     θ2=90 - ac2pa.magic_angle)
                         # print(formula)
@@ -693,11 +703,11 @@ def main():
                                 value=absorptions[label])
                         # for magic_angles_τ_label_alt
                         formula: str = '=LN((${d2_c}{row} - ${d3_c}{row})/(${d1_c}{row} - ${d2_c}{row})) ' \
-                                       '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))'\
+                                       '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))' \
                             .format(d1_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.min_angle_alt),
                                     d2_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.magic_angle_alt),
                                     d3_c=xl_col_to_name(len(GENERAL_FIELDS) + len(lal) + ic2pa.max_angle),
-                                    row=written_rows[channel]+1,
+                                    row=written_rows[channel] + 1,
                                     θ1=90 - ac2pa.min_angle_alt,
                                     θ2=90 - ac2pa.magic_angle_alt)
                         # print(formula)
