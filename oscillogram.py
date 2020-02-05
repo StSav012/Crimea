@@ -24,13 +24,12 @@ while wait_for_signal:
     for channel, voltage in enumerate(adc.voltages):
         data[channel].append(voltage)
         for ch in range(len(data)):
-            if len(data[ch]) > 1:
-                if not signal_registered and abs(data[ch][-1] - data[ch][-2]) > EPS:
-                    signal_registered = True
-                elif signal_registered and all(abs(data[ch][-1] - data[ch][-2]) < EPS for ch in range(len(data))):
-                    wait_for_signal = False
-                if not signal_registered and len(data[ch]) > N_BEFORE:
-                    data[ch].pop(0)
+            if not signal_registered and abs(data[ch][-1] - data[ch][0]) > EPS:
+                signal_registered = True
+            elif signal_registered and all(abs(data[ch][-1] - data[ch][-2]) < EPS for ch in range(len(data))):
+                wait_for_signal = False
+            if not signal_registered and len(data[ch]) > N_BEFORE:
+                data[ch].pop(0)
     time.sleep(2. * adc.timeout)
 
 with open('log.csv', 'w') as f_out:
