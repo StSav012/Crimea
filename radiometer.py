@@ -1,19 +1,21 @@
 import time
+from math import nan
 from subprocess import PIPE, Popen
 from threading import Thread
+from typing import List
 
 
 class ADC(Thread):
-    def __init__(self, channels, *, timeout=0.1, app='./ldevio'):
+    def __init__(self, channels: List[int], *, timeout: float = 0.1, app: str = './ldevio'):
         Thread.__init__(self)
-        self.daemon = True
-        self.timeout = timeout
-        self._channels = channels[:]
-        self._channels_str = [str(channel) for channel in self._channels]
-        self.voltages = [None] * len(self._channels)
+        self.daemon: bool = True
+        self.timeout: float = timeout
+        self._channels: List[int] = channels[:]
+        self._channels_str: List[str] = [str(channel) for channel in self._channels]
+        self.voltages: List[float] = [nan] * len(self._channels)
         if max(self._channels) > 7:
-            raise ValueError('There is no channel {}'.format(max(self._channels)))
-        self._is_running = False
+            raise ValueError(f'There is no channel {max(self._channels)}')
+        self._is_running: bool = False
         self._p = Popen([app, str(max(self._channels)+1)], stdin=PIPE, stdout=PIPE)
 
     def stop(self):
@@ -30,7 +32,7 @@ class ADC(Thread):
                     if r and r[0] == channel:
                         self.voltages[index] = float(r[1])
                     else:
-                        self.voltages[index] = None
+                        self.voltages[index] = nan
                 time.sleep(self.timeout)
             if not self._is_running:
                 self._p.communicate(input=b'-1', timeout=3)
