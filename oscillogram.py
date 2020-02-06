@@ -11,6 +11,7 @@ except ImportError:
 ADC_CHANNELS: List[int] = [0]
 EPS: float = 0.01
 N_BEFORE: int = 10000
+N_AFTER: int = 10000
 
 adc = radiometer.ADC(channels=ADC_CHANNELS, timeout=0.01)
 adc.start()
@@ -22,14 +23,15 @@ wait_for_signal: bool = True
 
 while wait_for_signal:
     for channel, voltage in enumerate(adc.voltages):
-        data[channel].append(voltage)
-        for ch in range(len(data)):
-            if not signal_registered and abs(data[ch][-1] - data[ch][0]) > EPS:
-                signal_registered = True
-            elif signal_registered and all(abs(data[ch][-1] - data[ch][-2]) < EPS for ch in range(len(data))):
-                wait_for_signal = False
-            if not signal_registered and len(data[ch]) > N_BEFORE:
-                data[ch].pop(0)
+        if not signal_registered and len(data[channel]) > N_BEFORE:
+            data[channel].pop(0)
+        if len(data[channel]) < N_BEFORE + N_AFTER:
+            data[channel].append(voltage)
+        if not signal_registered and abs(data[channel][-1] - data[channel][0]) > EPS:
+            signal_registered = True
+        elif signal_registered and all(abs(data[ch][-1] - data[ch][-2]) < EPS for ch in range(len(data))):
+            wait_for_signal = False
+
     time.sleep(2. * adc.timeout)
 
 with open('log.csv', 'w') as f_out:
