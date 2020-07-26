@@ -1123,7 +1123,7 @@ class App(QMainWindow):
                 self.last_loop_data = {}
                 self.canvas.draw_idle()
 
-                self.pd.setMaximum(1000 * self.plot.time_to_move_home())
+                self.pd.setMaximum(1000 * round(self.plot.time_to_move_home()))
                 self.pd.setLabelText('Wait till the motor comes home')
                 self.pd.reset()
                 try:
@@ -1154,7 +1154,7 @@ class App(QMainWindow):
                 self.timer.timeout.connect(self.measure_next)
                 self.timer.setSingleShot(True)
                 # don't use QTimer.singleShot here to be able to stop the timer later!!
-                self.timer.start(self.plot.measurement_time(angle, duration) * 1000)
+                self.timer.start(round(self.plot.measurement_time(angle, duration)) * 1000)
         else:
             try:
                 self.timer.timeout.disconnect()
@@ -1181,7 +1181,7 @@ class App(QMainWindow):
             self.timer.timeout.connect(self.measure_next)
             self.timer.setSingleShot(True)
             # don't use QTimer.singleShot here to be able to stop the timer later!!
-            self.timer.start(self.plot.measurement_time(angle, duration) * 1000)
+            self.timer.start(round(self.plot.measurement_time(angle, duration)) * 1000)
         else:
             self.timer.stop()
             self.plot.set_running(False)
@@ -1213,7 +1213,7 @@ class App(QMainWindow):
             self.button_go.setChecked(False)
         self.button_power.setDisabled(True)
         if new_state:
-            self.pd.setMaximum(1000 * (self.plot.time_to_move_home()))
+            self.pd.setMaximum(1000 * round(self.plot.time_to_move_home()))
             self.pd.setLabelText('Wait till the motor comes home')
             self.pd.reset()
             try:

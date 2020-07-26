@@ -88,8 +88,8 @@ class Plot(Thread):
                                                  label=f'ch {ch + 1}')[0]
                             for ch in range(len(adc_channels))]
         self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
-        for legline in self._plot_legend.get_lines():
-            legline.set_picker(5)
+        for legend_line in self._plot_legend.get_lines():
+            legend_line.set_pickradius(5)
 
         self._τ_plot = figure.add_subplot(2, 1, 2, sharex=self._plot)
         self._τ_plot.autoscale()
@@ -125,8 +125,8 @@ class Plot(Thread):
                                                                label=f'ch {ch + 1} (3 angles alt)', ls='-.')[0]
                                         for ch in range(len(adc_channels))]
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
-        for legline in self._τ_plot_legend.get_lines():
-            legline.set_picker(5)
+        for legend_line in self._τ_plot_legend.get_lines():
+            legend_line.set_pickradius(5)
 
         self._wind_plot = self._τ_plot.twinx()
         self._wind_plot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
@@ -143,12 +143,12 @@ class Plot(Thread):
         def on_pick(event):
             # on the pick event, find the orig line corresponding to the
             # legend proxy line, and toggle the visibility
-            _legline = event.artist
-            if _legline in self._plot_legend.get_lines():
+            _legend_line = event.artist
+            if _legend_line in self._plot_legend.get_lines():
                 _legend = '_plot_legend'
                 _lines = self._plot_lines
                 _axes = self._plot
-            elif _legline in self._τ_plot_legend.get_lines():
+            elif _legend_line in self._τ_plot_legend.get_lines():
                 _legend = '_τ_plot_legend'
                 _lines = (self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
                           + self._τ_plot_leastsq_lines
@@ -156,23 +156,23 @@ class Plot(Thread):
                 _axes = self._τ_plot
             else:
                 return
-            _index = getattr(self, _legend).get_lines().index(_legline)
-            _origline = _lines[_index]
-            vis = not _origline.get_visible()
+            _index = getattr(self, _legend).get_lines().index(_legend_line)
+            _orig_line = _lines[_index]
+            vis = not _orig_line.get_visible()
             if vis:
                 _alpha = 1.0
             else:
                 _alpha = 0.2
-            viss: List[bool] = [_line.get_visible() for _line in _lines]
+            visible_states: List[bool] = [_line.get_visible() for _line in _lines]
             for _line in _lines:
                 _line.set_visible(True)
-            _origline.set_alpha(_alpha)
+            _orig_line.set_alpha(_alpha)
             setattr(self, _legend, _axes.legend(loc='upper left', bbox_to_anchor=(1, 1)))
-            for _legline in getattr(self, _legend).get_lines():
-                _legline.set_picker(5)
-            for _line, _vis in zip(_lines, viss):
+            for _legend_line in getattr(self, _legend).get_lines():
+                _legend_line.set_pickradius(5)
+            for _line, _vis in zip(_lines, visible_states):
                 _line.set_visible(_vis)
-            _origline.set_visible(vis)
+            _orig_line.set_visible(vis)
             event.canvas.draw()
 
         figure.canvas.mpl_connect('pick_event', on_pick)
@@ -607,14 +607,14 @@ class Plot(Thread):
 
     def update_plot_legend(self):
         self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
-        for _legline in self._plot_legend.get_lines():
-            _legline.set_picker(5)
+        for _legend_line in self._plot_legend.get_lines():
+            _legend_line.set_pickradius(5)
         self._plot.figure.canvas.draw()
 
     def update_τ_plot_legend(self):
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
-        for _legline in self._τ_plot_legend.get_lines():
-            _legline.set_picker(5)
+        for _legend_line in self._τ_plot_legend.get_lines():
+            _legend_line.set_pickradius(5)
         self._τ_plot.figure.canvas.draw()
 
     def update_legends(self):
@@ -658,8 +658,8 @@ class Plot(Thread):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
         self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
-        for _legline in self._plot_legend.get_lines():
-            _legline.set_picker(5)
+        for _legend_line in self._plot_legend.get_lines():
+            _legend_line.set_pickradius(5)
         for line, vis in zip(self._plot_lines, states):
             line.set_visible(vis)
         self._plot.figure.canvas.draw()
@@ -681,8 +681,8 @@ class Plot(Thread):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
-        for _legline in self._τ_plot_legend.get_lines():
-            _legline.set_picker(5)
+        for _legend_line in self._τ_plot_legend.get_lines():
+            _legend_line.set_pickradius(5)
         for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
                              + self._τ_plot_leastsq_lines
                              + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines,

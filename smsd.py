@@ -1,3 +1,6 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
 import time
 from threading import Thread
 
@@ -54,7 +57,7 @@ class Motor(Thread):
     def degrees_to_steps(self, degrees):
         v = float(degrees) * self.MICROSTEPPING_MODE * self._gear_ratio / 180. * 100.
         if v != 0. and int(v) == 0:
-            print('Warning: To little angle to move: {angle}'.format(angle=degrees))
+            print(f'Warning: To little angle to move: {degrees}')
         return int(v)
 
     def set_microstepping_mode(self, new_mode):
@@ -83,10 +86,10 @@ class Motor(Thread):
                 try:
                     self._ser.open()
                 except PermissionError:
-                    print('Permission to open {} denied'.format(self._ser.port))
+                    print(f'Permission to open {self._ser.port} denied')
                     if self._ser.port not in self._ser_banned:
                         self._ser_banned += (self._ser.port,)
-                    time.sleep(1)           # to be changed
+                    time.sleep(1)  # to be changed
                     pass
                 else:
                     print(self._ser.port, "opened for the SMSD4.2RS-232")
@@ -119,7 +122,7 @@ class Motor(Thread):
         if resp in replies:
             return replies[resp]
         else:
-            return 'Unknown reply: {reply}'.format(reply=resp)
+            return f'Unknown reply: {resp}'
 
     def _do(self, cmd):
         if not self._block():
@@ -142,7 +145,7 @@ class Motor(Thread):
                 continue
             if len(c) == 0:
                 self._ser.close()
-                print('restarting ' + self._ser.port)
+                print('no response from', self._ser.port)
                 if self._ser.port not in self._ser_banned:
                     self._ser_banned += (self._ser.port,)
                 self._open_serial()
@@ -174,34 +177,34 @@ class Motor(Thread):
         steps = self.degrees_to_steps(angle)
         if abs(steps) <= 10000000:
             if steps > 0:
-                return self.forward() and self._do('MV{steps}'.format(steps=steps))
+                return self.forward() and self._do(f'MV{steps}')
             elif steps < 0:
-                return self.backward() and self._do('MV{steps}'.format(steps=-steps))
+                return self.backward() and self._do(f'MV{-steps}')
             else:
                 return True
         else:
-            raise ValueError('Too many steps: {steps}'.format(steps=steps))
+            raise ValueError(f'Too many steps: {steps}')
 
     def stop(self):
         return self._do('ST1')
-    
-    def speed(self, speed=None):     # steps/sec
+
+    def speed(self, speed=None):  # steps/sec
         if speed is None:
             return self.steps_to_degrees(self._speed)
         speed = self.degrees_to_steps(speed)
         if 0 < abs(speed) <= 10000:
             if speed > 0:
-                if self.forward() and self._do('SD{speed}'.format(speed=speed)):
+                if self.forward() and self._do(f'SD{speed}'):
                     self._speed = speed
                     return True
             elif speed < 0:
-                if self.backward() and self._do('SD{speed}'.format(speed=-speed)):
+                if self.backward() and self._do(f'SD{-speed}'):
                     self._speed = -speed
                     return True
         elif speed == 0:
-            raise ValueError('Too low speed: {speed}'.format(speed=speed))
+            raise ValueError(f'Too low speed: {speed}')
         else:
-            raise ValueError('Too much speed: {speed}'.format(speed=speed))
+            raise ValueError(f'Too much speed: {speed}')
         return False
 
     def gear_ratio(self, ratio=None):
@@ -234,7 +237,7 @@ class Motor(Thread):
     def wait_high(self):
         """ Indefinite pause, wait for a signal to input IN2 """
         return self._do('WH')
-    
+
     def wait_low(self):
         """ Indefinite pause, wait for a signal to input IN1 """
         return self._do('WL')
@@ -263,3 +266,11 @@ class Motor(Thread):
         if isinstance(device, str):
             self._ser_device = device
         self._open_serial()
+
+
+if __name__ == '__main__':
+    motor = Motor(device='/dev/ttyS0')
+    try:
+        motor.open()
+    except (KeyboardInterrupt, SystemExit):
+        exit(0)
