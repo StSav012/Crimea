@@ -36,6 +36,10 @@ LINE_PROPERTIES: List[str] = ['color', 'dash_capstyle', 'dash_joinstyle', 'draws
 
 
 class NavigationToolbar(NavigationToolbar2QT):
+    def __init__(self, canvas, parent, coordinates=True):
+        super().__init__(canvas, parent, coordinates)
+        self.toolbar_parent_hot_fix = parent
+
     def edit_parameters(self):
         axes = self.canvas.figure.get_axes()
         if not axes:
@@ -47,7 +51,7 @@ class NavigationToolbar(NavigationToolbar2QT):
             titles = [
                 ax.get_label() or
                 ax.get_title() or
-                " - ".join(filter(None, [ax.get_xlabel(), ax.get_ylabel()])) or
+                " — ".join(filter(None, [ax.get_xlabel(), ax.get_ylabel()])) or
                 f"<anonymous {type(ax).__name__}>"
                 for ax in axes]
             duplicate_titles = [
@@ -56,14 +60,16 @@ class NavigationToolbar(NavigationToolbar2QT):
                 if titles[i] in duplicate_titles:
                     titles[i] += f" (id: {id(ax):#x})"  # Deduplicate titles.
             item, ok = QInputDialog.getItem(
-                self.parent, 'Customize', 'Select axes:', titles, 0, False)
+                self.canvas.parent(), 'Customize', 'Select axes:', titles, 0, False)
             if not ok:
                 return
             ax = axes[titles.index(item)]
-        figureoptions.figure_edit(ax, self)
+        figureoptions.figure_edit(ax, self.toolbar_parent_hot_fix)
 
 
 class Plot(Thread):
+    bbox_to_anchor = (1.25, 1)
+
     def __init__(self, *, serial_device, microstepping_mode, speed, adc_channels,
                  figure,
                  measurement_delay=0, init_angle=0, output_folder=os.path.curdir,
@@ -87,8 +93,9 @@ class Plot(Thread):
         self._plot_lines = [self._plot.plot_date(np.empty(0), np.empty(0),
                                                  label=f'ch {ch + 1}')[0]
                             for ch in range(len(adc_channels))]
-        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
         for legend_line in self._plot_legend.get_lines():
+            legend_line.set_picker(True)
             legend_line.set_pickradius(5)
 
         self._τ_plot = figure.add_subplot(2, 1, 2, sharex=self._plot)
@@ -124,8 +131,9 @@ class Plot(Thread):
                                                                color=self._plot_lines[ch].get_color(),
                                                                label=f'ch {ch + 1} (3 angles alt)', ls='-.')[0]
                                         for ch in range(len(adc_channels))]
-        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
         for legend_line in self._τ_plot_legend.get_lines():
+            legend_line.set_picker(True)
             legend_line.set_pickradius(5)
 
         self._wind_plot = self._τ_plot.twinx()
@@ -167,8 +175,9 @@ class Plot(Thread):
             for _line in _lines:
                 _line.set_visible(True)
             _orig_line.set_alpha(_alpha)
-            setattr(self, _legend, _axes.legend(loc='upper left', bbox_to_anchor=(1, 1)))
+            setattr(self, _legend, _axes.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor))
             for _legend_line in getattr(self, _legend).get_lines():
+                _legend_line.set_picker(True)
                 _legend_line.set_pickradius(5)
             for _line, _vis in zip(_lines, visible_states):
                 _line.set_visible(_vis)
@@ -606,14 +615,16 @@ class Plot(Thread):
             self.data = []
 
     def update_plot_legend(self):
-        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
         for _legend_line in self._plot_legend.get_lines():
+            _legend_line.set_picker(True)
             _legend_line.set_pickradius(5)
         self._plot.figure.canvas.draw()
 
     def update_τ_plot_legend(self):
-        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
         for _legend_line in self._τ_plot_legend.get_lines():
+            _legend_line.set_picker(True)
             _legend_line.set_pickradius(5)
         self._τ_plot.figure.canvas.draw()
 
@@ -657,8 +668,9 @@ class Plot(Thread):
         for line, vis in zip(self._plot_lines, states):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
-        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
         for _legend_line in self._plot_legend.get_lines():
+            _legend_line.set_picker(True)
             _legend_line.set_pickradius(5)
         for line, vis in zip(self._plot_lines, states):
             line.set_visible(vis)
@@ -680,8 +692,9 @@ class Plot(Thread):
                              states):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
-        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
         for _legend_line in self._τ_plot_legend.get_lines():
+            _legend_line.set_picker(True)
             _legend_line.set_pickradius(5)
         for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
                              + self._τ_plot_leastsq_lines

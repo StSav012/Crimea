@@ -18,14 +18,14 @@ def get_icon(name):
     return QIcon(os.path.join(basedir, name))
 
 
-LINESTYLES = {'-': 'Solid',
-              '--': 'Dashed',
-              '-.': 'DashDot',
-              ':': 'Dotted',
-              'None': 'None',
-              }
+LINE_STYLES = {'-': 'Solid',
+               '--': 'Dashed',
+               '-.': 'DashDot',
+               ':': 'Dotted',
+               'None': 'None',
+               }
 
-DRAWSTYLES = {
+DRAW_STYLES = {
     'default': 'Default',
     'steps-pre': 'Steps (Pre)', 'steps': 'Steps (Pre)',
     'steps-mid': 'Steps (Mid)',
@@ -40,30 +40,31 @@ def figure_edit(axes, parent=None):
 
     # Get / General
     # Cast to builtin floats as they have nicer reprs.
-    xmin, xmax = map(float, axes.get_xlim())
-    ymin, ymax = map(float, axes.get_ylim())
-    general = [(None, "<b>X-Axis</b>"),
-               ('Left', xmin), ('Right', xmax),
-               ('Label', axes.get_xlabel()),
-               sep,
-               (None, "<b>Y-Axis</b>"),
-               ('Bottom', ymin), ('Top', ymax),
-               ('Label', axes.get_ylabel()),
-               ]
+    x_min, x_max = map(float, axes.get_xlim())
+    y_min, y_max = map(float, axes.get_ylim())
+    general = [
+        (None, "<b>X-Axis</b>"),
+        ('Left', x_min), ('Right', x_max),
+        ('Label', axes.get_xlabel()),
+        sep,
+        (None, "<b>Y-Axis</b>"),
+        ('Bottom', y_min), ('Top', y_max),
+        ('Label', axes.get_ylabel()),
+    ]
 
     # Save the unit data
-    xconverter = axes.xaxis.converter
-    yconverter = axes.yaxis.converter
-    xunits = axes.xaxis.get_units()
-    yunits = axes.yaxis.get_units()
+    x_converter = axes.xaxis.converter
+    y_converter = axes.yaxis.converter
+    x_units = axes.xaxis.get_units()
+    y_units = axes.yaxis.get_units()
 
     # Get / Curves
-    linedict = {}
+    line_dict = {}
     for line in axes.get_lines():
         label = line.get_label()
         if label == '_nolegend_':
             continue
-        linedict[label] = line
+        line_dict[label] = line
     curves = []
 
     def prepare_data(d, init):
@@ -92,9 +93,9 @@ def figure_edit(axes, parent=None):
                 sorted(short2name.items(),
                        key=lambda short_and_name: short_and_name[1]))
 
-    curvelabels = list(linedict.keys())
-    for label in curvelabels:
-        line = linedict[label]
+    curve_labels = list(line_dict.keys())
+    for label in curve_labels:
+        line = line_dict[label]
         try:
             color = mcolors.to_hex(
                 mcolors.to_rgba(line.get_color(), line.get_alpha()),
@@ -113,10 +114,10 @@ def figure_edit(axes, parent=None):
                 keep_alpha=True)
         except ValueError:
             fc = '#000000ff'
-        curvedata = [
+        curve_data = [
             (None, '<b>Line</b>'),
-            ('Line style', prepare_data(LINESTYLES, line.get_linestyle())),
-            ('Draw style', prepare_data(DRAWSTYLES, line.get_drawstyle())),
+            ('Line style', prepare_data(LINE_STYLES, line.get_linestyle())),
+            ('Draw style', prepare_data(DRAW_STYLES, line.get_drawstyle())),
             ('Width', line.get_linewidth()),
             ('Color (RGBA)', color),
             sep,
@@ -125,18 +126,18 @@ def figure_edit(axes, parent=None):
             ('Size', line.get_markersize()),
             ('Face color (RGBA)', fc),
             ('Edge color (RGBA)', ec)]
-        curves.append([curvedata, label, ""])
+        curves.append([curve_data, label, ""])
     # Is there a curve displayed?
     has_curve = bool(curves)
 
-    datalist = [(general, "Axes", "")]
+    data_list = [(general, "Axes", "")]
     if curves:
-        datalist.append((curves, "Curves", ""))
+        data_list.append((curves, "Curves", ""))
 
     def apply_callback(_data):
         """This function will be called to apply changes"""
-        orig_xlim = axes.get_xlim()
-        orig_ylim = axes.get_ylim()
+        orig_x_lim = axes.get_xlim()
+        orig_y_lim = axes.get_ylim()
 
         _general = _data.pop(0)
         _curves = _data.pop(0) if has_curve else []
@@ -144,53 +145,56 @@ def figure_edit(axes, parent=None):
             raise ValueError("Unexpected field")
 
         # Set / General
-        (_xmin, _xmax, xlabel, _ymin, _ymax, ylabel) = _general
+        (_x_min, _x_max, x_label, _y_min, _y_max, y_label) = _general
 
-        axes.set_xlim(_xmin, _xmax)
-        axes.set_xlabel(xlabel)
-        axes.set_ylim(_ymin, _ymax)
-        axes.set_ylabel(ylabel)
+        axes.set_xlim(_x_min, _x_max)
+        axes.set_xlabel(x_label)
+        axes.set_ylim(_y_min, _y_max)
+        axes.set_ylabel(y_label)
 
         # Restore the unit data
-        axes.xaxis.converter = xconverter
-        axes.yaxis.converter = yconverter
-        axes.xaxis.set_units(xunits)
-        axes.yaxis.set_units(yunits)
+        axes.xaxis.converter = x_converter
+        axes.yaxis.converter = y_converter
+        axes.xaxis.set_units(x_units)
+        axes.yaxis.set_units(y_units)
         getattr(axes.xaxis, '_update_axisinfo')()
         getattr(axes.yaxis, '_update_axisinfo')()
 
         # Set / Curves
         for index, curve in enumerate(_curves):
-            _line = linedict[curvelabels[index]]
-            (linestyle, drawstyle, linewidth, _color, marker, markersize,
-             markerfacecolor, markeredgecolor) = curve
-            _line.set_linestyle(linestyle)
-            _line.set_drawstyle(drawstyle)
-            _line.set_linewidth(linewidth)
+            _line = line_dict[curve_labels[index]]
+            (line_style, draw_style, line_width, _color, marker, marker_size,
+             marker_face_color, marker_edge_color) = curve
+            _line.set_linestyle(line_style)
+            _line.set_drawstyle(draw_style)
+            _line.set_linewidth(line_width)
             rgba = mcolors.to_rgba(_color)
             _line.set_alpha(None)
             _line.set_color(rgba)
             _line.set_marker(marker)
-            _line.set_markersize(markersize)
-            _line.set_markerfacecolor(markerfacecolor)
-            _line.set_markeredgecolor(markeredgecolor)
+            _line.set_markersize(marker_size)
+            _line.set_markerfacecolor(marker_face_color)
+            _line.set_markeredgecolor(marker_edge_color)
 
         # Redraw
         figure = axes.get_figure()
         figure.canvas.draw()
-        if not (axes.get_xlim() == orig_xlim and axes.get_ylim() == orig_ylim):
+        if not (axes.get_xlim() == orig_x_lim and axes.get_ylim() == orig_y_lim):
             figure.canvas.toolbar.push_current()
-        if parent is not None and hasattr(parent, 'plot') and hasattr(parent.plot, 'update_legends'):
+        if (parent is not None
+                and hasattr(parent, 'plot')
+                and hasattr(parent.plot, 'update_legends')
+                and callable(parent.plot.update_legends)):
             parent.plot.update_legends()
 
     if hasattr(qt_editor, '_formlayout'):
-        formlayout = getattr(qt_editor, '_formlayout')
+        form_layout = getattr(qt_editor, '_formlayout')
     elif hasattr(qt_editor, 'formlayout'):
-        formlayout = getattr(qt_editor, 'formlayout')
+        form_layout = getattr(qt_editor, 'formlayout')
     else:
         return
-    data = formlayout.fedit(datalist, title="Figure options", parent=parent,
-                            icon=get_icon('qt4_editor_options.svg'),
-                            apply=apply_callback)
+    data = form_layout.fedit(data_list, title="Figure options", parent=parent,
+                             icon=get_icon('qt4_editor_options.svg'),
+                             apply=apply_callback)
     if data is not None:
         apply_callback(data)
