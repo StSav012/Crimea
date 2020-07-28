@@ -244,12 +244,12 @@ class Plot(Thread):
 
     @staticmethod
     def on_xlim_changed(axes):
-        xlim = axes.get_xlim()
-        axis_min, axis_max = min(xlim), max(xlim)
+        x_lim = axes.get_xlim()
+        axis_min, axis_max = min(x_lim), max(x_lim)
         if axis_min < 1.:
             axes.set_xlim(left=1., right=axis_max if axis_max > 1. else 1.001)
             axes.set_autoscalex_on(True)
-        autoscale = axes.get_autoscalex_on()
+        auto_scale = axes.get_autoscalex_on()
         data_min, data_max = None, None
         for line in axes.lines:
             data = line.get_xdata()
@@ -265,18 +265,18 @@ class Plot(Thread):
                 data_max = np.max(data)
         if data_min is not None and data_max is not None:
             if axis_min > data_min or axis_max < data_max:
-                autoscale = False
+                auto_scale = False
             else:
-                xmargin, ymargin = axes.margins()
+                x_margin, y_margin = axes.margins()
                 if data_max == data_min:
                     span = 1
                 else:
                     span = abs(data_max - data_min)
-                axis_min = data_min - xmargin * span
-                axis_max = data_max + xmargin * span
+                axis_min = data_min - x_margin * span
+                axis_max = data_max + x_margin * span
                 axes.set_xlim(left=axis_min, right=axis_max, emit=False, auto=True)
-                autoscale = True
-        axes.set_autoscalex_on(autoscale)
+                auto_scale = True
+        axes.set_autoscalex_on(auto_scale)
 
     # @staticmethod
     # def on_xlim_changed(axes):
@@ -297,13 +297,13 @@ class Plot(Thread):
     #
     @staticmethod
     def on_ylim_changed(axes):
-        ylim = axes.get_ylim()
-        autoscale = True
+        y_lim = axes.get_ylim()
+        auto_scale = True
         for line in axes.lines:
             data = line.get_ydata()[:-1]
-            if data.size > 0 and (min(ylim) > min(data) and max(ylim) < max(data)):
-                autoscale = False
-        axes.set_autoscaley_on(autoscale)
+            if data.size > 0 and (min(y_lim) > min(data) and max(y_lim) < max(data)):
+                auto_scale = False
+        axes.set_autoscaley_on(auto_scale)
 
     @staticmethod
     def on_click(event):

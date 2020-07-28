@@ -1211,6 +1211,7 @@ class App(QMainWindow):
     def button_power_toggled(self, new_state):
         if not new_state:
             self.button_go.setChecked(False)
+            self.button_go.setEnabled(False)
         self.button_power.setDisabled(True)
         if new_state:
             self.pd.setMaximum(1000 * round(self.plot.time_to_move_home()))
