@@ -239,7 +239,9 @@ class Plot(Thread):
         self._adc.join()
         self._motor.disable()
         self._motor.join()
-        self.arduino.join(timeout=1)
+        self.arduino.stop()
+        # FIXME: the following line causes double channel changes
+        # self.arduino.join(timeout=1)
         self._closing = True
 
     @staticmethod

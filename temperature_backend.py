@@ -23,6 +23,7 @@ class Dallas18B20(Thread):
         self._new_setpoints: Dict[int, int] = dict()
         self._new_digitals: Dict[int, bool] = dict()
         self._new_enabled: Union[None, bool] = None
+        self._running: bool = False
 
     def _open_serial(self):
         self._communicating = False
@@ -215,16 +216,20 @@ class Dallas18B20(Thread):
     def enabled(self) -> Union[None, bool]:
         return self._enabled
 
+    def stop(self):
+        self._running = False
+
     def run(self):
         try:
-            while True:
+            self._running = True
+            while self._running:
                 init_time: float = time.perf_counter()
                 try:
                     self._temperatures = self._get_temperatures()
                     self._setpoints = self._get_setpoints()
                     self._states = self._get_states()
                     self._enabled = self._get_enabled()
-                    while self._new_setpoints:
+                    while self._running and self._new_setpoints:
                         for key, value in self._new_setpoints.copy().items():
                             if self._setpoints[key] != value:
                                 if self.send(f'I{key}'):
@@ -234,11 +239,11 @@ class Dallas18B20(Thread):
                                     self._setpoints = self._get_setpoints()
                             else:
                                 del self._new_setpoints[key]
-                    while self._new_digitals:
+                    while self._running and self._new_digitals:
                         for key, value in self._new_digitals.copy().items():
                             if self.send(f'H{key}' if value else f'L{key}'):
                                 del self._new_digitals[key]
-                    while self._new_enabled is not None and self._enabled is not self._new_enabled:
+                    while self._running and self._new_enabled is not None and self._enabled is not self._new_enabled:
                         if self._new_enabled is True:
                             self.send('E')
                         elif self._new_enabled is False:

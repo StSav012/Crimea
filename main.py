@@ -1295,10 +1295,11 @@ class App(QMainWindow):
             self.plot = backend.Plot(serial_device='/dev/ttyS0',
                                      microstepping_mode=MicrosteppingMode(index=self.spin_step_fraction.value()),
                                      speed=self.spin_settings_speed.value(),
+                                     ratio=self.spin_settings_gear_1.value() / self.spin_settings_gear_2.value(),
                                      measurement_delay=self.spin_measurement_delay.value(),
                                      init_angle=self._init_angle,
                                      figure=self.figure,
-                                     adc_channels=list(range(self.spin_channels.value())),
+                                     adc_channels=list(range(new_value)),
                                      output_folder=self.get_config_value('settings', 'output folder',
                                                                          os.path.join(os.path.curdir, 'data'), str),
                                      results_file_prefix=time.strftime("%Y%m%d%H%M%S"))
