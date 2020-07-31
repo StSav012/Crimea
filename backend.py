@@ -431,13 +431,13 @@ class Plot(Thread):
                     print(self._y[ch])
                 else:
                     self._plot_lines[ch].set_data(self._x, self._y[ch])
-                    self._plot.relim(visible_only=True)
-                    self._plot.autoscale_view(None, self._plot.get_autoscalex_on(), self._plot.get_autoscaley_on())
-                    self._plot.figure.canvas.draw_idle()
             else:
                 print('empty y for channel', ch + 1)
                 self._y[ch] = np.concatenate((self._y[ch], np.array([np.nan])))
             self._current_y[ch] = np.array([])
+        self._plot.relim(visible_only=True)
+        self._plot.autoscale_view(None, self._plot.get_autoscalex_on(), self._plot.get_autoscaley_on())
+        self._plot.figure.canvas.draw_idle()
         self._is_running = False
         self._measured = True
 
