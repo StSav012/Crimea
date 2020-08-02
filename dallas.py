@@ -588,6 +588,8 @@ class Dallas:
     def get_realtime_data(self):
         r = self.read_bytes('LOOP 1')
         data = {}
+        if r is None:
+            return data
         if len(r) == struct.calcsize(self.realtime_data_types):
             data = dict(zip(self.realtime_data_names, struct.unpack(self.realtime_data_types, r)))
             # correcting values to get human-readable format
