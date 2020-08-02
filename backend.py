@@ -24,10 +24,7 @@ try:
     import radiometer_dummy as radiometer
 except ImportError:
     import radiometer
-try:
-    import dallas_dummy as dallas
-except ImportError:
-    import dallas
+import dallas
 import temperature_backend
 
 LINE_PROPERTIES: List[str] = ['color', 'dash_capstyle', 'dash_joinstyle', 'drawstyle', 'fillstyle', 'linestyle',
@@ -68,7 +65,7 @@ class NavigationToolbar(NavigationToolbar2QT):
 
 
 class Plot(Thread):
-    bbox_to_anchor = (1.25, 1)
+    bbox_to_anchor = (1.20, 1)
 
     def __init__(self, *, serial_device, microstepping_mode, speed, adc_channels,
                  figure,
