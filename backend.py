@@ -7,14 +7,21 @@ import os
 import time
 from datetime import datetime
 from threading import Thread
-from typing import List, Dict, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from PyQt5.QtWidgets import QMessageBox, QInputDialog
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QInputDialog, QMessageBox
+from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.dates import date2num
+from matplotlib.figure import Figure
+from matplotlib.legend import Legend
+from matplotlib.lines import Line2D
 
 import figureoptions
+import utils
+from subplot_tool import SubplotToolQt
 
 try:
     import smsd_dummy as smsd
@@ -33,7 +40,7 @@ LINE_PROPERTIES: List[str] = ['color', 'dash_capstyle', 'dash_joinstyle', 'draws
 
 
 class NavigationToolbar(NavigationToolbar2QT):
-    def __init__(self, canvas, parent, coordinates=True):
+    def __init__(self, canvas, parent, coordinates: bool = True):
         super().__init__(canvas, parent, coordinates)
         self.toolbar_parent_hot_fix = parent
 
@@ -63,20 +70,32 @@ class NavigationToolbar(NavigationToolbar2QT):
             ax = axes[titles.index(item)]
         figureoptions.figure_edit(ax, self.toolbar_parent_hot_fix)
 
+    def configure_subplots(self):
+        image = utils.get_icon('subplots.svg')
+        dia = SubplotToolQt(self.canvas.figure,
+                            self.toolbar_parent_hot_fix.plot.legends,
+                            title='Subplots options')
+        dia.setWindowIcon(QIcon(image))
+        dia.exec_()
+        self.toolbar_parent_hot_fix.plot.bbox_to_anchor = \
+            (getattr(self.toolbar_parent_hot_fix.plot.legends[0].get_bbox_to_anchor(), '_bbox').xmin,
+             getattr(self.toolbar_parent_hot_fix.plot.legends[0].get_bbox_to_anchor(), '_bbox').ymax)
+
 
 class Plot(Thread):
-    bbox_to_anchor = (1.20, 1)
-
-    def __init__(self, *, serial_device, microstepping_mode, speed, adc_channels,
-                 figure,
-                 measurement_delay=0, init_angle=0, output_folder=os.path.curdir,
-                 results_file_prefix=None, ratio=1.0):
+    def __init__(self, *, serial_device, microstepping_mode, speed, adc_channels: List[int],
+                 figure: Figure,
+                 measurement_delay: float = 0, init_angle: float = 0,
+                 output_folder: str = os.path.curdir,
+                 results_file_prefix: str = '', ratio: float = 1.0):
         Thread.__init__(self)
         self.daemon = True
 
-        self._figure = figure
+        self.bbox_to_anchor: Tuple[float, float] = (1.10, 1)
 
-        self._plot = figure.add_subplot(2, 1, 1)
+        self._figure: Figure = figure
+
+        self._plot: Axes = figure.add_subplot(2, 1, 1)
         self._plot.autoscale()
         box = self._plot.get_position()
         self._plot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
@@ -87,15 +106,15 @@ class Plot(Thread):
         self._plot.format_coord = lambda x, y: f'voltage = {y:.3f} V'
         self._plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self._plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
-        self._plot_lines = [self._plot.plot_date(np.empty(0), np.empty(0),
-                                                 label=f'ch {ch + 1}')[0]
-                            for ch in range(len(adc_channels))]
-        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
+        self._plot_lines: List[Line2D] = [self._plot.plot_date(np.empty(0), np.empty(0),
+                                                               label=f'ch {ch + 1}')[0]
+                                          for ch in range(len(adc_channels))]
+        self._plot_legend: Legend = self._plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
         for legend_line in self._plot_legend.get_lines():
             legend_line.set_picker(True)
             legend_line.set_pickradius(5)
 
-        self._τ_plot = figure.add_subplot(2, 1, 2, sharex=self._plot)
+        self._τ_plot: Axes = figure.add_subplot(2, 1, 2, sharex=self._plot)
         self._τ_plot.autoscale()
         box = self._τ_plot.get_position()
         self._τ_plot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
@@ -104,36 +123,38 @@ class Plot(Thread):
         self._τ_plot.set_label('Absorption')
         # self._τ_plot.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self._τ_plot.callbacks.connect('ylim_changed', self.on_ylim_changed)
-        self._τ_plot_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
-                                                     color=self._plot_lines[ch].get_color(),
-                                                     label=f'ch {ch + 1}', ls='-')[0]
-                              for ch in range(len(adc_channels))]
-        self._τ_plot_alt_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
-                                                         color=self._plot_lines[ch].get_color(),
-                                                         label=f'ch {ch + 1} (alt)', ls='--')[0]
-                                  for ch in range(len(adc_channels))]
-        self._τ_plot_alt_bb_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
-                                                            color=self._plot_lines[ch].get_color(),
-                                                            label=f'ch {ch + 1} (alt, bb alt)', ls='--')[0]
-                                     for ch in range(len(adc_channels))]
-        self._τ_plot_leastsq_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
-                                                             color=self._plot_lines[ch].get_color(),
-                                                             label=f'ch {ch + 1} (leastsq)', ls=':')[0]
-                                      for ch in range(len(adc_channels))]
-        self._τ_plot_magic_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
-                                                           color=self._plot_lines[ch].get_color(),
-                                                           label=f'ch {ch + 1} (3 angles)', ls='-.')[0]
-                                    for ch in range(len(adc_channels))]
-        self._τ_plot_magic_alt_lines = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
-                                                               color=self._plot_lines[ch].get_color(),
-                                                               label=f'ch {ch + 1} (3 angles alt)', ls='-.')[0]
-                                        for ch in range(len(adc_channels))]
-        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
+        self._τ_plot_lines: List[Line2D] = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                                   color=self._plot_lines[ch].get_color(),
+                                                                   label=f'ch {ch + 1}', ls='-')[0]
+                                            for ch in range(len(adc_channels))]
+        self._τ_plot_alt_lines: List[Line2D] = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                                       color=self._plot_lines[ch].get_color(),
+                                                                       label=f'ch {ch + 1} (alt)', ls='--')[0]
+                                                for ch in range(len(adc_channels))]
+        self._τ_plot_alt_bb_lines: List[Line2D] = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                                          color=self._plot_lines[ch].get_color(),
+                                                                          label=f'ch {ch + 1} (alt, bb alt)',
+                                                                          ls='--')[0]
+                                                   for ch in range(len(adc_channels))]
+        self._τ_plot_leastsq_lines: List[Line2D] = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                                           color=self._plot_lines[ch].get_color(),
+                                                                           label=f'ch {ch + 1} (leastsq)', ls=':')[0]
+                                                    for ch in range(len(adc_channels))]
+        self._τ_plot_magic_lines: List[Line2D] = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                                         color=self._plot_lines[ch].get_color(),
+                                                                         label=f'ch {ch + 1} (3 angles)', ls='-.')[0]
+                                                  for ch in range(len(adc_channels))]
+        self._τ_plot_magic_alt_lines: List[Line2D] = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
+                                                                             color=self._plot_lines[ch].get_color(),
+                                                                             label=f'ch {ch + 1} (3 angles alt)',
+                                                                             ls='-.')[0]
+                                                      for ch in range(len(adc_channels))]
+        self._τ_plot_legend: Legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
         for legend_line in self._τ_plot_legend.get_lines():
             legend_line.set_picker(True)
             legend_line.set_pickradius(5)
 
-        self._wind_plot = self._τ_plot.twinx()
+        self._wind_plot: Axes = self._τ_plot.twinx()
         self._wind_plot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         self._wind_plot.set_navigate(False)
         self._τ_plot.set_zorder(self._wind_plot.get_zorder() + 1)
@@ -183,29 +204,29 @@ class Plot(Thread):
 
         figure.canvas.mpl_connect('pick_event', on_pick)
 
-        self._is_running = False
-        self._measured = False
-        self._closing = False
-        self._adc_channels = adc_channels[:]
-        self._x = np.empty(0)
-        self._y = [np.empty(0)] * len(adc_channels)
-        self._τx = [np.empty(0)] * len(adc_channels)
-        self._τy = [np.empty(0)] * len(adc_channels)
-        self._τx_alt = [np.empty(0)] * len(adc_channels)
-        self._τy_alt = [np.empty(0)] * len(adc_channels)
-        self._τx_bb_alt = [np.empty(0)] * len(adc_channels)
-        self._τy_bb_alt = [np.empty(0)] * len(adc_channels)
-        self._τx_leastsq = [np.empty(0)] * len(adc_channels)
-        self._τy_leastsq = [np.empty(0)] * len(adc_channels)
-        # self._τy_error_leastsq = [np.empty(0)] * len(adc_channels)
-        self._τx_magic = [np.empty(0)] * len(adc_channels)
-        self._τy_magic = [np.empty(0)] * len(adc_channels)
-        self._τx_magic_alt = [np.empty(0)] * len(adc_channels)
-        self._τy_magic_alt = [np.empty(0)] * len(adc_channels)
-        self._wind_x = np.empty(0)
-        self._wind_y = np.empty(0)
-        self._current_x = datetime.now()
-        self._current_y = [np.empty(0)] * len(adc_channels)
+        self._is_running: bool = False
+        self._measured: bool = False
+        self._closing: bool = False
+        self._adc_channels: List[int] = adc_channels[:]
+        self._x: np.ndarray = np.empty(0)
+        self._y: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τx: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τy: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τx_alt: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τy_alt: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τx_bb_alt: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τy_bb_alt: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τx_leastsq: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τy_leastsq: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        # self._τy_error_leastsq: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τx_magic: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τy_magic: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τx_magic_alt: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._τy_magic_alt: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
+        self._wind_x: np.ndarray = np.empty(0)
+        self._wind_y: np.ndarray = np.empty(0)
+        self._current_x: datetime = datetime.now()
+        self._current_y: List[np.ndarray] = [np.empty(0)] * len(adc_channels)
 
         self._adc = radiometer.ADC(channels=adc_channels, timeout=0.1)
         self._adc.start()
@@ -214,22 +235,22 @@ class Plot(Thread):
         self._motor.start()
         self._motor.open()
 
-        self._measurement_delay = measurement_delay
-        self._start_time = None
-        self._stop_time = None
-        self._current_angle = init_angle
+        self._measurement_delay: float = measurement_delay
+        self._start_time: Optional[float] = None
+        self._stop_time: Optional[float] = None
+        self._current_angle: float = init_angle
 
         self._meteo = dallas.Dallas()
 
         self.arduino = temperature_backend.Dallas18B20()
         self.arduino.start()
 
-        self.output_folder = output_folder
-        self.summary_file_prefix = results_file_prefix
+        self.output_folder: str = output_folder
+        self.summary_file_prefix: str = results_file_prefix
         if results_file_prefix:
             print('summary is stored into', ', '.join(f'{self.summary_file_prefix}.{ch + 1}.csv'
                                                       for ch in range(len(adc_channels))))
-        self.data = []
+        self.data: List[dict] = []
 
     def close(self):
         self._adc.stop()
@@ -237,12 +258,12 @@ class Plot(Thread):
         self._motor.disable()
         self._motor.join()
         self.arduino.stop()
-        # FIXME: the following line causes double channel changes
+        # FIXME: the following line causes double channel count changes
         # self.arduino.join(timeout=1)
         self._closing = True
 
     @staticmethod
-    def on_xlim_changed(axes):
+    def on_xlim_changed(axes: Axes):
         x_lim = axes.get_xlim()
         axis_min, axis_max = min(x_lim), max(x_lim)
         if axis_min < 1.:
@@ -278,7 +299,7 @@ class Plot(Thread):
         axes.set_autoscalex_on(auto_scale)
 
     # @staticmethod
-    # def on_xlim_changed(axes):
+    # def on_xlim_changed(axes: Axes):
     #     xlim = axes.get_xlim()
     #     autoscale = True
     #     _min, _max = min(xlim), max(xlim)
@@ -295,7 +316,7 @@ class Plot(Thread):
     #     print(autoscale)
     #
     @staticmethod
-    def on_ylim_changed(axes):
+    def on_ylim_changed(axes: Axes):
         y_lim = axes.get_ylim()
         auto_scale = True
         for line in axes.lines:
@@ -312,7 +333,7 @@ class Plot(Thread):
             # event.inaxes.autoscale_view(None, True, True)
             event.inaxes.autoscale(enable=True, axis='both')
 
-    def enable_motor(self, enable, new_thread=False):
+    def enable_motor(self, enable, new_thread: bool = False):
         if enable:
             self._motor.enable()
             self._motor.forward()
@@ -498,7 +519,7 @@ class Plot(Thread):
         return self.data[-1]['weather'] if len(self.data) > 0 and 'weather' in self.data[-1] else None
 
     def add_τ(self, channel: int, τ: float):
-        current_time = date2num(datetime.now())
+        current_time: float = date2num(datetime.now())
         self._τx[channel] = np.concatenate((self._τx[channel], np.array([current_time])))
         self._τy[channel] = np.concatenate((self._τy[channel], np.array([τ])))
         for ch in range(len(self._τy)):
@@ -507,7 +528,7 @@ class Plot(Thread):
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def add_τ_alt(self, channel: int, τ: float):
-        current_time = date2num(datetime.now())
+        current_time: float = date2num(datetime.now())
         self._τx_alt[channel] = np.concatenate((self._τx_alt[channel], np.array([current_time])))
         self._τy_alt[channel] = np.concatenate((self._τy_alt[channel], np.array([τ])))
         for ch in range(len(self._τy_alt)):
@@ -516,7 +537,7 @@ class Plot(Thread):
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def add_τ_bb_alt(self, channel: int, τ: float):
-        current_time = date2num(datetime.now())
+        current_time: float = date2num(datetime.now())
         self._τx_bb_alt[channel] = np.concatenate((self._τx_bb_alt[channel], np.array([current_time])))
         self._τy_bb_alt[channel] = np.concatenate((self._τy_bb_alt[channel], np.array([τ])))
         for ch in range(len(self._τy_bb_alt)):
@@ -525,7 +546,7 @@ class Plot(Thread):
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def add_τ_leastsq(self, channel: int, τ: float, error: float = np.nan):
-        current_time = date2num(datetime.now())
+        current_time: float = date2num(datetime.now())
         self._τx_leastsq[channel] = np.concatenate((self._τx_leastsq[channel], np.array([current_time])))
         self._τy_leastsq[channel] = np.concatenate((self._τy_leastsq[channel], np.array([τ])))
         # self._τy_error_leastsq[channel] = np.concatenate((self._τy_error_leastsq[channel], np.array([error])))
@@ -536,7 +557,7 @@ class Plot(Thread):
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def add_τ_magic_angles(self, channel: int, τ: float):
-        current_time = date2num(datetime.now())
+        current_time: float = date2num(datetime.now())
         self._τx_magic[channel] = np.concatenate((self._τx_magic[channel], np.array([current_time])))
         self._τy_magic[channel] = np.concatenate((self._τy_magic[channel], np.array([τ])))
         for ch in range(len(self._τy_magic)):
@@ -545,7 +566,7 @@ class Plot(Thread):
         self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def add_τ_magic_angles_alt(self, channel: int, τ: float):
-        current_time = date2num(datetime.now())
+        current_time: float = date2num(datetime.now())
         self._τx_magic_alt[channel] = np.concatenate((self._τx_magic_alt[channel], np.array([current_time])))
         self._τy_magic_alt[channel] = np.concatenate((self._τy_magic_alt[channel], np.array([τ])))
         for ch in range(len(self._τy_magic_alt)):
@@ -613,28 +634,42 @@ class Plot(Thread):
                     ])), **angles_data})
             self.data = []
 
-    def update_plot_legend(self):
-        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
+    def update_plot_legend(self, bbox_to_anchor: Optional[Tuple[float, float]] = None):
+        if bbox_to_anchor is None:
+            bbox_to_anchor = self.bbox_to_anchor
+        else:
+            self.bbox_to_anchor = bbox_to_anchor
+        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=bbox_to_anchor)
         for _legend_line in self._plot_legend.get_lines():
             _legend_line.set_picker(True)
             _legend_line.set_pickradius(5)
         self._plot.figure.canvas.draw()
 
-    def update_τ_plot_legend(self):
-        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
+    def update_τ_plot_legend(self, bbox_to_anchor: Optional[Tuple[float, float]] = None):
+        if bbox_to_anchor is None:
+            bbox_to_anchor = self.bbox_to_anchor
+        else:
+            self.bbox_to_anchor = bbox_to_anchor
+        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=bbox_to_anchor)
         for _legend_line in self._τ_plot_legend.get_lines():
             _legend_line.set_picker(True)
             _legend_line.set_pickradius(5)
         self._τ_plot.figure.canvas.draw()
 
-    def update_legends(self):
-        self.update_plot_legend()
-        self.update_τ_plot_legend()
+    def update_legends(self, bbox_to_anchor: Optional[Tuple[float, float]] = None):
+        self.update_plot_legend(bbox_to_anchor)
+        self.update_τ_plot_legend(bbox_to_anchor)
 
-    def get_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
+    @property
+    def legends(self) -> List[Legend]:
+        return [self._plot_legend, self._τ_plot_legend]
+
+    @property
+    def plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
         return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES)) for line in self._plot_lines]
 
-    def set_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
+    @plot_lines_styles.setter
+    def plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
         for index, line in enumerate(self._plot_lines):
             for key, value in props[index].items():
                 attr: str = 'set_' + key
@@ -642,16 +677,20 @@ class Plot(Thread):
                     getattr(line, attr)(value)
         self.update_plot_legend()
 
-    def get_τ_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
-        return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES))
-                for line in (self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
-                             + self._τ_plot_leastsq_lines
-                             + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines)]
+    @property
+    def τ_plot_lines(self):
+        return (self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
+                + self._τ_plot_leastsq_lines
+                + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines)
 
-    def set_τ_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
-        for index, line in enumerate(self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
-                                     + self._τ_plot_leastsq_lines
-                                     + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines):
+    @property
+    def τ_plot_lines_styles(self) -> List[Dict[str, Union[str, float, None]]]:
+        return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES))
+                for line in self.τ_plot_lines]
+
+    @τ_plot_lines_styles.setter
+    def τ_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
+        for index, line in enumerate(self.τ_plot_lines):
             if index >= len(props):
                 break
             for key, value in props[index].items():
@@ -660,10 +699,12 @@ class Plot(Thread):
                     getattr(line, attr)(value)
         self.update_τ_plot_legend()
 
-    def get_plot_lines_visibility(self):
+    @property
+    def plot_lines_visibility(self):
         return [line.get_visible() for line in self._plot_lines]
 
-    def set_plot_lines_visibility(self, states: List[bool]):
+    @plot_lines_visibility.setter
+    def plot_lines_visibility(self, states: List[bool]):
         for line, vis in zip(self._plot_lines, states):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
@@ -675,38 +716,31 @@ class Plot(Thread):
             line.set_visible(vis)
         self._plot.figure.canvas.draw()
 
-    def get_τ_plot_lines_visibility(self):
-        return [line.get_visible() for line in self._τ_plot_lines] \
-               + [line.get_visible() for line in self._τ_plot_alt_lines] \
-               + [line.get_visible() for line in self._τ_plot_alt_bb_lines] \
-               + [line.get_visible() for line in self._τ_plot_leastsq_lines] \
-               + [line.get_visible() for line in self._τ_plot_magic_lines] \
-               + [line.get_visible() for line in self._τ_plot_magic_alt_lines]
+    @property
+    def τ_plot_lines_visibility(self):
+        return [line.get_visible() for line in self.τ_plot_lines]
 
-    def set_τ_plot_lines_visibility(self, states: List[bool]):
+    @τ_plot_lines_visibility.setter
+    def τ_plot_lines_visibility(self, states: List[bool]):
         # FIXME: when setting line visibility to False, lines disappear from the legend, too
-        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
-                             + self._τ_plot_leastsq_lines
-                             + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines,
-                             states):
+        for line, vis in zip(self.τ_plot_lines, states):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
         self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
         for _legend_line in self._τ_plot_legend.get_lines():
             _legend_line.set_picker(True)
             _legend_line.set_pickradius(5)
-        for line, vis in zip(self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
-                             + self._τ_plot_leastsq_lines
-                             + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines,
-                             states):
+        for line, vis in zip(self.τ_plot_lines, states):
             line.set_visible(vis)
         self._τ_plot.figure.canvas.draw()
 
-    def get_subplotpars(self) -> Dict[str, float]:
+    @property
+    def subplotpars(self) -> Dict[str, float]:
         _attrs: List[str] = ["top", "bottom", "left", "right", "hspace", "wspace"]
         return {attr: float(vars(self._figure.subplotpars)[attr]) for attr in _attrs}
 
-    def set_subplotpars(self, pars: Dict[str, float]):
+    @subplotpars.setter
+    def subplotpars(self, pars: Dict[str, float]):
         self._figure.subplots_adjust(**pars)
         self._figure.canvas.draw_idle()
 

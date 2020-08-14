@@ -9,7 +9,7 @@ import os
 import socket
 import sys
 import time
-from typing import List, Any, Dict, Union, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 import matplotlib.style as mplstyle
 import numpy as np
@@ -618,10 +618,10 @@ class App(QMainWindow):
     def load_plot_config(self):
         self._loading = True
         check_states = [to_bool(b) for b in self.get_config_value('settings', 'voltage channels', '', str).split()]
-        self.plot.set_plot_lines_visibility(check_states)
+        self.plot.plot_lines_visibility = check_states
         check_states = [to_bool(b) for b in self.get_config_value('settings', 'absorption channels', '', str).split()]
-        self.plot.set_τ_plot_lines_visibility(check_states)
-        props: List[Dict[str, Union[str, float, None]]] = self.plot.get_plot_lines_styles()
+        self.plot.τ_plot_lines_visibility = check_states
+        props: List[Dict[str, Union[str, float, None]]] = self.plot.plot_lines_styles
         for index, p in enumerate(props):
             for key, value in p.items():
                 if 'color' in key:
@@ -629,8 +629,8 @@ class App(QMainWindow):
                                                    Union[str, Tuple[float, ...]])
                 else:
                     p[key] = self.get_config_value('settings', f'voltage line {index} {key}', value, type(value))
-        self.plot.set_plot_lines_styles(props)
-        props: List[Dict[str, Union[str, float, None]]] = self.plot.get_τ_plot_lines_styles()
+        self.plot.plot_lines_styles = props
+        props: List[Dict[str, Union[str, float, None]]] = self.plot.τ_plot_lines_styles
         for index, p in enumerate(props):
             for key, value in p.items():
                 if 'color' in key:
@@ -638,33 +638,40 @@ class App(QMainWindow):
                                                    Union[str, Tuple[float, ...]])
                 else:
                     p[key] = self.get_config_value('settings', f'absorption line {index} {key}', value, type(value))
-        self.plot.set_τ_plot_lines_styles(props)
+        self.plot.τ_plot_lines_styles = props
 
-        props: Dict[str, float] = self.plot.get_subplotpars()
+        props: Dict[str, float] = self.plot.subplotpars
         for key, value in props.items():
             props[key] = self.get_config_value('subplots', key, value, float)
-        self.plot.set_subplotpars(props)
+        self.plot.subplotpars = props
+
+        self.plot.update_legends((self.get_config_value('plotLegendsPosition', 'left', 1.1, float),
+                                  self.get_config_value('plotLegendsPosition', 'top', 1.0, float))
+                                 )
 
         self._loading = False
         self.button_power_toggled(self.resuming)
 
     def save_plot_config(self):
         self.set_config_value('settings', 'voltage channels',
-                              stringify_list(self.plot.get_plot_lines_visibility()))
+                              stringify_list(self.plot.plot_lines_visibility))
         self.set_config_value('settings', 'absorption channels',
-                              stringify_list(self.plot.get_τ_plot_lines_visibility()))
-        props: List[Dict[str, Union[str, float, None]]] = self.plot.get_plot_lines_styles()
+                              stringify_list(self.plot.τ_plot_lines_visibility))
+        props: List[Dict[str, Union[str, float, None]]] = self.plot.plot_lines_styles
         for index, p in enumerate(props):
             for key, value in p.items():
                 self.set_config_value('settings', f'voltage line {index} {key}', value)
-        props: List[Dict[str, Union[str, float, None]]] = self.plot.get_τ_plot_lines_styles()
+        props: List[Dict[str, Union[str, float, None]]] = self.plot.τ_plot_lines_styles
         for index, p in enumerate(props):
             for key, value in p.items():
                 self.set_config_value('settings', f'absorption line {index} {key}', value)
 
-        props: Dict[str, float] = self.plot.get_subplotpars()
+        props: Dict[str, float] = self.plot.subplotpars
         for key, value in props.items():
             self.set_config_value('subplots', key, value)
+
+        self.set_config_value('plotLegendsPosition', 'left', round(float(self.plot.bbox_to_anchor[0]), 3))
+        self.set_config_value('plotLegendsPosition', 'top', round(float(self.plot.bbox_to_anchor[1]), 3))
 
     def get_config_value(self, section, key, default, _type) -> Union[bool, int, float, str, Tuple[float, ...]]:
         if section not in self.settings.childGroups():

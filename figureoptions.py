@@ -4,19 +4,14 @@
 
 
 """Module that provides a GUI-based editor for matplotlib's figure options."""
+from typing import Dict, List, Tuple, Union
 
-import os.path
-
-import matplotlib
 import matplotlib.backends.qt_editor as qt_editor
-from PyQt5.QtGui import QIcon
 from matplotlib import colors as mcolors, markers
+from matplotlib.axes import Axes
+from matplotlib.lines import Line2D
 
-
-def get_icon(name):
-    basedir = os.path.join(matplotlib.rcParams['datapath'], 'images')
-    return QIcon(os.path.join(basedir, name))
-
+import utils
 
 LINE_STYLES = {'-': 'Solid',
                '--': 'Dashed',
@@ -34,20 +29,20 @@ DRAW_STYLES = {
 MARKERS = markers.MarkerStyle.markers
 
 
-def figure_edit(axes, parent=None):
+def figure_edit(axes: Axes, parent=None):
     """Edit matplotlib figure options"""
-    sep = (None, None)  # separator
+    sep: Tuple[None, None] = (None, None)  # separator
 
     # Get / General
     # Cast to builtin floats as they have nicer reprs.
     x_min, x_max = map(float, axes.get_xlim())
     y_min, y_max = map(float, axes.get_ylim())
-    general = [
-        (None, "<b>X-Axis</b>"),
+    general: List[Tuple[Union[None, str], Union[str, float]]] = [
+        (None, '<b>X-Axis</b>'),
         ('Left', x_min), ('Right', x_max),
         ('Label', axes.get_xlabel()),
         sep,
-        (None, "<b>Y-Axis</b>"),
+        (None, '<b>Y-Axis</b>'),
         ('Bottom', y_min), ('Top', y_max),
         ('Label', axes.get_ylabel()),
     ]
@@ -59,10 +54,10 @@ def figure_edit(axes, parent=None):
     y_units = axes.yaxis.get_units()
 
     # Get / Curves
-    line_dict = {}
+    line_dict: Dict[str, Line2D] = {}
     for line in axes.get_lines():
-        label = line.get_label()
-        if label == '_nolegend_':
+        label: str = line.get_label()
+        if label.startswith('_'):
             continue
         line_dict[label] = line
     curves = []
@@ -128,7 +123,7 @@ def figure_edit(axes, parent=None):
             ('Edge color (RGBA)', ec)]
         curves.append([curve_data, label, ""])
     # Is there a curve displayed?
-    has_curve = bool(curves)
+    has_curve: bool = bool(curves)
 
     data_list = [(general, "Axes", "")]
     if curves:
@@ -136,8 +131,8 @@ def figure_edit(axes, parent=None):
 
     def apply_callback(_data):
         """This function will be called to apply changes"""
-        orig_x_lim = axes.get_xlim()
-        orig_y_lim = axes.get_ylim()
+        orig_x_lim: Tuple[float, float] = axes.get_xlim()
+        orig_y_lim: Tuple[float, float] = axes.get_ylim()
 
         _general = _data.pop(0)
         _curves = _data.pop(0) if has_curve else []
@@ -169,7 +164,7 @@ def figure_edit(axes, parent=None):
             _line.set_drawstyle(draw_style)
             _line.set_linewidth(line_width)
             rgba = mcolors.to_rgba(_color)
-            _line.set_alpha(None)
+            # _line.set_alpha(None)
             _line.set_color(rgba)
             _line.set_marker(marker)
             _line.set_markersize(marker_size)
@@ -194,7 +189,7 @@ def figure_edit(axes, parent=None):
     else:
         return
     data = form_layout.fedit(data_list, title="Figure options", parent=parent,
-                             icon=get_icon('qt4_editor_options.svg'),
+                             icon=utils.get_icon('qt4_editor_options.svg'),
                              apply=apply_callback)
     if data is not None:
         apply_callback(data)
