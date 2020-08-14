@@ -645,9 +645,8 @@ class App(QMainWindow):
             props[key] = self.get_config_value('subplots', key, value, float)
         self.plot.subplotpars = props
 
-        self.plot.update_legends((self.get_config_value('plotLegendsPosition', 'left', 1.1, float),
-                                  self.get_config_value('plotLegendsPosition', 'top', 1.0, float))
-                                 )
+        self.plot.move_legends((self.get_config_value('plotLegendsPosition', 'left', 1.1, float),
+                                self.get_config_value('plotLegendsPosition', 'top', 1.0, float)))
 
         self._loading = False
         self.button_power_toggled(self.resuming)

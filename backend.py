@@ -44,6 +44,9 @@ class NavigationToolbar(NavigationToolbar2QT):
         super().__init__(canvas, parent, coordinates)
         self.toolbar_parent_hot_fix = parent
 
+    def _init_toolbar(self):
+        pass
+
     def edit_parameters(self):
         axes = self.canvas.figure.get_axes()
         if not axes:
@@ -176,9 +179,7 @@ class Plot(Thread):
                 _axes = self._plot
             elif _legend_line in self._τ_plot_legend.get_lines():
                 _legend = '_τ_plot_legend'
-                _lines = (self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
-                          + self._τ_plot_leastsq_lines
-                          + self._τ_plot_magic_lines + self._τ_plot_magic_alt_lines)
+                _lines = self.τ_plot_lines
                 _axes = self._τ_plot
             else:
                 return
@@ -650,7 +651,7 @@ class Plot(Thread):
             bbox_to_anchor = self.bbox_to_anchor
         else:
             self.bbox_to_anchor = bbox_to_anchor
-        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=bbox_to_anchor)
+        self._τ_plot_legend: Legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=bbox_to_anchor)
         for _legend_line in self._τ_plot_legend.get_lines():
             _legend_line.set_picker(True)
             _legend_line.set_pickradius(5)
@@ -659,6 +660,14 @@ class Plot(Thread):
     def update_legends(self, bbox_to_anchor: Optional[Tuple[float, float]] = None):
         self.update_plot_legend(bbox_to_anchor)
         self.update_τ_plot_legend(bbox_to_anchor)
+
+    def move_legends(self, bbox_to_anchor: Optional[Tuple[float, float]] = None):
+        if bbox_to_anchor is None:
+            bbox_to_anchor = self.bbox_to_anchor
+        else:
+            self.bbox_to_anchor = bbox_to_anchor
+        self._plot_legend.set_bbox_to_anchor(bbox_to_anchor)
+        self._τ_plot_legend.set_bbox_to_anchor(bbox_to_anchor)
 
     @property
     def legends(self) -> List[Legend]:
@@ -708,10 +717,7 @@ class Plot(Thread):
         for line, vis in zip(self._plot_lines, states):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
-        self._plot_legend = self._plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
-        for _legend_line in self._plot_legend.get_lines():
-            _legend_line.set_picker(True)
-            _legend_line.set_pickradius(5)
+        self.update_plot_legend()
         for line, vis in zip(self._plot_lines, states):
             line.set_visible(vis)
         self._plot.figure.canvas.draw()
@@ -726,10 +732,7 @@ class Plot(Thread):
         for line, vis in zip(self.τ_plot_lines, states):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
-        self._τ_plot_legend = self._τ_plot.legend(loc='upper left', bbox_to_anchor=self.bbox_to_anchor)
-        for _legend_line in self._τ_plot_legend.get_lines():
-            _legend_line.set_picker(True)
-            _legend_line.set_pickradius(5)
+        self.update_τ_plot_legend()
         for line, vis in zip(self.τ_plot_lines, states):
             line.set_visible(vis)
         self._τ_plot.figure.canvas.draw()
