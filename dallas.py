@@ -2,7 +2,7 @@ import io
 import re
 import struct
 import time
-from typing import List, Dict, Union
+from typing import Dict, List, Union
 
 import crcmod.predefined
 import serial
@@ -16,11 +16,11 @@ EXCLUDED_WEATHER_FIELDS: List[str] = [
 
 def expand_keys(_l: List[str]) -> List[str]:
     for item in _l.copy():
-        m = re.search(r'\[\d+\]$', item)
+        m = re.search(r'\[\d+]$', item)
         if m:
             i = item[:m.start()]
             for n in range(int(m.group()[1:-1])):
-                _l.insert(_l.index(item), '{key}[{index}]'.format(key=i, index=n))
+                _l.insert(_l.index(item), f'{i}[{n}]')
             del _l[_l.index(item)]
     return _l
 
@@ -29,7 +29,7 @@ def collect_keys(d: Dict[str, Union[None, int, float, str, List[Union[None, int,
         -> Dict[str, Union[None, int, float, str, List[Union[None, int, float, str]]]]:
     dd = {}
     for key in d.copy():
-        m = re.search(r'\[\d+\]$', key)
+        m = re.search(r'\[\d+]$', key)
         if m:
             k = key[:m.start()]
             if k not in dd:
