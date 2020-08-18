@@ -25,8 +25,9 @@ def expand_keys(_l: List[str]) -> List[str]:
     return _l
 
 
-def collect_keys(d: Dict[str, Union[None, int, float, str, List[Union[None, int, float, str]]]]) \
-        -> Dict[str, Union[None, int, float, str, List[Union[None, int, float, str]]]]:
+def collect_keys(d: Dict[str, Union[None, int, float, str,
+                                    List[None], List[int], List[float], List[str]]]) \
+        -> Dict[str, Union[None, int, float, str, List[None], List[int], List[float], List[str]]]:
     dd = {}
     for key in d.copy():
         m = re.search(r'\[\d+]$', key)
@@ -585,9 +586,10 @@ class Dallas:
         else:
             return 'unknown'
 
-    def get_realtime_data(self) -> Dict[str, Union[None, int, float, str, List[None, int, float]]]:
+    def get_realtime_data(self) -> Dict[str, Union[None, int, float, str,
+                                                   List[None], List[int], List[float]]]:
         r: Optional[bytes] = self.read_bytes('LOOP 1')
-        data: Dict[str, Union[None, int, float, str, List[None, int, float]]] = {}
+        data: Dict[str, Union[None, int, float, str, List[None], List[int], List[float]]] = {}
         if r is None:
             return data
         if len(r) == struct.calcsize(self.realtime_data_types):
