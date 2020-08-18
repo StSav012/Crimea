@@ -2,7 +2,7 @@ import io
 import re
 import struct
 import time
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import crcmod.predefined
 import serial
@@ -42,7 +42,7 @@ def collect_keys(d: Dict[str, Union[None, int, float, str, List[Union[None, int,
 
 class Dallas:
     crc = crcmod.predefined.Crc('xmodem')
-    models = {
+    models: Dict[int, str] = {
         0x00: 'Wizard III',
         0x01: 'Wizard II',
         0x02: 'Monitor',
@@ -52,7 +52,7 @@ class Dallas:
         0x06: 'Health Environmonitor',
         0x10: 'Vantage Pro'
     }
-    realtime_data_names = expand_keys([
+    realtime_data_names: List[str] = expand_keys([
         # 'ACK',              # -1 ACK from stream
         # 'L',                # 0  character "L"
         # 'O',                # 1  character "O"
@@ -110,9 +110,9 @@ class Dallas:
     ])
     #                       -          1111111 2222222222 3333333333 444444 55555 666 777777777 888888 9999999
     #                       1 01234579 1245689 0123456789 0123456789 013468 02468 026 012456789 012679 0135678
-    realtime_data_types = '=x xxxbBHHh BhBBHbb bbbbbbbbbb bbbBBBBBBB BHBHHH HHHHH HII BBHBBBBBB BBIBHB BHHxxxx'
+    realtime_data_types: str = '=x xxxbBHHh BhBBHbb bbbbbbbbbb bbbBBBBBBB BHBHHH HHHHH HII BBHBBBBBB BBIBHB BHHxxxx'
 
-    highlow_data_names = expand_keys([
+    highlow_data_names: List[str] = expand_keys([
         # 'ACK',             # -1  ACK from stream
 
         # barometer
@@ -214,20 +214,20 @@ class Dallas:
         'LeafWet[40]',  # 396 Leaf Wetness section
         # 'CRC',              # 436 CRC check bytes (CCITT-16 standard)
     ])
-    highlow_data_types = \
+    highlow_data_types: str = \
         '=x HHHHHHHH BHBB hhhhhhhh BBHHBBBB hhhhhhhh hhhhhhhh hhhh hhhh HHHH HHHH BHBB HHHHH 150B80B40B40Bxx'
     #                                                                      1 1111 1111 11111 1   2  3  3  44
     #     -      111 1112 22222333 33344444 44555556 66667777 7888 8899 9990 0000 1111 11222 2   7  5  9  33
     #     1 02468024 6790 13579135 78913456 79135791 35791357 9135 7913 5791 3579 1245 68024 6   6  6  6  67
 
-    barometer_trends = {
+    barometer_trends: Dict[int, str] = {
         -60: 'Falling Rapidly',
         -20: 'Falling Slowly',
         0: 'Steady',
         20: 'Rising Slowly',
         60: 'Rising Rapidly'
     }
-    forecast_sentences = (
+    forecast_sentences: Tuple[str] = (
         'Mostly clear and cooler.',
         'Mostly clear with little temperature change.',
         'Mostly clear for 12 hrs. with little temperature change.',
@@ -484,9 +484,9 @@ class Dallas:
     def close_serial(self):
         self._ser.close()
 
-    def _block(self, timeout: float = 3.):
-        i = 0
-        dt = 0.1
+    def _block(self, timeout: float = 3.) -> bool:
+        i: int = 0
+        dt: float = 0.1
         while self._communicating:
             time.sleep(dt)
             i += 1
@@ -528,7 +528,7 @@ class Dallas:
             return resp[2]
         return None
 
-    def read_bytes(self, cmd, length=None):
+    def read_bytes(self, cmd, length=None) -> Optional[bytes]:
         if not self._block():
             print('controller is very busy to respond to', cmd)
             return None
@@ -570,24 +570,24 @@ class Dallas:
             break
         return resp
 
-    def get_time(self):
+    def get_time(self) -> Dict[str, int]:
         r = self.read_bytes('GETTIME')
         t = {'seconds': r[1], 'minutes': r[2], 'hours': r[3], 'day': r[4], 'month': r[5], 'year': r[6] + 1900}
         return t
 
-    def get_version(self):
+    def get_version(self) -> str:
         return self.read_text('VER')
 
-    def get_model(self):
+    def get_model(self) -> str:
         model = self.read_bytes('WRD\022\115', 2)
         if model is not None and model[1] in self.models:
             return self.models[model[1]]
         else:
             return 'unknown'
 
-    def get_realtime_data(self):
-        r = self.read_bytes('LOOP 1')
-        data = {}
+    def get_realtime_data(self) -> Dict[str, Union[None, int, float, str, List[None, int, float]]]:
+        r: Optional[bytes] = self.read_bytes('LOOP 1')
+        data: Dict[str, Union[None, int, float, str, List[None, int, float]]] = {}
         if r is None:
             return data
         if len(r) == struct.calcsize(self.realtime_data_types):
@@ -633,9 +633,9 @@ class Dallas:
             print('invalid data size:', len(r), struct.calcsize(self.realtime_data_types))
         return data
 
-    def get_highlow_data(self):
-        r = self.read_bytes('HILOWS')
-        data = {}
+    def get_highlow_data(self) -> Dict[str, Union[None, int, float, str]]:
+        r: bytes = self.read_bytes('HILOWS')
+        data: Dict[str, Union[None, int, float, str]] = {}
         if len(r) == struct.calcsize(self.highlow_data_types):
             data = dict(zip(self.highlow_data_names, struct.unpack(self.highlow_data_types, r)))
             # correcting values to get human-readable format
