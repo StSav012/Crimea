@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Union
 
-from PyQt5.QtWidgets import QDialog, QDoubleSpinBox, QFormLayout, QGroupBox, QHBoxLayout, QPushButton, \
+from PyQt5.QtWidgets import QDialog, QDoubleSpinBox, QFormLayout, QGroupBox, QHBoxLayout, QLineEdit, QPushButton, \
     QVBoxLayout
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
@@ -11,23 +11,27 @@ from matplotlib.legend import Legend
 class UiSubplotTool(QDialog):
     def __init__(self, *args, **kwargs):
         title: Optional[str] = kwargs.pop('title', None)
+        self._labels: List[str] = kwargs.pop('labels', [])
+        self._labels_changed_callback: Optional[Callable] = kwargs.pop('labels_changed_callback', None)
         super().__init__(*args, **kwargs)
         self.setObjectName('SubplotTool')
         if title is not None:
             self.setWindowTitle(title)
-        self._widgets = {}
+        self._widgets: Dict[str, Union[QDoubleSpinBox, QPushButton, List[QLineEdit]]] = {}
 
-        layout = QHBoxLayout()
+        layout: QHBoxLayout = QHBoxLayout()
         self.setLayout(layout)
 
-        left = QVBoxLayout()
+        left: QVBoxLayout = QVBoxLayout()
         layout.addLayout(left)
-        right = QVBoxLayout()
+        right: QVBoxLayout = QVBoxLayout()
         layout.addLayout(right)
 
-        box = QGroupBox('Borders')
+        widget: Union[QDoubleSpinBox, QPushButton, QLineEdit]
+
+        box: QGroupBox = QGroupBox('Borders')
         left.addWidget(box)
-        inner = QFormLayout(box)
+        inner: Union[QFormLayout, QVBoxLayout] = QFormLayout(box)
         for side, label in zip(['top', 'bottom', 'left', 'right'],
                                ['Top:', 'Bottom:', 'Left:', 'Right:']):
             self._widgets[side] = widget = QDoubleSpinBox()
@@ -65,6 +69,19 @@ class UiSubplotTool(QDialog):
             widget.setKeyboardTracking(False)
             inner.addRow(label, widget)
 
+        if self._labels:
+            box = QGroupBox('Labels')
+            right.addWidget(box)
+            inner = QVBoxLayout(box)
+            self._widgets['labels'] = []
+            for label in self._labels:
+                widget = QLineEdit()
+                widget.setPlaceholderText(label)
+                if self._labels_changed_callback is None:
+                    widget.setEnabled(False)
+                inner.addWidget(widget)
+                self._widgets['labels'].append(widget)
+
         for action in ['Tight layout', 'Reset', 'Close']:
             self._widgets[action] = widget = QPushButton(action)
             widget.setAutoDefault(False)
@@ -100,6 +117,7 @@ class SubplotToolQt(UiSubplotTool):
                           getattr(legends[0].get_bbox_to_anchor(), '_bbox').ymax]))
         else:
             self._legends_defaults: Dict[str, float] = dict()
+        self._labels_defaults: List[str] = self._labels
 
         # Set values after setting the range callbacks, but before setting up
         # the redraw callbacks.
@@ -109,6 +127,8 @@ class SubplotToolQt(UiSubplotTool):
             self._widgets[attr].valueChanged.connect(self._on_value_changed)
         for attr in self._legends_attrs:
             self._widgets[attr].valueChanged.connect(self._on_legend_value_changed)
+        for widget in self._widgets['labels']:
+            widget.textEdited.connect(self._on_labels_changed)
         for action, method in [('Tight layout', self._tight_layout),
                                ('Reset', self._reset),
                                ('Close', self.close)]:
@@ -125,6 +145,12 @@ class SubplotToolQt(UiSubplotTool):
                                             for attr in self._legends_attrs))
         self._figure.canvas.draw_idle()
 
+    def _on_labels_changed(self):
+        if self._labels_changed_callback is not None:
+            self._labels_changed_callback([(widget.text() or widget.placeholderText())
+                                           for widget in self._widgets['labels']])
+        self._figure.canvas.draw_idle()
+
     def _tight_layout(self):
         self._figure.tight_layout()
         for attr in self._attrs:
@@ -139,3 +165,5 @@ class SubplotToolQt(UiSubplotTool):
             self._widgets[attr].setValue(value)
         for attr, value in self._legends_defaults.items():
             self._widgets[attr].setValue(value)
+        for label, widget in zip(self._labels_defaults, self._widgets['labels']):
+            widget.setText(label)

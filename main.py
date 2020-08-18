@@ -648,6 +648,9 @@ class App(QMainWindow):
         self.plot.move_legends((self.get_config_value('plotLegendsPosition', 'left', 1.1, float),
                                 self.get_config_value('plotLegendsPosition', 'top', 1.0, float)))
 
+        self.plot.adc_channels_names = [self.get_config_value('labels', str(ch), '', str)
+                                        for ch in range(self.spin_channels.value())]
+
         self._loading = False
         self.button_power_toggled(self.resuming)
 
@@ -671,6 +674,9 @@ class App(QMainWindow):
 
         self.set_config_value('plotLegendsPosition', 'left', round(float(self.plot.bbox_to_anchor[0]), 3))
         self.set_config_value('plotLegendsPosition', 'top', round(float(self.plot.bbox_to_anchor[1]), 3))
+
+        for ch in range(self.spin_channels.value()):
+            self.set_config_value('labels', str(ch), self.plot.adc_channels_names[ch])
 
     def get_config_value(self, section, key, default, _type) -> Union[bool, int, float, str, Tuple[float, ...]]:
         if section not in self.settings.childGroups():
@@ -1122,9 +1128,10 @@ class App(QMainWindow):
                     _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle.value(), self.spin_max_angle.value())
                     if not np.isnan(_τ):
                         self.plot.add_τ_magic_angles(ch, _τ)
-                    _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle_alt.value(), self.spin_max_angle.value())
-                    if not np.isnan(_τ):
-                        self.plot.add_τ_magic_angles_alt(ch, _τ)
+                    # _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle_alt.value(),
+                    #                                    self.spin_max_angle.value())
+                    # if not np.isnan(_τ):
+                    #     self.plot.add_τ_magic_angles_alt(ch, _τ)
 
                 self.last_loop_data = {}
                 self.canvas.draw_idle()
