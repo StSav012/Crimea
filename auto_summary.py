@@ -42,15 +42,15 @@ WEATHER_FIELDS: List[str] = [
     'Solar Radiation',
 ]
 
-PrincipialAngles = namedtuple('PrincipialAngles',
-                              ['bb_angle',
-                               'max_angle',
-                               'min_angle', 'min_angle_alt',
-                               'magic_angle', 'magic_angle_alt'])
-PrincipialAnglesLabels = namedtuple('PrincipialAnglesLabels',
-                                    ['bb_τ_label', 'bb_τ_label_alt',
-                                     'leastsq_τ', 'leastsq_τ_error',
-                                     'magic_angles_τ_label', 'magic_angles_τ_label_alt'])
+PrincipalAngles = namedtuple('PrincipalAngles',
+                             ['bb_angle',
+                              'max_angle',
+                              'min_angle', 'min_angle_alt',
+                              'magic_angle', 'magic_angle_alt'])
+PrincipalAnglesLabels = namedtuple('PrincipalAnglesLabels',
+                                   ['bb_τ_label', 'bb_τ_label_alt',
+                                    'leastsq_τ', 'leastsq_τ_error',
+                                    'magic_angles_τ_label', 'magic_angles_τ_label_alt'])
 
 
 def calculate_bb_τ(loop_data, *, min_angle: float, max_angle: float, bb_angle: float, precision: float = 5.):
@@ -210,8 +210,8 @@ def preprocess(text):
     return {'raw_data': raw_data}
 
 
-def process(data, ch: int, principial_angles: PrincipialAngles) \
-        -> (Dict, List[str], PrincipialAnglesLabels, PrincipialAngles, int):
+def process(data, ch: int, principal_angles: PrincipalAngles) \
+        -> (Dict, List[str], PrincipalAnglesLabels, PrincipalAngles, int):
     if 'raw_data' in data:
         raw_data = data['raw_data']
     else:
@@ -227,28 +227,27 @@ def process(data, ch: int, principial_angles: PrincipialAngles) \
             angles_data[item['angle']] = float(np.mean(item['voltage'][ch]))
         elif item['angle'] not in angles_data:
             angles_data[item['angle']] = np.nan
-    al, ic2pa, ac2pa = get_absorption_labels(dict((i, angles_data[i]) for i in sorted(angles_data)),
-                                             principial_angles)
+    al, ic2pa, ac2pa = get_absorption_labels(dict((i, angles_data[i]) for i in sorted(angles_data)), principal_angles)
     _fields = list(al)
     if any(angles_data.values()):
         leastsq_τ = calculate_leastsq_τ(angles_data)
         absorptions = {
             al.bb_τ_label: calculate_bb_τ(angles_data,
-                                          min_angle=principial_angles.min_angle,
-                                          max_angle=principial_angles.max_angle,
-                                          bb_angle=principial_angles.bb_angle),
+                                          min_angle=principal_angles.min_angle,
+                                          max_angle=principal_angles.max_angle,
+                                          bb_angle=principal_angles.bb_angle),
             al.bb_τ_label_alt: calculate_bb_τ(angles_data,
-                                              min_angle=principial_angles.min_angle_alt,
-                                              max_angle=principial_angles.max_angle,
-                                              bb_angle=principial_angles.bb_angle),
+                                              min_angle=principal_angles.min_angle_alt,
+                                              max_angle=principal_angles.max_angle,
+                                              bb_angle=principal_angles.bb_angle),
             al.leastsq_τ: leastsq_τ[0],
             al.leastsq_τ_error: leastsq_τ[1],
             al.magic_angles_τ_label: calculate_magic_angles_τ(angles_data,
-                                                              lower_angle=principial_angles.min_angle,
-                                                              higher_angle=principial_angles.max_angle),
+                                                              lower_angle=principal_angles.min_angle,
+                                                              higher_angle=principal_angles.max_angle),
             al.magic_angles_τ_label_alt: calculate_magic_angles_τ(angles_data,
-                                                                  lower_angle=principial_angles.min_angle_alt,
-                                                                  higher_angle=principial_angles.max_angle)
+                                                                  lower_angle=principal_angles.min_angle_alt,
+                                                                  higher_angle=principal_angles.max_angle)
         }
     else:
         absorptions = dict()
@@ -384,7 +383,7 @@ def take_webcam_shot() -> bytes:
     """ 
     use 
     v4l2-ctl -d /dev/video0 --all
-    to get the supproted properties
+    to get the supported properties
     """
     cap: cv2.VideoCapture = cv2.VideoCapture(0)
 
@@ -518,10 +517,10 @@ def get_config_value(settings, *, section='settings', key, default, _type) -> Un
     return v
 
 
-def get_principial_angles() -> PrincipialAngles:
+def get_principal_angles() -> PrincipalAngles:
     settings = QSettings("SavSoft", "Crimea Radiometer")
 
-    return PrincipialAngles(
+    return PrincipalAngles(
         bb_angle=get_config_value(settings, key='black body position', default=0, _type=float),
         max_angle=get_config_value(settings, key='zenith position', default=90, _type=float),
         min_angle=get_config_value(settings, key='horizon position', default=15, _type=float),
@@ -531,15 +530,15 @@ def get_principial_angles() -> PrincipialAngles:
     )
 
 
-def get_indices_closest_to_principial_angles(angles_data: Dict[float, float],
-                                             principial_angles: PrincipialAngles) \
-        -> PrincipialAngles:
+def get_indices_closest_to_principal_angles(angles_data: Dict[float, float],
+                                            principal_angles: PrincipalAngles) \
+        -> PrincipalAngles:
     h: np.ndarray = np.array(list(angles_data))
-    max_angle = int(np.argmin(np.abs(h - principial_angles.max_angle)))
-    min_angle = int(np.argmin(np.abs(h - principial_angles.min_angle)))
-    min_angle_alt = int(np.argmin(np.abs(h - principial_angles.min_angle_alt)))
-    return PrincipialAngles(
-        bb_angle=int(np.argmin(np.abs(h - principial_angles.bb_angle))),
+    max_angle = int(np.argmin(np.abs(h - principal_angles.max_angle)))
+    min_angle = int(np.argmin(np.abs(h - principal_angles.min_angle)))
+    min_angle_alt = int(np.argmin(np.abs(h - principal_angles.min_angle_alt)))
+    return PrincipalAngles(
+        bb_angle=int(np.argmin(np.abs(h - principal_angles.bb_angle))),
         max_angle=max_angle,
         min_angle=min_angle,
         min_angle_alt=min_angle_alt,
@@ -548,13 +547,13 @@ def get_indices_closest_to_principial_angles(angles_data: Dict[float, float],
     )
 
 
-def get_absorption_labels(angles_data: Dict[float, float], principial_angles: PrincipialAngles) \
-        -> (PrincipialAnglesLabels, PrincipialAngles):
+def get_absorption_labels(angles_data: Dict[float, float], principal_angles: PrincipalAngles) \
+        -> (PrincipalAnglesLabels, PrincipalAngles):
     """ :returns absorption labels and the angles used in the labels"""
     h: np.ndarray = np.array(list(angles_data))
-    ic2pa: PrincipialAngles = get_indices_closest_to_principial_angles(angles_data, principial_angles)
-    ac2pa: PrincipialAngles = PrincipialAngles(**dict(zip(ic2pa._fields, h[list(ic2pa)])))
-    return PrincipialAnglesLabels(
+    ic2pa: PrincipalAngles = get_indices_closest_to_principal_angles(angles_data, principal_angles)
+    ac2pa: PrincipalAngles = PrincipalAngles(**dict(zip(ic2pa._fields, h[list(ic2pa)])))
+    return PrincipalAnglesLabels(
         bb_τ_label=f'τ for θ = {90 - ac2pa.bb_angle}, '
                    f'{90 - ac2pa.min_angle}, {90 - ac2pa.max_angle}',
         bb_τ_label_alt=f'τ for θ = {90 - ac2pa.bb_angle}, '
@@ -603,7 +602,7 @@ def main():
         # nothing to do
         exit(0)
 
-    principial_angles: PrincipialAngles = get_principial_angles()
+    principal_angles: PrincipalAngles = get_principal_angles()
 
     workbook = None
     written_rows: List[int] = []
@@ -619,7 +618,7 @@ def main():
                 channels: int = 1
                 channel: int = 0
                 while json_data is not None and channel < channels:
-                    d, f, al, ic2pa, ac2pa, channels = process(json_data, channel, principial_angles)
+                    d, f, al, ic2pa, ac2pa, channels = process(json_data, channel, principal_angles)
                     lal = list(al)
                     # print(f)
                     if initial_fields is None:
