@@ -7,18 +7,18 @@ import json
 import os
 import os.path
 import re
+# sending email
+import smtplib
 import socket
 import time
 import warnings
 from collections import namedtuple
 from datetime import datetime
-from typing import Any, Dict, List, Union
-# sending email
-import smtplib
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import xlsxwriter
@@ -407,7 +407,7 @@ def take_webcam_shot() -> bytes:
                 if not ret:
                     image = bytes()
                 else:
-                    image = image_np.tostring()
+                    image = image_np.tobytes()
     finally:
         # Close device
         cap.release()
