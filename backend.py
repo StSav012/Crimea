@@ -152,7 +152,6 @@ class Plot(Thread):
                                                   for ch in range(len(self._plot_lines))]
         # self._τ_plot_magic_alt_lines: List[Line2D] = [self._τ_plot.plot_date(np.empty(0), np.empty(0),
         #                                                                      color=self._plot_lines[ch].get_color(),
-        #                                                                      label=f'ch {ch + 1} (3 angles alt)',
         #                                                                      ls='-.')[0]
         #                                               for ch in range(len(self._plot_lines))]
 
@@ -294,8 +293,9 @@ class Plot(Thread):
         x_lim = axes.get_xlim()
         axis_min, axis_max = min(x_lim), max(x_lim)
         if axis_min < 1.:
-            axes.set_xlim(left=1., right=axis_max if axis_max > 1. else 1.001)
+            axes.set_xlim(left=1., right=axis_max if axis_max > 1. else 1.001, emit=False, auto=True)
             axes.set_autoscalex_on(True)
+            return
         auto_scale = axes.get_autoscalex_on()
         data_min, data_max = None, None
         for line in axes.lines:
@@ -485,7 +485,11 @@ class Plot(Thread):
             self._current_y[ch] = np.array([])
         self._plot.relim(visible_only=True)
         self._plot.autoscale_view(None, self._plot.get_autoscalex_on(), self._plot.get_autoscaley_on())
-        self._plot.figure.canvas.draw_idle()
+        self._τ_plot.relim(visible_only=True)
+        self._τ_plot.autoscale_view(None, False, self._τ_plot.get_autoscaley_on())
+        # rotate and align the tick labels so they look better
+        self._figure.autofmt_xdate()
+        self._figure.canvas.draw_idle()
         self._is_running = False
         self._measured = True
 
@@ -554,8 +558,6 @@ class Plot(Thread):
         self._τy[channel] = np.concatenate((self._τy[channel], np.array([τ])))
         for ch in range(len(self._τy)):
             self._τ_plot_lines[ch].set_data(self._τx[ch], self._τy[ch])
-        self._τ_plot.relim(visible_only=True)
-        self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def add_τ_alt(self, channel: int, τ: float):
         current_time: float = date2num(datetime.now())
@@ -563,8 +565,6 @@ class Plot(Thread):
         self._τy_alt[channel] = np.concatenate((self._τy_alt[channel], np.array([τ])))
         for ch in range(len(self._τy_alt)):
             self._τ_plot_alt_lines[ch].set_data(self._τx_alt[ch], self._τy_alt[ch])
-        self._τ_plot.relim(visible_only=True)
-        self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def add_τ_bb_alt(self, channel: int, τ: float):
         current_time: float = date2num(datetime.now())
@@ -572,8 +572,6 @@ class Plot(Thread):
         self._τy_bb_alt[channel] = np.concatenate((self._τy_bb_alt[channel], np.array([τ])))
         for ch in range(len(self._τy_bb_alt)):
             self._τ_plot_alt_bb_lines[ch].set_data(self._τx_bb_alt[ch], self._τy_bb_alt[ch])
-        self._τ_plot.relim(visible_only=True)
-        self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def add_τ_leastsq(self, channel: int, τ: float, error: float = np.nan):
         current_time: float = date2num(datetime.now())
@@ -583,8 +581,6 @@ class Plot(Thread):
         del error
         for ch in range(len(self._τy_leastsq)):
             self._τ_plot_leastsq_lines[ch].set_data(self._τx_leastsq[ch], self._τy_leastsq[ch])
-        self._τ_plot.relim(visible_only=True)
-        self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def add_τ_magic_angles(self, channel: int, τ: float):
         current_time: float = date2num(datetime.now())
@@ -592,8 +588,6 @@ class Plot(Thread):
         self._τy_magic[channel] = np.concatenate((self._τy_magic[channel], np.array([τ])))
         for ch in range(len(self._τy_magic)):
             self._τ_plot_magic_lines[ch].set_data(self._τx_magic[ch], self._τy_magic[ch])
-        self._τ_plot.relim(visible_only=True)
-        self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     # def add_τ_magic_angles_alt(self, channel: int, τ: float):
     #     current_time: float = date2num(datetime.now())
@@ -601,8 +595,6 @@ class Plot(Thread):
     #     self._τy_magic_alt[channel] = np.concatenate((self._τy_magic_alt[channel], np.array([τ])))
     #     for ch in range(len(self._τy_magic_alt)):
     #         self._τ_plot_magic_alt_lines[ch].set_data(self._τx_magic_alt[ch], self._τy_magic_alt[ch])
-    #     self._τ_plot.relim(visible_only=True)
-    #     self._τ_plot.autoscale_view(None, self._τ_plot.get_autoscalex_on(), self._τ_plot.get_autoscaley_on())
 
     def pack_data(self):
         self.purge_obsolete_data()
