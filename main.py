@@ -11,7 +11,7 @@ import sys
 import time
 from typing import Any, Dict, List, Tuple, Union
 
-import matplotlib.style as mplstyle
+import matplotlib.style
 import numpy as np
 from PyQt5.QtCore import QCoreApplication, QMetaObject, QSettings, QTimer, Qt
 from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QValidator
@@ -30,7 +30,7 @@ try:
 except ImportError:
     from smsd import MicrosteppingMode
 
-mplstyle.use('fast')
+matplotlib.style.use('fast')
 
 try:
     import cycler
@@ -94,8 +94,8 @@ def make_launcher(entry_path: str):
     if not os.path.exists(entry_path):
         try:
             import stat
-            with open(entry_path, 'w') as fout:
-                fout.writelines('\n'.join([
+            with open(entry_path, 'w') as f_out:
+                f_out.writelines('\n'.join([
                     '[Desktop Entry]',
                     'Version=1.1',
                     'Name=Crimea Radiometer',
@@ -485,12 +485,12 @@ class App(QMainWindow):
 
         main_window.setCentralWidget(self.central_widget)
 
-        self.retranslate_ui(main_window)
+        self.translate_ui(main_window)
         self.tab_widget.setCurrentIndex(0)
         main_window.adjustSize()
         QMetaObject.connectSlotsByName(main_window)
 
-    def retranslate_ui(self, main_window):
+    def translate_ui(self, main_window):
         _translate = QCoreApplication.translate
         main_window.setWindowTitle(_translate("MainWindow", "Crimea"))
         self.group_weather_state.setTitle(_translate("MainWindow", "Current Weather"))
