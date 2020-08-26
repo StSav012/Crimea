@@ -1,6 +1,6 @@
 import time
 from threading import Thread
-from typing import List, Union, Dict
+from typing import Dict, List, Optional, Union
 
 import serial
 import serial.tools.list_ports
@@ -14,15 +14,14 @@ class Dallas18B20(Thread):
         super().__init__()
         self.daemon = True
         self._ser = serial.Serial()
-        # noinspection PyTypeChecker
-        self._communicating = False
+        self._communicating: bool = False
         self._temperatures: List[float] = []
         self._setpoints: List[float] = []
         self._states: List[bool] = []
-        self._enabled: Union[None, bool] = None
+        self._enabled: Optional[bool] = None
         self._new_setpoints: Dict[int, int] = dict()
         self._new_digitals: Dict[int, bool] = dict()
-        self._new_enabled: Union[None, bool] = None
+        self._new_enabled: Optional[bool] = None
         self._running: bool = False
 
     def _open_serial(self):
@@ -63,8 +62,8 @@ class Dallas18B20(Thread):
         self._ser.close()
 
     def _block(self, timeout: float = 10.) -> bool:
-        i = 0
-        dt = 0.1
+        i: int = 0
+        dt: float = 0.1
         while self._communicating:
             time.sleep(dt)
             i += 1
@@ -72,17 +71,17 @@ class Dallas18B20(Thread):
                 return False
         return True
 
-    def read_text(self, cmd: str, terminator: bytes = serial.serialutil.LF) -> Union[None, str]:
+    def read_text(self, cmd: str, terminator: bytes = serial.serialutil.LF) -> Optional[str]:
         if not self._block():
             print("Arduino is very busy to respond to", cmd)
             return None
         # print('command:', cmd)
         if not self._ser.is_open:
             self._open_serial()
-        resp = None
+        resp: Optional[str] = None
         try:
             if self._ser.is_open:
-                msg = cmd + '\n'
+                msg: str = cmd + '\n'
                 self._communicating = True
                 self._ser.write(msg.encode())
                 # print('written', msg.encode('ascii'))
@@ -98,7 +97,7 @@ class Dallas18B20(Thread):
                 if not resp:
                     self._close_serial()
                     print('restarting', self._ser.port)
-                print(cmd, resp.split(','))
+                # print(cmd, resp.split(','))
                 return resp
         finally:
             self._communicating = False
@@ -108,11 +107,11 @@ class Dallas18B20(Thread):
         if not self._block():
             print("Arduino is very busy to respond to", cmd)
             return False
-        print('sending', cmd)
+        # print('sending', cmd)
         if not self._ser.is_open:
             self._open_serial()
         while self._ser.is_open:
-            msg = cmd + '\n'
+            msg: str = cmd + '\n'
             try:
                 self._communicating = True
                 self._ser.write(msg.encode())
@@ -125,7 +124,7 @@ class Dallas18B20(Thread):
             return True
         return False
 
-    def voltage(self, pin: Union[int, str]) -> Union[None, int]:
+    def voltage(self, pin: Union[int, str]) -> Optional[int]:
         mega_pins: Dict[str, int] = {
             'A0': 54,
             'A1': 55,
@@ -144,7 +143,7 @@ class Dallas18B20(Thread):
             'A14': 68,
             'A15': 69,
         }
-        v = None
+        v: Optional[int] = None
         if isinstance(pin, str):
             pin = mega_pins[pin]
         try:
@@ -153,7 +152,7 @@ class Dallas18B20(Thread):
             return v
 
     def _get_temperatures(self) -> List[float]:
-        resp = self.read_text('R')
+        resp: Optional[str] = self.read_text('R')
         if resp is not None:
             try:
                 return list(map(float, resp.split(',')))
@@ -162,7 +161,7 @@ class Dallas18B20(Thread):
         return []
 
     def _get_states(self) -> List[bool]:
-        resp = self.read_text('S')
+        resp: Optional[str] = self.read_text('S')
         if resp is not None:
             try:
                 return list(map(bool, map(int, resp.split(','))))
@@ -171,7 +170,7 @@ class Dallas18B20(Thread):
         return []
 
     def _get_setpoints(self) -> List[float]:
-        resp = self.read_text('P')
+        resp: Optional[str] = self.read_text('P')
         if resp is not None:
             try:
                 return list(map(float, resp.split(',')))
@@ -179,8 +178,8 @@ class Dallas18B20(Thread):
                 return []
         return []
 
-    def _get_enabled(self) -> Union[None, bool]:
-        resp = self.read_text('Q')
+    def _get_enabled(self) -> Optional[bool]:
+        resp: Optional[str] = self.read_text('Q')
         if resp is not None:
             try:
                 return bool(int(resp))
@@ -213,7 +212,7 @@ class Dallas18B20(Thread):
         return self._setpoints
 
     @property
-    def enabled(self) -> Union[None, bool]:
+    def enabled(self) -> Optional[bool]:
         return self._enabled
 
     def stop(self):
