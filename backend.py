@@ -488,7 +488,7 @@ class Plot(Thread):
         self._τ_plot.relim(visible_only=True)
         self._τ_plot.autoscale_view(None, False, self._τ_plot.get_autoscaley_on())
         # rotate and align the tick labels so they look better
-        self._figure.autofmt_xdate()
+        self._figure.autofmt_xdate(bottom=self.subplotpars['bottom'])
         self._figure.canvas.draw_idle()
         self._is_running = False
         self._measured = True
