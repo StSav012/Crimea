@@ -394,7 +394,7 @@ class Plot(Thread):
     def move_home(self):
         self._motor.move(-self._current_angle)
         time.sleep(self._motor.time_to_turn(self._current_angle))
-        v = self.arduino.voltage('A0')
+        v: Optional[int] = self.arduino.voltage('A0')
         if v is None or v > 512:
             print('making whole turn')
             self._motor.forward()
@@ -417,7 +417,7 @@ class Plot(Thread):
         self._motor.gear_ratio(ratio)
 
     def set_measurement_delay(self, delay):
-        _delay = float(delay)
+        _delay: float = float(delay)
         if _delay < 0.0:
             raise ValueError('Measurement delay can not be negative')
         self._measurement_delay = _delay
