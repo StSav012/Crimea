@@ -160,6 +160,8 @@ class App(QMainWindow):
         self.grid_layout_settings_measurement: QGridLayout = QGridLayout(self.group_settings_measurement)
 
         self.group_settings_motor: QGroupBox = QGroupBox(self.tab_settings)
+        self.button_move_1step_left: QPushButton = QPushButton(self.group_settings_motor)
+        self.button_move_1step_right: QPushButton = QPushButton(self.group_settings_motor)
         self.button_move_360degrees_left: QPushButton = QPushButton(self.group_settings_motor)
         self.button_move_360degrees_right: QPushButton = QPushButton(self.group_settings_motor)
         self.button_move_90degrees: QPushButton = QPushButton(self.group_settings_motor)
@@ -238,7 +240,7 @@ class App(QMainWindow):
         # prevent config from being re-written while loading
         self._loading: bool = True
         # config
-        self.load_config()
+        self.load_config_1()
         # backend
         self.plot = backend.Plot(serial_device='/dev/ttyS0',
                                  microstepping_mode=MicrosteppingMode(index=self.spin_step_fraction.value()),
@@ -252,7 +254,7 @@ class App(QMainWindow):
                                                                      os.path.join(os.path.curdir, 'data'), str),
                                  results_file_prefix=time.strftime("%Y%m%d%H%M%S"))
         self.plot.start()
-        self.load_plot_config()
+        self.load_config_2()
         # common
         self.tab_widget.currentChanged.connect(self.tab_widget_changed)
         # tab 1
@@ -275,6 +277,8 @@ class App(QMainWindow):
         self.spin_settings_gear_1.valueChanged.connect(self.spin_settings_gear_1_changed)
         self.spin_settings_gear_2.valueChanged.connect(self.spin_settings_gear_2_changed)
         self.button_move_90degrees.clicked.connect(self.button_move_90degrees_clicked)
+        self.button_move_1step_right.clicked.connect(self.button_move_1step_right_clicked)
+        self.button_move_1step_left.clicked.connect(self.button_move_1step_left_clicked)
         self.button_move_360degrees_right.clicked.connect(self.button_move_360degrees_right_clicked)
         self.button_move_360degrees_left.clicked.connect(self.button_move_360degrees_left_clicked)
         self.spin_channels.valueChanged.connect(self.spin_channels_changed)
@@ -415,6 +419,10 @@ class App(QMainWindow):
         line += 1
         self.grid_layout_settings_motor.addWidget(self.button_move_90degrees, line, 0, 1, 3)
         line += 1
+        self.grid_layout_settings_motor.addWidget(self.button_move_1step_right, line, 0, 1, 3)
+        line += 1
+        self.grid_layout_settings_motor.addWidget(self.button_move_1step_left, line, 0, 1, 3)
+        line += 1
         self.grid_layout_settings_motor.addWidget(self.button_move_360degrees_right, line, 0, 1, 3)
         line += 1
         self.grid_layout_settings_motor.addWidget(self.button_move_360degrees_left, line, 0, 1, 3)
@@ -530,6 +538,8 @@ class App(QMainWindow):
         self.button_move_90degrees.setText(_translate("MainWindow", "Move 90° counter-clockwise"))
         self.button_move_360degrees_right.setText(_translate("MainWindow", "Move 360° counter-clockwise"))
         self.button_move_360degrees_left.setText(_translate("MainWindow", "Move 360° clockwise"))
+        self.button_move_1step_right.setText(_translate("MainWindow", "Move 1 step counter-clockwise"))
+        self.button_move_1step_left.setText(_translate("MainWindow", "Move 1 step clockwise"))
         self.group_settings_measurement.setTitle(_translate("MainWindow", "Measurement"))
         self.label_channels.setText(_translate("MainWindow", "Number of ADC Channels") + ':')
         self.label_measurement_delay.setText(_translate("MainWindow", "Delay Before Measuring") + ':')
@@ -570,7 +580,7 @@ class App(QMainWindow):
                 event.ignore()
         return
 
-    def load_config(self):
+    def load_config_1(self):
         self._loading = True
         # common settings
         self.tab_widget.setCurrentIndex(self.get_config_value('common', 'current tab', 0, int))
@@ -587,6 +597,18 @@ class App(QMainWindow):
             self.restoreState(_v.encode())
         else:
             self.restoreState(_v)
+        # tab 2
+        self.spin_step_fraction.setValue(self.get_config_value('motor', 'step fraction', 0, int))
+        self.spin_settings_speed.setValue(self.get_config_value('motor', 'speed', 42, int))
+        self.spin_settings_gear_1.setValue(self.get_config_value('motor', 'gear 1 size', 100, int))
+        self.spin_settings_gear_2.setValue(self.get_config_value('motor', 'gear 2 size', 98, int))
+        self.spin_measurement_delay.setValue(self.get_config_value('settings', 'delay before measuring', 8, float))
+        self.spin_channels.setValue(self.get_config_value('settings', 'number of channels', 1, int))
+        self._loading = False
+        return
+
+    def load_config_2(self):
+        self._loading = True
         # tab 1
         table_text: str = self.get_config_value('schedule', 'table', '', str)
         if table_text:
@@ -601,22 +623,12 @@ class App(QMainWindow):
         self.button_go.setEnabled(bool(self.button_power.isChecked() and table_text))
         self.table_schedule_row_activated(0)
         # tab 2
-        self.spin_step_fraction.setValue(self.get_config_value('motor', 'step fraction', 3, int))
-        self.spin_settings_speed.setValue(self.get_config_value('motor', 'speed', 42, int))
-        self.spin_settings_gear_1.setValue(self.get_config_value('motor', 'gear 1 size', 100, int))
-        self.spin_settings_gear_2.setValue(self.get_config_value('motor', 'gear 2 size', 98, int))
-        self.spin_measurement_delay.setValue(self.get_config_value('settings', 'delay before measuring', 8, float))
         self.spin_bb_angle.setValue(self.get_config_value('settings', 'black body position', 0, float))
         self.spin_bb_angle_alt.setValue(self.get_config_value('settings', 'black body position alt', 0, float))
         self.spin_max_angle.setValue(self.get_config_value('settings', 'zenith position', 90, float))
         self.spin_min_angle.setValue(self.get_config_value('settings', 'horizon position', 15, float))
         self.spin_min_angle_alt.setValue(self.get_config_value('settings', 'horizon position alt', 20, float))
-        self.spin_channels.setValue(self.get_config_value('settings', 'number of channels', 1, int))
-        self._loading = False
-        return
 
-    def load_plot_config(self):
-        self._loading = True
         check_states = [to_bool(b) for b in self.get_config_value('settings', 'voltage channels', '', str).split()]
         self.plot.plot_lines_visibility = check_states
         check_states = [to_bool(b) for b in self.get_config_value('settings', 'absorption channels', '', str).split()]
@@ -789,12 +801,11 @@ class App(QMainWindow):
             row_position = self.table_schedule.rowCount()
         self.table_schedule.insertRow(row_position)
 
-        mode: int = MicrosteppingMode(index=self.spin_step_fraction.value())
-        step: float = 360.0 / 200.0 / mode
+        step: float = self.plot.motor.step
 
         item: QDoubleSpinBox = QDoubleSpinBox()
         item.setRange(-180, 180)
-        item.setDecimals(1)
+        item.setDecimals(2)
         item.setSuffix('°')
         item.setSingleStep(step)
         item.valueChanged.connect(self.table_schedule_changed)
@@ -1253,32 +1264,52 @@ class App(QMainWindow):
 
     def step_fraction_changed(self, new_value):
         self.set_config_value('motor', 'step fraction', new_value)
-        mode: int = MicrosteppingMode(index=new_value)
-        step: float = 360.0 / 200.0 / mode
+        self.plot.set_microstepping_mode(MicrosteppingMode(index=new_value))
+        step: float = self.plot.motor.step
         for r in range(self.table_schedule.rowCount()):
             angle: float = self.table_schedule.cellWidget(r, 1).value()
             angle = round(angle / step) * step
             self.table_schedule.cellWidget(r, 1).setValue(angle)
             self.table_schedule.cellWidget(r, 1).setSingleStep(step)
-        if hasattr(self, 'plot'):  # if already defined
-            self.plot.set_microstepping_mode(mode)
 
     def spin_settings_speed_changed(self, new_value):
         self.set_config_value('motor', 'speed', new_value)
-        if hasattr(self, 'plot'):  # if already defined
-            self.plot.set_motor_speed(new_value)
+        self.plot.set_motor_speed(new_value)
 
     def spin_settings_gear_1_changed(self, new_value):
         self.set_config_value('motor', 'gear 1 size', new_value)
 
     def spin_settings_gear_2_changed(self, new_value):
         self.set_config_value('motor', 'gear 2 size', new_value)
-        if hasattr(self, 'plot'):  # if already defined
-            self.plot.set_gear_ratio(self.spin_settings_gear_1.value() / new_value)
+        self.plot.set_gear_ratio(self.spin_settings_gear_1.value() / new_value)
 
     def button_move_90degrees_clicked(self):
         self.pd.setMaximum(1000 * self.plot.move_90degrees())
         self.pd.setLabelText('Wait till the motor turns 90 degrees')
+        self.pd.reset()
+        try:
+            self.timer.timeout.disconnect()
+        except TypeError:
+            pass
+        self.timer.timeout.connect(self.next_pd_tick)
+        self.timer.setSingleShot(True)
+        self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
+
+    def button_move_1step_right_clicked(self):
+        self.pd.setMaximum(1000 * self.plot.move_1step_right())
+        self.pd.setLabelText('Wait till the motor turns 1 step')
+        self.pd.reset()
+        try:
+            self.timer.timeout.disconnect()
+        except TypeError:
+            pass
+        self.timer.timeout.connect(self.next_pd_tick)
+        self.timer.setSingleShot(True)
+        self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
+
+    def button_move_1step_left_clicked(self):
+        self.pd.setMaximum(1000 * self.plot.move_1step_left())
+        self.pd.setLabelText('Wait till the motor turns 1 step')
         self.pd.reset()
         try:
             self.timer.timeout.disconnect()
@@ -1315,22 +1346,21 @@ class App(QMainWindow):
     def spin_channels_changed(self, new_value):
         self.set_config_value('settings', 'number of channels', new_value)
         self.settings.sync()
-        if hasattr(self, 'plot'):
-            self.figure.clf()
-            self.plot.close()
-            self.plot.join()
-            self.plot = backend.Plot(serial_device='/dev/ttyS0',
-                                     microstepping_mode=MicrosteppingMode(index=self.spin_step_fraction.value()),
-                                     speed=self.spin_settings_speed.value(),
-                                     ratio=self.spin_settings_gear_1.value() / self.spin_settings_gear_2.value(),
-                                     measurement_delay=self.spin_measurement_delay.value(),
-                                     init_angle=self._init_angle,
-                                     figure=self.figure,
-                                     adc_channels=list(range(new_value)),
-                                     output_folder=self.get_config_value('settings', 'output folder',
-                                                                         os.path.join(os.path.curdir, 'data'), str),
-                                     results_file_prefix=time.strftime("%Y%m%d%H%M%S"))
-            self.plot.start()
+        self.figure.clf()
+        self.plot.close()
+        self.plot.join()
+        self.plot = backend.Plot(serial_device='/dev/ttyS0',
+                                 microstepping_mode=MicrosteppingMode(index=self.spin_step_fraction.value()),
+                                 speed=self.spin_settings_speed.value(),
+                                 ratio=self.spin_settings_gear_1.value() / self.spin_settings_gear_2.value(),
+                                 measurement_delay=self.spin_measurement_delay.value(),
+                                 init_angle=self._init_angle,
+                                 figure=self.figure,
+                                 adc_channels=list(range(new_value)),
+                                 output_folder=self.get_config_value('settings', 'output folder',
+                                                                     os.path.join(os.path.curdir, 'data'), str),
+                                 results_file_prefix=time.strftime("%Y%m%d%H%M%S"))
+        self.plot.start()
 
     def spin_measurement_delay_changed(self, new_value):
         self.set_config_value('settings', 'delay before measuring', new_value)
