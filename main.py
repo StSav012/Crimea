@@ -784,24 +784,31 @@ class App(QMainWindow):
             for sb in self.spins_setpoint_value:
                 sb.setEnabled(enabled == Qt.Checked)
 
-    def add_table_row(self, row_position=None, values=None):
-        if row_position is None:
+    def add_table_row(self, row_position: Optional[int] = None, values=None):
+        if row_position is None or row_position < 0:
             row_position = self.table_schedule.rowCount()
         self.table_schedule.insertRow(row_position)
 
-        item = QDoubleSpinBox()
+        mode: int = MicrosteppingMode(index=self.spin_step_fraction.value())
+        step: float = 360.0 / 200.0 / mode
+
+        item: QDoubleSpinBox = QDoubleSpinBox()
         item.setRange(-180, 180)
         item.setDecimals(1)
         item.setSuffix('°')
-        item.setSingleStep(1)
+        item.setSingleStep(step)
         item.valueChanged.connect(self.table_schedule_changed)
         if values and (isinstance(values, tuple) or isinstance(values, list)) and len(values) > 1:
-            item.setValue(values[1])
+            angle: float = round(values[1] / step) * step
         elif row_position > 0:
-            item.setValue(self.table_schedule.cellWidget(row_position - 1, 1).value() + item.singleStep() * 10)
+            angle: float = round((self.table_schedule.cellWidget(row_position - 1, 1).value()
+                                  + item.singleStep() * 10) / step) * step
+        else:
+            raise ValueError('Invalid position')
+        item.setValue(angle)
         self.table_schedule.setCellWidget(row_position, 1, item)
 
-        item = QDoubleSpinBox()
+        item: QDoubleSpinBox = QDoubleSpinBox()
         item.setRange(1, 86400)
         item.setDecimals(1)
         item.setSuffix(' s')
@@ -813,7 +820,7 @@ class App(QMainWindow):
             item.setValue(self.table_schedule.cellWidget(row_position - 1, 2).value())
         self.table_schedule.setCellWidget(row_position, 2, item)
 
-        item = QCheckBox()
+        item: QCheckBox = QCheckBox()
         parent_widget = QWidget()
         parent_widget.setStyleSheet("background-color: rgba(0,0,0,0)")
         parent_widget_layout = QHBoxLayout()
@@ -1246,8 +1253,15 @@ class App(QMainWindow):
 
     def step_fraction_changed(self, new_value):
         self.set_config_value('motor', 'step fraction', new_value)
+        mode: int = MicrosteppingMode(index=new_value)
+        step: float = 360.0 / 200.0 / mode
+        for r in range(self.table_schedule.rowCount()):
+            angle: float = self.table_schedule.cellWidget(r, 1).value()
+            angle = round(angle / step) * step
+            self.table_schedule.cellWidget(r, 1).setValue(angle)
+            self.table_schedule.cellWidget(r, 1).setSingleStep(step)
         if hasattr(self, 'plot'):  # if already defined
-            self.plot.set_microstepping_mode(MicrosteppingMode(index=new_value))
+            self.plot.set_microstepping_mode(mode)
 
     def spin_settings_speed_changed(self, new_value):
         self.set_config_value('motor', 'speed', new_value)
