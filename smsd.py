@@ -3,6 +3,7 @@
 
 import time
 from threading import Thread
+from typing import Optional
 
 import serial
 import serial.tools.list_ports
@@ -19,11 +20,11 @@ class MicrosteppingMode:
             if not key.startswith('__') and not key.endswith('__'):
                 yield value
 
-    def __new__(cls, *, mode=0, index=None):
+    def __new__(cls, *, mode: int = 0, index: Optional[int] = None):
         if not isinstance(mode, int):
             raise TypeError(f'Invalid value: {mode}')
-        found = False
-        _i = 0
+        found: bool = False
+        _i: int = 0
         for key, value in cls.__dict__.items():
             if not key.startswith('__') and not key.endswith('__'):
                 if index is not None and index == _i:
@@ -55,10 +56,10 @@ class Motor(Thread):
         return float(steps) / 100. * 180. / self.MICROSTEPPING_MODE / self._gear_ratio
 
     def degrees_to_steps(self, degrees):
-        v = float(degrees) * self.MICROSTEPPING_MODE * self._gear_ratio / 180. * 100.
+        v = float(degrees) / self.step
         if v != 0. and int(v) == 0:
             print(f'Warning: To little angle to move: {degrees}')
-        return int(v)
+        return round(v)
 
     def set_microstepping_mode(self, new_mode):
         self.MICROSTEPPING_MODE = MicrosteppingMode(mode=new_mode)
@@ -68,6 +69,10 @@ class Motor(Thread):
             return abs(self.degrees_to_steps(angle) / self._speed)
         else:
             return None
+
+    @property
+    def step(self) -> float:
+        return 360. / 200. / self.MICROSTEPPING_MODE / self._gear_ratio
 
     def _open_serial(self):
         self._communicating = False

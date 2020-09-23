@@ -1,34 +1,7 @@
 import time
 from threading import Thread
 
-
-class MicrosteppingMode:
-    SINGLE = 1
-    HALF = 2
-    QUARTER = 4
-    TINY = 16
-
-    def __iter__(self):
-        for key, value in self.__dict__.items():
-            if not key.startswith('__') and not key.endswith('__'):
-                yield value
-
-    def __new__(cls, *, mode=0, index=None):
-        if not isinstance(mode, int):
-            raise TypeError(f'Invalid value: {mode}')
-        found = False
-        _i = 0
-        for key, value in cls.__dict__.items():
-            if not key.startswith('__') and not key.endswith('__'):
-                if index is not None and index == _i:
-                    return value
-                if index is None and value == mode:
-                    found = True
-                    break
-                _i += 1
-        if not found:
-            raise ValueError(f'Mode {mode} not found')
-        return mode
+from smsd import MicrosteppingMode
 
 
 class Motor(Thread):
@@ -46,10 +19,10 @@ class Motor(Thread):
         return float(steps) / 100. * 180. / self.MICROSTEPPING_MODE / self._gear_ratio
 
     def degrees_to_steps(self, degrees):
-        v = float(degrees) * self.MICROSTEPPING_MODE * self._gear_ratio / 180. * 100.
+        v = float(degrees) / self.step
         if v != 0. and int(v) == 0:
-            print('Warning: To little angle to move: {angle}'.format(angle=degrees))
-        return int(v)
+            print(f'Warning: To little angle to move: {degrees}')
+        return round(v)
 
     def set_microstepping_mode(self, new_mode):
         self.MICROSTEPPING_MODE = MicrosteppingMode(mode=new_mode)
@@ -59,6 +32,10 @@ class Motor(Thread):
             return abs(self.degrees_to_steps(angle) / self._speed)
         else:
             return None
+
+    @property
+    def step(self) -> float:
+        return 360. / 200. / self.MICROSTEPPING_MODE / self._gear_ratio
 
     @staticmethod
     def _do(cmd):
