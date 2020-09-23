@@ -257,9 +257,9 @@ class Plot(Thread):
         self._adc = radiometer.ADC(channels=adc_channels, timeout=0.1)
         self._adc.start()
 
-        self._motor = smsd.Motor(device=serial_device, microstepping_mode=microstepping_mode, speed=speed, ratio=ratio)
-        self._motor.start()
-        self._motor.open()
+        self.motor = smsd.Motor(device=serial_device, microstepping_mode=microstepping_mode, speed=speed, ratio=ratio)
+        self.motor.start()
+        self.motor.open()
 
         self._measurement_delay: float = measurement_delay
         self._start_time: Optional[float] = None
@@ -281,8 +281,8 @@ class Plot(Thread):
     def close(self):
         self._adc.stop()
         self._adc.join()
-        self._motor.disable()
-        self._motor.join()
+        self.motor.disable()
+        self.motor.join()
         self.arduino.stop()
         # FIXME: the following line causes double channel count changes
         # self.arduino.join(timeout=1)
@@ -362,59 +362,69 @@ class Plot(Thread):
 
     def enable_motor(self, enable, new_thread: bool = False):
         if enable:
-            self._motor.enable()
-            self._motor.forward()
+            self.motor.enable()
+            self.motor.forward()
             if new_thread:
                 Thread(target=self.move_home).start()
             else:
                 self.move_home()
         else:
-            self._motor.disable()
+            self.motor.disable()
 
     def move_90degrees(self):
-        self._motor.move(90)
+        self.motor.move(90)
         self._current_angle += 90
-        return self._motor.time_to_turn(90)
+        return self.motor.time_to_turn(90)
+
+    def move_1step_right(self):
+        self.motor.move(self.motor.step)
+        self._current_angle += self.motor.step
+        return self.motor.time_to_turn(self.motor.step)
+
+    def move_1step_left(self):
+        self.motor.move(-self.motor.step)
+        self._current_angle -= self.motor.step
+        return self.motor.time_to_turn(self.motor.step)
 
     def move_360degrees_right(self):
-        self._motor.move(360)
+        self.motor.move(360)
         self._current_angle += 360
-        return self._motor.time_to_turn(360)
+        return self.motor.time_to_turn(360)
 
     def move_360degrees_left(self):
-        self._motor.move(-360)
+        self.motor.move(-360)
         self._current_angle -= 360
-        return self._motor.time_to_turn(360)
+        return self.motor.time_to_turn(360)
 
     def time_to_move_home(self):
-        return (self._motor.time_to_turn(self._current_angle)
-                + self._motor.time_to_turn(360)
-                + 2. * self._motor.time_to_turn(25))
+        return (self.motor.time_to_turn(self._current_angle)
+                + self.motor.time_to_turn(360)
+                + 2. * self.motor.time_to_turn(25))
 
     def move_home(self):
-        self._motor.move(-self._current_angle)
-        time.sleep(self._motor.time_to_turn(self._current_angle))
+        self.motor.move(-self._current_angle)
+        time.sleep(self.motor.time_to_turn(self._current_angle))
         v: Optional[int] = self.arduino.voltage('A0')
         if v is None or v > 512:
             print('making whole turn')
-            self._motor.forward()
-            self._motor.move_home()
-            time.sleep(self._motor.time_to_turn(360))
-        self._motor.move(-25)
-        time.sleep(self._motor.time_to_turn(25))
-        self._motor.forward()
-        self._motor.move_home()
-        time.sleep(self._motor.time_to_turn(25))
+            self.motor.forward()
+            self.motor.move_home()
+            time.sleep(self.motor.time_to_turn(360))
+        self.motor.move(-25)
+        time.sleep(self.motor.time_to_turn(25))
+        self.motor.forward()
+        self.motor.move_home()
+        time.sleep(self.motor.time_to_turn(25))
         self._current_angle = 0
 
     def set_microstepping_mode(self, mode):
-        self._motor.set_microstepping_mode(mode)
+        self.motor.set_microstepping_mode(mode)
 
     def set_motor_speed(self, speed):
-        self._motor.speed(speed)
+        self.motor.speed(speed)
 
     def set_gear_ratio(self, ratio):
-        self._motor.gear_ratio(ratio)
+        self.motor.gear_ratio(ratio)
 
     def set_measurement_delay(self, delay):
         _delay: float = float(delay)
@@ -427,12 +437,12 @@ class Plot(Thread):
 
     def measurement_time(self, angle, duration):
         """ convenience function """
-        return self._motor.time_to_turn(angle - self._current_angle) + self._measurement_delay + duration
+        return self.motor.time_to_turn(angle - self._current_angle) + self._measurement_delay + duration
 
     def measure(self, angle, duration):
-        self._motor.move(angle - self._current_angle)
+        self.motor.move(angle - self._current_angle)
         self._start_time = \
-            time.perf_counter() + self._motor.time_to_turn(angle - self._current_angle) + self._measurement_delay
+            time.perf_counter() + self.motor.time_to_turn(angle - self._current_angle) + self._measurement_delay
         self._stop_time = self._start_time + duration
         self._current_x = datetime.now()
         self._is_running = True
