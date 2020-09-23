@@ -165,6 +165,7 @@ class App(QMainWindow):
         self.button_move_360degrees_left: QPushButton = QPushButton(self.group_settings_motor)
         self.button_move_360degrees_right: QPushButton = QPushButton(self.group_settings_motor)
         self.button_move_90degrees: QPushButton = QPushButton(self.group_settings_motor)
+        self.button_move_home: QPushButton = QPushButton(self.group_settings_motor)
         self.spin_settings_gear_2: QSpinBox = QSpinBox(self.group_settings_motor)
         self.label_settings_gear_2: QLabel = QLabel(self.group_settings_motor)
         self.spin_settings_gear_1: QSpinBox = QSpinBox(self.group_settings_motor)
@@ -276,6 +277,7 @@ class App(QMainWindow):
         self.spin_settings_speed.valueChanged.connect(self.spin_settings_speed_changed)
         self.spin_settings_gear_1.valueChanged.connect(self.spin_settings_gear_1_changed)
         self.spin_settings_gear_2.valueChanged.connect(self.spin_settings_gear_2_changed)
+        self.button_move_home.clicked.connect(self.button_move_home_clicked)
         self.button_move_90degrees.clicked.connect(self.button_move_90degrees_clicked)
         self.button_move_1step_right.clicked.connect(self.button_move_1step_right_clicked)
         self.button_move_1step_left.clicked.connect(self.button_move_1step_left_clicked)
@@ -417,6 +419,8 @@ class App(QMainWindow):
         self.spin_settings_gear_2.setRange(1, 200)
         self.grid_layout_settings_motor.addWidget(self.spin_settings_gear_2, line, 1)
         line += 1
+        self.grid_layout_settings_motor.addWidget(self.button_move_home, line, 0, 1, 3)
+        line += 1
         self.grid_layout_settings_motor.addWidget(self.button_move_90degrees, line, 0, 1, 3)
         line += 1
         self.grid_layout_settings_motor.addWidget(self.button_move_1step_right, line, 0, 1, 3)
@@ -535,6 +539,7 @@ class App(QMainWindow):
         self.label_settings_speed_unit.setText(_translate("MainWindow", "°/s"))
         self.label_settings_gear_1.setText(_translate("MainWindow", "Gear 1 Size") + ':')
         self.label_settings_gear_2.setText(_translate("MainWindow", "Gear 2 Size") + ':')
+        self.button_move_home.setText(_translate("MainWindow", "Move home"))
         self.button_move_90degrees.setText(_translate("MainWindow", "Move 90° counter-clockwise"))
         self.button_move_360degrees_right.setText(_translate("MainWindow", "Move 360° counter-clockwise"))
         self.button_move_360degrees_left.setText(_translate("MainWindow", "Move 360° clockwise"))
@@ -1282,6 +1287,19 @@ class App(QMainWindow):
     def spin_settings_gear_2_changed(self, new_value):
         self.set_config_value('motor', 'gear 2 size', new_value)
         self.plot.set_gear_ratio(self.spin_settings_gear_1.value() / new_value)
+
+    def button_move_home_clicked(self):
+        self.pd.setMaximum(1000 * self.plot.time_to_move_home())
+        self.pd.setLabelText('Wait till the motor comes home')
+        self.pd.reset()
+        try:
+            self.timer.timeout.disconnect()
+        except TypeError:
+            pass
+        self.timer.timeout.connect(self.next_pd_tick)
+        self.timer.setSingleShot(True)
+        self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
+        self.plot.move_home()
 
     def button_move_90degrees_clicked(self):
         self.pd.setMaximum(1000 * self.plot.move_90degrees())
