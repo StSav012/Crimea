@@ -9,7 +9,7 @@ import os
 import socket
 import sys
 import time
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import matplotlib.style
 import numpy as np
@@ -114,72 +114,72 @@ def make_launcher(entry_path: str):
 
 
 def make_desktop_launcher():
-    desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
-    desktop_entry_path = os.path.join(desktop_path, 'Crimea Radiometer.desktop')
+    desktop_path: str = os.path.join(os.path.expanduser('~'), 'Desktop')
+    desktop_entry_path: str = os.path.join(desktop_path, 'Crimea Radiometer.desktop')
     make_launcher(desktop_entry_path)
 
 
 def make_autostart_launcher():
-    autostart_path = os.path.join(os.path.expanduser('~'), '.config', 'autostart')
-    autostart_entry_path = os.path.join(autostart_path, 'Crimea Radiometer.desktop')
+    autostart_path: str = os.path.join(os.path.expanduser('~'), '.config', 'autostart')
+    autostart_entry_path: str = os.path.join(autostart_path, 'Crimea Radiometer.desktop')
     make_launcher(autostart_entry_path)
 
 
 class App(QMainWindow):
     def __init__(self):
         super().__init__(flags=Qt.WindowFlags())
-        self.settings = QSettings("SavSoft", "Crimea Radiometer")
+        self.settings: QSettings = QSettings("SavSoft", "Crimea Radiometer")
 
-        self.central_widget = QWidget(self, flags=Qt.WindowFlags())
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
-        self.toolbar = backend.NavigationToolbar(self.canvas, self)
-        self.plot_frame = QFrame(self.central_widget)
-        self.vertical_layout_plot = QVBoxLayout(self.plot_frame)
+        self.central_widget: QWidget = QWidget(self, flags=Qt.WindowFlags())
+        self.figure: Figure = Figure()
+        self.canvas: FigureCanvas = FigureCanvas(self.figure)
+        self.toolbar: backend.NavigationToolbar = backend.NavigationToolbar(self.canvas, self)
+        self.plot_frame: QFrame = QFrame(self.central_widget)
+        self.vertical_layout_plot: QVBoxLayout = QVBoxLayout(self.plot_frame)
 
-        self.tab_settings = QWidget()
+        self.tab_settings: QWidget = QWidget()
 
-        self.group_settings_angles = QGroupBox(self.tab_settings)
-        self.spin_bb_angle = QDoubleSpinBox(self.group_settings_angles)
-        self.label_bb_angle = QLabel(self.group_settings_angles)
-        self.spin_bb_angle_alt = QDoubleSpinBox(self.group_settings_angles)
-        self.label_bb_angle_alt = QLabel(self.group_settings_angles)
-        self.spin_max_angle = QDoubleSpinBox(self.group_settings_angles)
-        self.label_max_angle = QLabel(self.group_settings_angles)
-        self.spin_min_angle = QDoubleSpinBox(self.group_settings_angles)
-        self.label_min_angle = QLabel(self.group_settings_angles)
-        self.spin_min_angle_alt = QDoubleSpinBox(self.group_settings_angles)
-        self.label_min_angle_alt = QLabel(self.group_settings_angles)
-        self.grid_layout_settings_angles = QGridLayout(self.group_settings_angles)
+        self.group_settings_angles: QGroupBox = QGroupBox(self.tab_settings)
+        self.spin_bb_angle: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
+        self.label_bb_angle: QLabel = QLabel(self.group_settings_angles)
+        self.spin_bb_angle_alt: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
+        self.label_bb_angle_alt: QLabel = QLabel(self.group_settings_angles)
+        self.spin_max_angle: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
+        self.label_max_angle: QLabel = QLabel(self.group_settings_angles)
+        self.spin_min_angle: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
+        self.label_min_angle: QLabel = QLabel(self.group_settings_angles)
+        self.spin_min_angle_alt: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
+        self.label_min_angle_alt: QLabel = QLabel(self.group_settings_angles)
+        self.grid_layout_settings_angles: QGridLayout = QGridLayout(self.group_settings_angles)
 
-        self.group_settings_measurement = QGroupBox(self.tab_settings)
-        self.spin_measurement_delay = QDoubleSpinBox(self.group_settings_measurement)
-        self.label_measurement_delay = QLabel(self.group_settings_measurement)
-        self.spin_channels = QSpinBox(self.group_settings_measurement)
-        self.label_channels = QLabel(self.group_settings_measurement)
-        self.grid_layout_settings_measurement = QGridLayout(self.group_settings_measurement)
+        self.group_settings_measurement: QGroupBox = QGroupBox(self.tab_settings)
+        self.spin_measurement_delay: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_measurement)
+        self.label_measurement_delay: QLabel = QLabel(self.group_settings_measurement)
+        self.spin_channels: QSpinBox = QSpinBox(self.group_settings_measurement)
+        self.label_channels: QLabel = QLabel(self.group_settings_measurement)
+        self.grid_layout_settings_measurement: QGridLayout = QGridLayout(self.group_settings_measurement)
 
-        self.group_settings_motor = QGroupBox(self.tab_settings)
-        self.button_move_360degrees_left = QPushButton(self.group_settings_motor)
-        self.button_move_360degrees_right = QPushButton(self.group_settings_motor)
-        self.button_move_90degrees = QPushButton(self.group_settings_motor)
-        self.spin_settings_gear_2 = QSpinBox(self.group_settings_motor)
-        self.label_settings_gear_2 = QLabel(self.group_settings_motor)
-        self.spin_settings_gear_1 = QSpinBox(self.group_settings_motor)
-        self.label_settings_gear_1 = QLabel(self.group_settings_motor)
-        self.label_settings_speed_unit = QLabel(self.group_settings_motor)
-        self.spin_settings_speed = QSpinBox(self.group_settings_motor)
-        self.label_settings_speed = QLabel(self.group_settings_motor)
-        self.spin_step_fraction = SpinListBox(self.group_settings_motor, ['1', '½', '¼', '⅟₁₆'])
-        self.label_step_fraction = QLabel(self.group_settings_motor)
-        self.grid_layout_settings_motor = QGridLayout(self.group_settings_motor)
+        self.group_settings_motor: QGroupBox = QGroupBox(self.tab_settings)
+        self.button_move_360degrees_left: QPushButton = QPushButton(self.group_settings_motor)
+        self.button_move_360degrees_right: QPushButton = QPushButton(self.group_settings_motor)
+        self.button_move_90degrees: QPushButton = QPushButton(self.group_settings_motor)
+        self.spin_settings_gear_2: QSpinBox = QSpinBox(self.group_settings_motor)
+        self.label_settings_gear_2: QLabel = QLabel(self.group_settings_motor)
+        self.spin_settings_gear_1: QSpinBox = QSpinBox(self.group_settings_motor)
+        self.label_settings_gear_1: QLabel = QLabel(self.group_settings_motor)
+        self.label_settings_speed_unit: QLabel = QLabel(self.group_settings_motor)
+        self.spin_settings_speed: QSpinBox = QSpinBox(self.group_settings_motor)
+        self.label_settings_speed: QLabel = QLabel(self.group_settings_motor)
+        self.spin_step_fraction: SpinListBox = SpinListBox(self.group_settings_motor, ['1', '½', '¼', '⅟₁₆'])
+        self.label_step_fraction: QLabel = QLabel(self.group_settings_motor)
+        self.grid_layout_settings_motor: QGridLayout = QGridLayout(self.group_settings_motor)
 
-        self.grid_layout_settings = QGridLayout(self.tab_settings)
+        self.grid_layout_settings: QGridLayout = QGridLayout(self.tab_settings)
 
-        self.tab_main = QWidget()
-        self.button_go = QPushButton(self.tab_main)
-        self.button_power = QPushButton(self.tab_main)
-        self.horizontal_layout_main = QHBoxLayout()
+        self.tab_main: QWidget = QWidget()
+        self.button_go: QPushButton = QPushButton(self.tab_main)
+        self.button_power: QPushButton = QPushButton(self.tab_main)
+        self.horizontal_layout_main: QHBoxLayout = QHBoxLayout()
 
         self.group_temperature: QGroupBox = QGroupBox(self.central_widget)
         self.grid_layout_temperature: QGridLayout = QGridLayout(self.group_temperature)
@@ -193,38 +193,38 @@ class App(QMainWindow):
 
         self.check_auto_temperature_mode: QCheckBox = QCheckBox(self.group_temperature)
 
-        self.group_schedule = QGroupBox(self.tab_main)
-        self.button_schedule_action_down = QPushButton(self.group_schedule)
-        self.button_schedule_action_up = QPushButton(self.group_schedule)
-        self.button_schedule_action_remove = QPushButton(self.group_schedule)
-        self.button_schedule_action_add = QPushButton(self.group_schedule)
+        self.group_schedule: QGroupBox = QGroupBox(self.tab_main)
+        self.button_schedule_action_down: QPushButton = QPushButton(self.group_schedule)
+        self.button_schedule_action_up: QPushButton = QPushButton(self.group_schedule)
+        self.button_schedule_action_remove: QPushButton = QPushButton(self.group_schedule)
+        self.button_schedule_action_add: QPushButton = QPushButton(self.group_schedule)
         self.table_schedule = QTableWidget(self.group_schedule)
-        self.grid_layout_schedule = QGridLayout(self.group_schedule)
+        self.grid_layout_schedule: QGridLayout = QGridLayout(self.group_schedule)
 
-        self.group_weather_state = QGroupBox(self.tab_main)
-        self.label_weather_solar_radiation_value = QLabel(self.group_weather_state)
-        self.label_weather_solar_radiation = QLabel(self.group_weather_state)
-        self.label_weather_rain_rate_value = QLabel(self.group_weather_state)
-        self.label_weather_rain_rate = QLabel(self.group_weather_state)
-        self.label_weather_wind_direction_value = QLabel(self.group_weather_state)
-        self.label_weather_wind_direction = QLabel(self.group_weather_state)
-        self.label_weather_wind_speed_value = QLabel(self.group_weather_state)
-        self.label_weather_wind_speed = QLabel(self.group_weather_state)
-        self.label_weather_humidity_value = QLabel(self.group_weather_state)
-        self.label_weather_humidity = QLabel(self.group_weather_state)
-        self.label_weather_temperature_value = QLabel(self.group_weather_state)
-        self.label_weather_temperature = QLabel(self.group_weather_state)
-        self.grid_layout_weather_state = QGridLayout(self.group_weather_state)
-        self.grid_layout_tab_main = QGridLayout(self.tab_main)
+        self.group_weather_state: QGroupBox = QGroupBox(self.tab_main)
+        self.label_weather_solar_radiation_value: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_solar_radiation: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_rain_rate_value: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_rain_rate: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_wind_direction_value: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_wind_direction: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_wind_speed_value: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_wind_speed: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_humidity_value: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_humidity: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_temperature_value: QLabel = QLabel(self.group_weather_state)
+        self.label_weather_temperature: QLabel = QLabel(self.group_weather_state)
+        self.grid_layout_weather_state: QGridLayout = QGridLayout(self.group_weather_state)
+        self.grid_layout_tab_main: QGridLayout = QGridLayout(self.tab_main)
 
-        self.tab_widget = QTabWidget(self.central_widget)
-        self.gridLayout = QGridLayout(self.central_widget)
+        self.tab_widget: QTabWidget = QTabWidget(self.central_widget)
+        self.gridLayout: QGridLayout = QGridLayout(self.central_widget)
 
-        self.resuming = self.get_config_value('common', 'power', False, bool)
+        self.resuming: bool = self.get_config_value('common', 'power', False, bool)
 
         self.setup_ui(self)
-        self.timer = QTimer()
-        self.pd = QProgressDialog()
+        self.timer: QTimer = QTimer()
+        self.pd: QProgressDialog = QProgressDialog()
         self.pd.setCancelButton(None)
         self.pd.setWindowTitle(self.windowTitle())
         self.pd.setWindowModality(Qt.WindowModal)
@@ -233,10 +233,10 @@ class App(QMainWindow):
         self.pd.keyPressEvent = lambda e: e.ignore()
         self.pd.reset()
         # current schedule table row being measured
-        self._current_row: Union[None, int] = None
-        self._init_angle = 0
+        self._current_row: Optional[int] = None
+        self._init_angle: float = 0.0
         # prevent config from being re-written while loading
-        self._loading = True
+        self._loading: bool = True
         # config
         self.load_config()
         # backend
