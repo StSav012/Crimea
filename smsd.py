@@ -46,25 +46,21 @@ class Motor(Thread):
         self._ser_device = device
         self._ser_banned = ()
         self._communicating = False
-        self.MICROSTEPPING_MODE = MicrosteppingMode.SINGLE
-        self.set_microstepping_mode(microstepping_mode)
+        self.microstepping_mode = MicrosteppingMode(mode=microstepping_mode)
         self.abort = False
         self._gear_ratio = ratio
         self._speed = self.degrees_to_steps(speed)
 
-    def steps_to_degrees(self, steps):
-        return float(steps) / 100. * 180. / self.MICROSTEPPING_MODE / self._gear_ratio
+    def steps_to_degrees(self, steps: int) -> float:
+        return float(steps) * self.step
 
-    def degrees_to_steps(self, degrees):
-        v = float(degrees) / self.step
+    def degrees_to_steps(self, degrees: float) -> int:
+        v: float = float(degrees) / self.step
         if v != 0. and int(v) == 0:
             print(f'Warning: To little angle to move: {degrees}')
         return round(v)
 
-    def set_microstepping_mode(self, new_mode):
-        self.MICROSTEPPING_MODE = MicrosteppingMode(mode=new_mode)
-
-    def time_to_turn(self, angle):
+    def time_to_turn(self, angle: float) -> Optional[float]:
         if self._speed:
             return abs(self.degrees_to_steps(angle) / self._speed)
         else:
@@ -72,7 +68,7 @@ class Motor(Thread):
 
     @property
     def step(self) -> float:
-        return 360. / 200. / self.MICROSTEPPING_MODE / self._gear_ratio
+        return 360. / 200. / self.microstepping_mode / self._gear_ratio
 
     def _open_serial(self):
         self._communicating = False
@@ -105,7 +101,7 @@ class Motor(Thread):
         if not self._ser.is_open:
             time.sleep(1)
 
-    def _block(self, timeout=3.):
+    def _block(self, timeout: float = 3.) -> bool:
         i = 0
         dt = 0.1
         while self._communicating:
@@ -116,7 +112,7 @@ class Motor(Thread):
         return True
 
     @staticmethod
-    def decode_response(resp):
+    def decode_response(resp: str) -> str:
         replies = {'E10': 'The command successfully accepted',
                    'E13': 'There is the error in the executing program',
                    'E14': 'Program executing completed',
@@ -129,7 +125,7 @@ class Motor(Thread):
         else:
             return f'Unknown reply: {resp}'
 
-    def _do(self, cmd):
+    def _do(self, cmd: str):
         if not self._block():
             print("driver is very busy to respond to", cmd)
             return False
@@ -155,7 +151,11 @@ class Motor(Thread):
                     self._ser_banned += (self._ser.port,)
                 self._open_serial()
                 continue
-            resp = c.decode("ascii").split('*')
+            try:
+                resp = c.decode("ascii").split('*')
+            except UnicodeDecodeError:
+                print('wrong response:', msg, c)
+                continue
             if resp[0] != cmd:
                 print('wrong response:', msg, resp)
                 continue

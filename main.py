@@ -1269,7 +1269,7 @@ class App(QMainWindow):
 
     def step_fraction_changed(self, new_value):
         self.set_config_value('motor', 'step fraction', new_value)
-        self.plot.set_microstepping_mode(MicrosteppingMode(index=new_value))
+        self.plot.motor.microstepping_mode = MicrosteppingMode(index=new_value)
         step: float = self.plot.motor.step
         for r in range(self.table_schedule.rowCount()):
             angle: float = self.table_schedule.cellWidget(r, 1).value()
@@ -1279,14 +1279,14 @@ class App(QMainWindow):
 
     def spin_settings_speed_changed(self, new_value):
         self.set_config_value('motor', 'speed', new_value)
-        self.plot.set_motor_speed(new_value)
+        self.plot.motor.speed(new_value)
 
     def spin_settings_gear_1_changed(self, new_value):
         self.set_config_value('motor', 'gear 1 size', new_value)
 
     def spin_settings_gear_2_changed(self, new_value):
         self.set_config_value('motor', 'gear 2 size', new_value)
-        self.plot.set_gear_ratio(self.spin_settings_gear_1.value() / new_value)
+        self.plot.motor.gear_ratio(self.spin_settings_gear_1.value() / new_value)
 
     def button_move_home_clicked(self):
         self.pd.setMaximum(1000 * self.plot.time_to_move_home())

@@ -417,15 +417,6 @@ class Plot(Thread):
         time.sleep(self.motor.time_to_turn(25))
         self._current_angle = 0
 
-    def set_microstepping_mode(self, mode):
-        self.motor.set_microstepping_mode(mode)
-
-    def set_motor_speed(self, speed):
-        self.motor.speed(speed)
-
-    def set_gear_ratio(self, ratio):
-        self.motor.gear_ratio(ratio)
-
     def set_measurement_delay(self, delay):
         _delay: float = float(delay)
         if _delay < 0.0:
