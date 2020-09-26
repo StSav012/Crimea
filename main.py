@@ -573,7 +573,7 @@ class App(QMainWindow):
             if close == QMessageBox.Yes:
                 self.save_plot_config()
                 self.set_config_value('common', 'power', False)
-                self.table_schedule_changed(None)
+                self.table_schedule_changed()
                 self.settings.setValue("windowGeometry", self.saveGeometry())
                 self.settings.setValue("windowState", self.saveState())
                 self.settings.sync()
@@ -626,7 +626,7 @@ class App(QMainWindow):
                 self.add_table_row(values=cells)
         self.button_power.setChecked(self.resuming)
         self.button_go.setEnabled(bool(self.button_power.isChecked() and table_text))
-        self.table_schedule_row_activated(0)
+        self.table_schedule_row_enabled(Qt.Unchecked)
         # tab 2
         self.spin_bb_angle.setValue(self.get_config_value('settings', 'black body position', 0, float))
         self.spin_bb_angle_alt.setValue(self.get_config_value('settings', 'black body position alt', 0, float))
@@ -813,7 +813,6 @@ class App(QMainWindow):
         item.setDecimals(2)
         item.setSuffix('°')
         item.setSingleStep(step)
-        item.valueChanged.connect(self.table_schedule_changed)
         if values and (isinstance(values, tuple) or isinstance(values, list)) and len(values) > 1:
             angle: float = round(values[1] / step) * step
         elif row_position > 0:
@@ -823,18 +822,19 @@ class App(QMainWindow):
             raise ValueError('Invalid position')
         item.setValue(angle)
         self.table_schedule.setCellWidget(row_position, 1, item)
+        item.editingFinished.connect(self.table_schedule_changed)
 
         item: QDoubleSpinBox = QDoubleSpinBox()
         item.setRange(1, 86400)
         item.setDecimals(1)
         item.setSuffix(' s')
         item.setSingleStep(1)
-        item.valueChanged.connect(self.table_schedule_changed)
         if values and (isinstance(values, tuple) or isinstance(values, list)) and len(values) > 2:
             item.setValue(values[2])
         elif row_position > 0:
             item.setValue(self.table_schedule.cellWidget(row_position - 1, 2).value())
         self.table_schedule.setCellWidget(row_position, 2, item)
+        item.editingFinished.connect(self.table_schedule_changed)
 
         item: QCheckBox = QCheckBox()
         parent_widget = QWidget()
@@ -847,11 +847,11 @@ class App(QMainWindow):
         self.table_schedule.setItem(row_position, 0, QTableWidgetItem())
         self.table_schedule.setCellWidget(row_position, 0, parent_widget)
         self.table_schedule.setColumnWidth(0, self.table_schedule.rowHeight(row_position))
-        item.stateChanged.connect(self.table_schedule_row_activated)
         if values and (isinstance(values, tuple) or isinstance(values, list)) and len(values) > 0:
             item.setCheckState(Qt.Checked if values[0] else Qt.Unchecked)
         else:
             item.setCheckState(Qt.Checked)
+        item.stateChanged.connect(self.table_schedule_row_enabled)
 
         self.button_go.setEnabled(bool(self.table_schedule.rowCount() > 0 and self.button_power.isChecked()))
 
@@ -885,26 +885,42 @@ class App(QMainWindow):
         self.highlight_current_row()
         return
 
-    def table_schedule_row_activated(self, new_state):
-        self.table_schedule_changed(None)
+    def table_schedule_row_enabled(self, new_state: Qt.CheckState):
+        self.table_schedule_changed()
         for r in range(self.table_schedule.rowCount()):
-            w = self.table_schedule.cellWidget(r, 0)
-            if w is not None:
-                w2 = w.childAt(w.childrenRect().center())
-                if w2 is not None:
-                    w2ch = w2.checkState()
-                    if w2ch == new_state:
-                        for c in range(1, self.table_schedule.columnCount()):
-                            w1 = self.table_schedule.cellWidget(r, c)
-                            if w1 is not None:
-                                w1.setEnabled(w2ch)
-        something_enabled = bool(self.enabled_rows())
+            w: Optional[QWidget] = self.table_schedule.cellWidget(r, 0)
+            if w is None:
+                continue
+            w2: Optional[QWidget] = w.childAt(w.childrenRect().center())
+            if w2 is None:
+                continue
+            w2ch: Qt.CheckState = w2.checkState()
+            if w2ch == new_state:
+                for c in range(1, self.table_schedule.columnCount()):
+                    w1: Optional[QWidget] = self.table_schedule.cellWidget(r, c)
+                    if w1 is not None:
+                        w1.setEnabled(w2ch != Qt.Unchecked)
+        something_enabled: bool = bool(self.enabled_rows())
         self.button_go.setEnabled(something_enabled and self.button_power.isChecked())
         if not something_enabled:
             self.button_go.setChecked(False)
         return
 
-    def table_schedule_changed(self, _new_value):
+    def table_schedule_changed(self):
+        if self._loading:
+            return
+
+        # validate angles
+        step: float = self.plot.motor.step
+        for r in range(self.table_schedule.rowCount()):
+            w: Optional[QWidget] = self.table_schedule.cellWidget(r, 1)
+            if w is None:  # in case of emergency
+                continue
+            angle: float = w.value()
+            w.blockSignals(True)
+            w.setValue(round(angle / step) * step)
+            w.blockSignals(False)
+
         st, sl = self.stringify_table()
         self.set_config_value('schedule', 'table', st)
         self.set_config_value('schedule', 'skip lines', sl)
@@ -987,13 +1003,14 @@ class App(QMainWindow):
             self.table_schedule.scrollToItem(self.table_schedule.item(self._current_row, 0))
         return
 
-    def enabled_rows(self):
-        rows = []
+    def enabled_rows(self) -> List[int]:
+        rows: List[int] = []
         for r in range(self.table_schedule.rowCount()):
-            w = self.table_schedule.cellWidget(r, 0)
-            duration = self.table_schedule.cellWidget(r, 2).value()
+            w: Optional[QWidget] = self.table_schedule.cellWidget(r, 0)
+            duration: float = self.table_schedule.cellWidget(r, 2).value()
             if duration > 0.0 and w is not None:
-                w2 = w.findChild(QCheckBox, '', Qt.FindDirectChildrenOnly)
+                # noinspection PyTypeChecker
+                w2: Optional[QCheckBox] = w.findChild(QCheckBox, '', Qt.FindDirectChildrenOnly)
                 if w2 is not None and w2.checkState():
                     rows += [r]
         return rows
