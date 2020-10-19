@@ -405,11 +405,22 @@ class Plot(Thread):
         self.motor.move(-self._current_angle)
         time.sleep(self.motor.time_to_turn(self._current_angle))
         v: Optional[int] = self.arduino.voltage('A0')
-        if v is None or v > 512:
-            print('making whole turn')
+        print('A0 voltage is', v)
+        if v is None:
+            print('no “0” position data')
             self.motor.forward()
             self.motor.move_home()
             time.sleep(self.motor.time_to_turn(360))
+        elif v < 512:
+            print('last attempt to find “0”')
+            self.motor.move(-self.motor.step)
+            time.sleep(self.motor.time_to_turn(self.motor.step))
+            v = self.arduino.voltage('A0')
+            if v is None or v < 512:
+                print('making whole turn')
+                self.motor.forward()
+                self.motor.move_home()
+                time.sleep(self.motor.time_to_turn(360))
         self.motor.move(-25)
         time.sleep(self.motor.time_to_turn(25))
         self.motor.forward()
