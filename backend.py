@@ -413,8 +413,8 @@ class Plot(Thread):
             time.sleep(self.motor.time_to_turn(360))
         else:
             _i: int = 0
-            while v is not None and v < 512 and _i < 5:
-                print(f'attempt #{_i + 1} out of 5 to find “0”')
+            while v is not None and v < 512 and _i < self.motor.microstepping_mode:
+                print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
                 self.motor.move(self.motor.step)
                 time.sleep(self.motor.time_to_turn(self.motor.step))
                 v = self.arduino.voltage('A0')
@@ -440,8 +440,8 @@ class Plot(Thread):
             print('no “0” position data')
         else:
             _i: int = 0
-            while v is not None and v < 512 and _i < 5:
-                print(f'attempt #{_i + 1} out of 5 to find “0”')
+            while v is not None and v < 512 and _i < self.motor.microstepping_mode:
+                print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
                 self.motor.move(self.motor.step)
                 time.sleep(self.motor.time_to_turn(self.motor.step))
                 v = self.arduino.voltage('A0')
