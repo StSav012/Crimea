@@ -55,8 +55,6 @@ class Dallas18B20(Thread):
                     break
                 finally:
                     time.sleep(1)  # to be changed
-        if not self._ser.is_open:
-            time.sleep(1)
 
     def _close_serial(self):
         self._ser.close()
