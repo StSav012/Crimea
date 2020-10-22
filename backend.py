@@ -411,22 +411,48 @@ class Plot(Thread):
             self.motor.forward()
             self.motor.move_home()
             time.sleep(self.motor.time_to_turn(360))
-        elif v < 512:
-            print('last attempt to find “0”')
-            self.motor.move(-self.motor.step)
-            time.sleep(self.motor.time_to_turn(self.motor.step))
-            v = self.arduino.voltage('A0')
-            if v is None or v < 512:
-                print('making whole turn')
-                self.motor.forward()
-                self.motor.move_home()
-                time.sleep(self.motor.time_to_turn(360))
-        self.motor.move(-25)
-        time.sleep(self.motor.time_to_turn(25))
+        else:
+            _i: int = 0
+            while v is not None and v < 512 and _i < 5:
+                print(f'attempt #{_i + 1} out of 5 to find “0”')
+                self.motor.move(self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                if v is None or v < 512:
+                    print('it failed: A0 voltage is', v)
+                else:
+                    print('success: A0 voltage is', v)
+                _i += 1
+        if v is None or v < 512:
+            print('making whole turn')
+            self.motor.forward()
+            self.motor.move_home()
+            time.sleep(self.motor.time_to_turn(360))
+        print('moving back and forth')
+        self.motor.move(-25.2)
+        time.sleep(self.motor.time_to_turn(25.2))
         self.motor.forward()
         self.motor.move_home()
-        time.sleep(self.motor.time_to_turn(25))
-        self._current_angle = 0
+        time.sleep(self.motor.time_to_turn(25.2))
+        v = self.arduino.voltage('A0')
+        print('A0 voltage is', v)
+        if v is None:
+            print('no “0” position data')
+        else:
+            _i: int = 0
+            while v is not None and v < 512 and _i < 5:
+                print(f'attempt #{_i + 1} out of 5 to find “0”')
+                self.motor.move(self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                if v is None or v < 512:
+                    print('it failed: A0 voltage is', v)
+                else:
+                    print('success: A0 voltage is', v)
+                _i += 1
+        with open('A0_voltage.csv', 'a') as f_out:
+            f_out.write(f'{v}\n')
+        self._current_angle = 0.0
 
     def set_measurement_delay(self, delay):
         _delay: float = float(delay)
