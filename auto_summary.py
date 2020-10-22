@@ -252,7 +252,7 @@ def process(data, ch: int, principal_angles: PrincipalAngles) \
     else:
         absorptions = dict()
     # rename `angles_data` keys
-    angles_data_str: Dict[str, float] = dict((f'θ = {90 - i}°', angles_data[i])
+    angles_data_str: Dict[str, float] = dict((f'θ = {90 - i:.3f}°', angles_data[i])
                                              for i in sorted(angles_data))
     _fields.extend(angles_data_str.keys())
 
@@ -554,20 +554,20 @@ def get_absorption_labels(angles_data: Dict[float, float], principal_angles: Pri
     ic2pa: PrincipalAngles = get_indices_closest_to_principal_angles(angles_data, principal_angles)
     ac2pa: PrincipalAngles = PrincipalAngles(**dict(zip(ic2pa._fields, h[list(ic2pa)])))
     return PrincipalAnglesLabels(
-        bb_τ_label=f'τ for θ = {90 - ac2pa.bb_angle}, '
-                   f'{90 - ac2pa.min_angle}, {90 - ac2pa.max_angle}',
-        bb_τ_label_alt=f'τ for θ = {90 - ac2pa.bb_angle}, '
-                       f'{90 - ac2pa.min_angle_alt}, {90 - ac2pa.max_angle}',
+        bb_τ_label=f'τ for θ = {90 - ac2pa.bb_angle:.3f}, '
+                   f'{90 - ac2pa.min_angle:.3f}, {90 - ac2pa.max_angle:.3f}',
+        bb_τ_label_alt=f'τ for θ = {90 - ac2pa.bb_angle:.3f}, '
+                       f'{90 - ac2pa.min_angle_alt:.3f}, {90 - ac2pa.max_angle:.3f}',
         leastsq_τ='leastsq τ',
         leastsq_τ_error='leastsq τ error',
         magic_angles_τ_label=''
-                             f'τ for θ = {90 - ac2pa.min_angle}, '
-                             f'{90 - h[best_magic_angle(h, ac2pa.min_angle, ac2pa.max_angle)[0]]}, '
-                             f'{90 - ac2pa.max_angle}',
+                             f'τ for θ = {90 - ac2pa.min_angle:.3f}, '
+                             f'{90 - h[best_magic_angle(h, ac2pa.min_angle, ac2pa.max_angle)[0]]:.3f}, '
+                             f'{90 - ac2pa.max_angle:.3f}',
         magic_angles_τ_label_alt=''
-                                 f'τ for θ = {90 - ac2pa.min_angle_alt}, '
-                                 f'{90 - h[best_magic_angle(h, ac2pa.min_angle_alt, ac2pa.max_angle)[0]]}, '
-                                 f'{90 - ac2pa.max_angle}',
+                                 f'τ for θ = {90 - ac2pa.min_angle_alt:.3f}, '
+                                 f'{90 - h[best_magic_angle(h, ac2pa.min_angle_alt, ac2pa.max_angle)[0]]:.3f}, '
+                                 f'{90 - ac2pa.max_angle:.3f}',
     ), ic2pa, ac2pa
 
 
