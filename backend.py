@@ -404,14 +404,15 @@ class Plot(Thread):
     def time_to_move_home(self) -> Optional[float]:
         return (self.motor.time_to_turn(self._current_angle)
                 + self.motor.time_to_turn(360)
-                + 2. * self.motor.microstepping_mode * self.motor.time_to_turn(self.motor.step)
-                + 2. * self.motor.microstepping_mode
+                + 4. * self.motor.microstepping_mode * self.motor.time_to_turn(self.motor.step)
+                + 4. * self.motor.microstepping_mode
                 + 2. * self.motor.time_to_turn(25.2))
 
     def move_home(self):
         self._targets.append((self._move_home, ()))
 
     def _move_home(self):
+        _threshold: int = 768
         self.motor.move(-self._current_angle)
         time.sleep(self.motor.time_to_turn(self._current_angle))
         v: Optional[int] = self.arduino.voltage('A0')
@@ -424,21 +425,40 @@ class Plot(Thread):
             time.sleep(self.motor.time_to_turn(360))
         else:
             _i: int = 0
-            while v is not None and v < 512 and _i < self.motor.microstepping_mode:
+            if v is not None and v > _threshold:
+                print('making steps back to ensure the motor is not behind “0”')
+            while v is not None and v > _threshold and _i < self.motor.microstepping_mode:
+                print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
+                self.motor.move(-self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                if v is None or v > _threshold:
+                    print('it failed: A0 voltage still is', v)
+                else:
+                    print('success: A0 voltage is', v)
+                _i += 1
+            if v is not None and v < _threshold:
+                print('making steps forward to get back to “0”')
+                self.motor.move(self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                print('A0 voltage is', v)
+                _i = 0
+            while v is not None and v < _threshold and _i < self.motor.microstepping_mode:
                 print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
                 self.motor.move(self.motor.step)
                 time.sleep(self.motor.time_to_turn(self.motor.step))
                 v = self.arduino.voltage('A0')
-                if v is None or v < 512:
+                if v is None or v < _threshold:
                     print('it failed: A0 voltage is', v)
                 else:
                     print('success: A0 voltage is', v)
                 _i += 1
-            if v < 512:
+            if v < _threshold:
                 print('making whole turn')
                 self.motor.forward()
                 self.motor.move_home()
-                time.sleep(self.motor.time_to_turn(360))
+                time.sleep(self.motor.time_to_turn(360.0))
         print('moving back and forth')
         self.motor.move(-25.2)
         time.sleep(self.motor.time_to_turn(25.2))
@@ -451,12 +471,31 @@ class Plot(Thread):
             print('no “0” position data')
         else:
             _i: int = 0
-            while v is not None and v < 512 and _i < self.motor.microstepping_mode:
+            if v is not None and v > _threshold:
+                print('making steps back to ensure the motor is not behind “0”')
+            while v is not None and v > _threshold and _i < self.motor.microstepping_mode:
+                print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
+                self.motor.move(-self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                if v is None or v > _threshold:
+                    print('it failed: A0 voltage still is', v)
+                else:
+                    print('success: A0 voltage is', v)
+                _i += 1
+            if v is not None and v < _threshold:
+                print('making steps forward to get back to “0”')
+                self.motor.move(self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                print('A0 voltage is', v)
+                _i = 0
+            while v is not None and v < _threshold and _i < self.motor.microstepping_mode:
                 print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
                 self.motor.move(self.motor.step)
                 time.sleep(self.motor.time_to_turn(self.motor.step))
                 v = self.arduino.voltage('A0')
-                if v is None or v < 512:
+                if v is None or v < _threshold:
                     print('it failed: A0 voltage is', v)
                 else:
                     print('success: A0 voltage is', v)
