@@ -3,7 +3,7 @@
 
 import time
 from threading import Thread
-from typing import Optional
+from typing import Optional, Union
 
 import serial
 import serial.tools.list_ports
@@ -20,7 +20,7 @@ class MicrosteppingMode:
             if not key.startswith('__') and not key.endswith('__'):
                 yield value
 
-    def __new__(cls, *, mode: int = 0, index: Optional[int] = None):
+    def __new__(cls, *, mode: int = 0, index: Optional[int] = None) -> int:
         if not isinstance(mode, int):
             raise TypeError(f'Invalid value: {mode}')
         found: bool = False
@@ -39,17 +39,17 @@ class MicrosteppingMode:
 
 
 class Motor(Thread):
-    def __init__(self, device, microstepping_mode=MicrosteppingMode.SINGLE, speed=90, ratio=1.):
+    def __init__(self, device, microstepping_mode=MicrosteppingMode.SINGLE, speed: float = 90, ratio: float = 1.):
         Thread.__init__(self)
         self.daemon = True
         self._ser = serial.Serial()
         self._ser_device = device
         self._ser_banned = ()
-        self._communicating = False
+        self._communicating: bool = False
         self.microstepping_mode = MicrosteppingMode(mode=microstepping_mode)
-        self.abort = False
-        self._gear_ratio = ratio
-        self._speed = self.degrees_to_steps(speed)
+        self.abort: bool = False
+        self._gear_ratio: float = ratio
+        self._speed: int = self.degrees_to_steps(speed)
 
     def steps_to_degrees(self, steps: int) -> float:
         return float(steps) * self.step
@@ -125,7 +125,7 @@ class Motor(Thread):
         else:
             return f'Unknown reply: {resp}'
 
-    def _do(self, cmd: str):
+    def _do(self, cmd: str) -> Union[bool, str]:
         if not self._block():
             print("driver is very busy to respond to", cmd)
             return False
@@ -167,16 +167,16 @@ class Motor(Thread):
             self._open_serial()
         return False
 
-    def forward(self):
+    def forward(self) -> Union[bool, str]:
         return self._do('DL')
 
-    def backward(self):
+    def backward(self) -> Union[bool, str]:
         return self._do('DR')
 
-    def reverse(self):
+    def reverse(self) -> Union[bool, str]:
         return self._do('RS')
 
-    def move(self, angle=None):
+    def move(self, angle=None) -> Union[bool, str]:
         if angle is None:
             return self._do('MV')
         steps = self.degrees_to_steps(angle)
@@ -190,10 +190,10 @@ class Motor(Thread):
         else:
             raise ValueError(f'Too many steps: {steps}')
 
-    def stop(self):
+    def stop(self) -> Union[bool, str]:
         return self._do('ST1')
 
-    def speed(self, speed=None):  # steps/sec
+    def speed(self, speed=None) -> Union[bool, float]:  # steps/sec
         if speed is None:
             return self.steps_to_degrees(self._speed)
         speed = self.degrees_to_steps(speed)
@@ -212,42 +212,42 @@ class Motor(Thread):
             raise ValueError(f'Too much speed: {speed}')
         return False
 
-    def gear_ratio(self, ratio=None):
+    def gear_ratio(self, ratio=None) -> float:
         if ratio is not None and ratio != 0:
             self._gear_ratio = ratio
         return self._gear_ratio
 
-    def move_high(self):
+    def move_high(self) -> Union[bool, str]:
         """ Indefinite movement, till signal to input IN2 """
         return self._do('MH')
 
-    def move_low(self):
+    def move_low(self) -> Union[bool, str]:
         """ Indefinite movement, till signal to input IN1 """
         return self._do('ML')
 
-    def move_home(self):
+    def move_home(self) -> Union[bool, str]:
         """ Indefinite movement, till signal to input “0” (zero limit switch) """
         return self._do('HM')
 
-    def enable(self):
+    def enable(self) -> Union[bool, str]:
         return self._do('EN') or self._do('EN')
 
-    def disable(self):
+    def disable(self) -> Union[bool, str]:
         r = self._do('DS')
         if r == 'E16':
             self.stop()
             r = False
         return r or self._do('DS')
 
-    def wait_high(self):
+    def wait_high(self) -> Union[bool, str]:
         """ Indefinite pause, wait for a signal to input IN2 """
         return self._do('WH')
 
-    def wait_low(self):
+    def wait_low(self) -> Union[bool, str]:
         """ Indefinite pause, wait for a signal to input IN1 """
         return self._do('WL')
 
-    def follow_route_in_background(self, route, speed, delay):
+    def follow_route_in_background(self, route, speed, delay) -> bool:
         if not route:
             return False
         if len(route) == 1:

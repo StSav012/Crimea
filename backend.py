@@ -7,7 +7,7 @@ import os
 import time
 from datetime import datetime
 from threading import Thread
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from PyQt5.QtGui import QIcon
@@ -102,6 +102,8 @@ class Plot(Thread):
                  results_file_prefix: str = '', ratio: float = 1.0):
         Thread.__init__(self)
         self.daemon = True
+
+        self._targets: List[Tuple[Callable, Tuple[Any, ...]]] = []
 
         self.bbox_to_anchor: Tuple[float, float] = (1.10, 1)
 
@@ -360,62 +362,148 @@ class Plot(Thread):
             # event.inaxes.autoscale_view(None, True, True)
             event.inaxes.autoscale(enable=True, axis='both')
 
-    def enable_motor(self, enable, new_thread: bool = False):
+    def enable_motor(self, enable: bool):
+        self._targets.append((self._enable_motor, (enable, )))
+
+    def _enable_motor(self, enable: bool):
         if enable:
             self.motor.enable()
             self.motor.forward()
-            if new_thread:
-                Thread(target=self.move_home).start()
-            else:
-                self.move_home()
+            self.move_home()
         else:
             self.motor.disable()
 
-    def move_90degrees(self):
+    def done(self) -> bool:
+        return not self._targets
+
+    def move_90degrees(self) -> Optional[float]:
         self.motor.move(90)
         self._current_angle += 90
         return self.motor.time_to_turn(90)
 
-    def move_1step_right(self):
+    def move_1step_right(self) -> Optional[float]:
         self.motor.move(self.motor.step)
         self._current_angle += self.motor.step
         return self.motor.time_to_turn(self.motor.step)
 
-    def move_1step_left(self):
+    def move_1step_left(self) -> Optional[float]:
         self.motor.move(-self.motor.step)
         self._current_angle -= self.motor.step
         return self.motor.time_to_turn(self.motor.step)
 
-    def move_360degrees_right(self):
+    def move_360degrees_right(self) -> Optional[float]:
         self.motor.move(360)
         self._current_angle += 360
         return self.motor.time_to_turn(360)
 
-    def move_360degrees_left(self):
+    def move_360degrees_left(self) -> Optional[float]:
         self.motor.move(-360)
         self._current_angle -= 360
         return self.motor.time_to_turn(360)
 
-    def time_to_move_home(self):
+    def time_to_move_home(self) -> Optional[float]:
         return (self.motor.time_to_turn(self._current_angle)
                 + self.motor.time_to_turn(360)
-                + 2. * self.motor.time_to_turn(25))
+                + 4. * self.motor.microstepping_mode * self.motor.time_to_turn(self.motor.step)
+                + 4. * self.motor.microstepping_mode
+                + 2. * self.motor.time_to_turn(25.2))
 
     def move_home(self):
+        self._targets.append((self._move_home, ()))
+
+    def _move_home(self):
+        _threshold: int = 768
         self.motor.move(-self._current_angle)
         time.sleep(self.motor.time_to_turn(self._current_angle))
         v: Optional[int] = self.arduino.voltage('A0')
-        if v is None or v > 512:
+        print('A0 voltage is', v)
+        if v is None:
+            print('no “0” position data')
             print('making whole turn')
             self.motor.forward()
             self.motor.move_home()
             time.sleep(self.motor.time_to_turn(360))
-        self.motor.move(-25)
-        time.sleep(self.motor.time_to_turn(25))
+        else:
+            _i: int = 0
+            if v is not None and v > _threshold:
+                print('making steps back to ensure the motor is not behind “0”')
+            while v is not None and v > _threshold and _i < self.motor.microstepping_mode:
+                print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
+                self.motor.move(-self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                if v is None or v > _threshold:
+                    print('it failed: A0 voltage still is', v)
+                else:
+                    print('success: A0 voltage is', v)
+                _i += 1
+            if v is not None and v < _threshold:
+                print('making steps forward to get back to “0”')
+                self.motor.move(self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                print('A0 voltage is', v)
+                _i = 0
+            while v is not None and v < _threshold and _i < self.motor.microstepping_mode:
+                print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
+                self.motor.move(self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                if v is None or v < _threshold:
+                    print('it failed: A0 voltage is', v)
+                else:
+                    print('success: A0 voltage is', v)
+                _i += 1
+            if v < _threshold:
+                print('making whole turn')
+                self.motor.forward()
+                self.motor.move_home()
+                time.sleep(self.motor.time_to_turn(360.0))
+        print('moving back and forth')
+        self.motor.move(-25.2)
+        time.sleep(self.motor.time_to_turn(25.2))
         self.motor.forward()
         self.motor.move_home()
-        time.sleep(self.motor.time_to_turn(25))
-        self._current_angle = 0
+        time.sleep(self.motor.time_to_turn(25.2))
+        v = self.arduino.voltage('A0')
+        print('A0 voltage is', v)
+        if v is None:
+            print('no “0” position data')
+        else:
+            _i: int = 0
+            if v is not None and v > _threshold:
+                print('making steps back to ensure the motor is not behind “0”')
+            while v is not None and v > _threshold and _i < self.motor.microstepping_mode:
+                print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
+                self.motor.move(-self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                if v is None or v > _threshold:
+                    print('it failed: A0 voltage still is', v)
+                else:
+                    print('success: A0 voltage is', v)
+                _i += 1
+            if v is not None and v < _threshold:
+                print('making steps forward to get back to “0”')
+                self.motor.move(self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                print('A0 voltage is', v)
+                _i = 0
+            while v is not None and v < _threshold and _i < self.motor.microstepping_mode:
+                print(f'attempt #{_i + 1} out of {self.motor.microstepping_mode} to find “0”')
+                self.motor.move(self.motor.step)
+                time.sleep(self.motor.time_to_turn(self.motor.step))
+                v = self.arduino.voltage('A0')
+                if v is None or v < _threshold:
+                    print('it failed: A0 voltage is', v)
+                else:
+                    print('success: A0 voltage is', v)
+                _i += 1
+        with open('A0_voltage.csv', 'a') as f_out:
+            f_out.write(f'{v}\n')
+        self._current_angle = 0.0
+        print('got home')
 
     def set_measurement_delay(self, delay):
         _delay: float = float(delay)
@@ -814,6 +902,11 @@ class Plot(Thread):
                     if self._is_running and not self._closing:
                         self.set_point()
                 elif not self._closing:
-                    time.sleep(0.1)
+                    if self._targets:
+                        _target, _args = self._targets[0]
+                        _target(*_args)
+                        self._targets.pop(0)
+                    else:
+                        time.sleep(0.1)
         except (KeyboardInterrupt, SystemExit):
             return

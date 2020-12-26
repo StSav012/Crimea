@@ -9,7 +9,7 @@ import os
 import socket
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.style
 import numpy as np
@@ -577,6 +577,7 @@ class App(QMainWindow):
                 self.settings.setValue("windowGeometry", self.saveGeometry())
                 self.settings.setValue("windowState", self.saveState())
                 self.settings.sync()
+                self.pd.reset()
                 self.plot.set_running(False)
                 self.plot.close()
                 self.plot.join()
@@ -1176,43 +1177,40 @@ class App(QMainWindow):
                 self.last_loop_data = {}
                 self.canvas.draw_idle()
 
-                self.pd.setMaximum(1000 * round(self.plot.time_to_move_home()))
+                self.pd.setMaximum(round(1000 * self.plot.time_to_move_home()))
                 self.pd.setLabelText('Wait till the motor comes home')
                 self.pd.reset()
-                try:
+                self.plot.move_home()
+                if self.timer.receivers(self.timer.timeout):
                     self.timer.timeout.disconnect()
-                except TypeError:
-                    pass
-                self.timer.timeout.connect(lambda: self.next_pd_tick(
-                    fallback=lambda: self.measure_next(ignore_home=True)))
+                self.timer.timeout.connect(
+                    lambda: self.next_pd_tick(
+                        fallback=lambda: self.measure_next(ignore_home=True),
+                        abort=self.plot.done
+                    )
+                )
                 self.timer.setSingleShot(True)
                 self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
-                # self.plot.enable_motor(True, new_thread=True)
 
-                self.plot.move_home()
                 self.plot.pack_data()
                 # self.plot.purge_obsolete_data(purge_all=True)
 
-            if self.button_go.isChecked():
+            elif self.button_go.isChecked():
                 angle = self.table_schedule.cellWidget(next_row, 1).value()
                 duration = self.table_schedule.cellWidget(next_row, 2).value()
                 self._current_row = next_row
                 self.highlight_current_row()
                 self.plot.measure(angle, duration)
                 self.set_config_value('common', 'last angle', angle)
-                try:
+                if self.timer.receivers(self.timer.timeout):
                     self.timer.timeout.disconnect()
-                except TypeError:
-                    pass
                 self.timer.timeout.connect(self.measure_next)
                 self.timer.setSingleShot(True)
                 # don't use QTimer.singleShot here to be able to stop the timer later!!
-                self.timer.start(round(self.plot.measurement_time(angle, duration)) * 1000)
+                self.timer.start(round(1000 * self.plot.measurement_time(angle, duration)))
         else:
-            try:
+            if self.timer.receivers(self.timer.timeout):
                 self.timer.timeout.disconnect()
-            except TypeError:
-                pass
             self.timer.timeout.connect(self.measure_next)
             self.timer.setSingleShot(True)
             self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
@@ -1227,10 +1225,8 @@ class App(QMainWindow):
             self.plot.purge_obsolete_data(purge_all=True)
             self.plot.measure(angle, duration)
             self.set_config_value('common', 'last angle', angle)
-            try:
+            if self.timer.receivers(self.timer.timeout):
                 self.timer.timeout.disconnect()
-            except TypeError:
-                pass
             self.timer.timeout.connect(self.measure_next)
             self.timer.setSingleShot(True)
             # don't use QTimer.singleShot here to be able to stop the timer later!!
@@ -1242,23 +1238,19 @@ class App(QMainWindow):
         self.set_config_value('common', 'running', new_value)
         self.resuming = False
 
-    def next_pd_tick(self, fallback=None):
-        next_value = self.pd.value() + self.timer.interval()
-        if next_value < self.pd.maximum():
-            self.pd.setValue(next_value)
-            try:
+    def next_pd_tick(self, fallback: Optional[Callable] = None, abort: Optional[Callable] = None):
+        next_value: int = self.pd.value() + self.timer.interval()
+        if not abort() if callable(abort) else (next_value < self.pd.maximum()):
+            if next_value < self.pd.maximum():
+                self.pd.setValue(next_value)
+            if self.timer.receivers(self.timer.timeout):
                 self.timer.timeout.disconnect()
-            except TypeError:
-                pass
-            if fallback is not None:
-                self.timer.timeout.connect(lambda: self.next_pd_tick(fallback=fallback))
-            else:
-                self.timer.timeout.connect(self.next_pd_tick)
+            self.timer.timeout.connect(lambda: self.next_pd_tick(fallback=fallback, abort=abort))
             self.timer.setSingleShot(True)
             self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
         else:
             self.pd.reset()
-            if fallback is not None:
+            if callable(fallback):
                 fallback()
 
     def button_power_toggled(self, new_state):
@@ -1266,22 +1258,27 @@ class App(QMainWindow):
             self.button_go.setChecked(False)
             self.button_go.setEnabled(False)
         self.button_power.setDisabled(True)
+        self.plot.enable_motor(new_state)
         if new_state:
-            self.pd.setMaximum(1000 * round(self.plot.time_to_move_home()))
+            self.pd.setMaximum(round(1000 * self.plot.time_to_move_home()))
             self.pd.setLabelText('Wait till the motor comes home')
             self.pd.reset()
-            try:
+            if self.timer.receivers(self.timer.timeout):
                 self.timer.timeout.disconnect()
-            except TypeError:
-                pass
-            self.timer.timeout.connect(lambda: self.next_pd_tick(
-                fallback=lambda: self.button_go.setEnabled(new_state) or self.button_go.setChecked(
-                    new_state and self.resuming)
-            ))
+            self.timer.timeout.connect(
+                lambda: self.next_pd_tick(
+                    fallback=lambda: (
+                            self.button_go.setEnabled(new_state)
+                            or self.button_go.setChecked(new_state and self.resuming)
+                            or self.button_power.setEnabled(new_state)
+                    ),
+                    abort=self.plot.done
+                )
+            )
             self.timer.setSingleShot(True)
             self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
-        self.plot.enable_motor(new_state, new_thread=new_state)
-        self.button_power.setEnabled(True)
+        else:
+            self.button_power.setEnabled(True)
         self.set_config_value('common', 'power', new_state)
 
     def step_fraction_changed(self, new_value):
@@ -1306,74 +1303,62 @@ class App(QMainWindow):
         self.plot.motor.gear_ratio(self.spin_settings_gear_1.value() / new_value)
 
     def button_move_home_clicked(self):
-        self.pd.setMaximum(1000 * self.plot.time_to_move_home())
+        self.pd.setMaximum(round(1000 * self.plot.time_to_move_home()))
         self.pd.setLabelText('Wait till the motor comes home')
         self.pd.reset()
-        try:
+        if self.timer.receivers(self.timer.timeout):
             self.timer.timeout.disconnect()
-        except TypeError:
-            pass
-        self.timer.timeout.connect(self.next_pd_tick)
+        self.timer.timeout.connect(lambda: self.next_pd_tick(abort=self.plot.done))
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
         self.plot.move_home()
 
     def button_move_90degrees_clicked(self):
-        self.pd.setMaximum(1000 * self.plot.move_90degrees())
+        self.pd.setMaximum(round(1000 * self.plot.move_90degrees()))
         self.pd.setLabelText('Wait till the motor turns 90 degrees')
         self.pd.reset()
-        try:
+        if self.timer.receivers(self.timer.timeout):
             self.timer.timeout.disconnect()
-        except TypeError:
-            pass
         self.timer.timeout.connect(self.next_pd_tick)
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
 
     def button_move_1step_right_clicked(self):
-        self.pd.setMaximum(1000 * self.plot.move_1step_right())
+        self.pd.setMaximum(round(1000 * self.plot.move_1step_right()))
         self.pd.setLabelText('Wait till the motor turns 1 step')
         self.pd.reset()
-        try:
+        if self.timer.receivers(self.timer.timeout):
             self.timer.timeout.disconnect()
-        except TypeError:
-            pass
         self.timer.timeout.connect(self.next_pd_tick)
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
 
     def button_move_1step_left_clicked(self):
-        self.pd.setMaximum(1000 * self.plot.move_1step_left())
+        self.pd.setMaximum(round(1000 * self.plot.move_1step_left()))
         self.pd.setLabelText('Wait till the motor turns 1 step')
         self.pd.reset()
-        try:
+        if self.timer.receivers(self.timer.timeout):
             self.timer.timeout.disconnect()
-        except TypeError:
-            pass
         self.timer.timeout.connect(self.next_pd_tick)
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
 
     def button_move_360degrees_right_clicked(self):
-        self.pd.setMaximum(1000 * self.plot.move_360degrees_right())
+        self.pd.setMaximum(round(1000 * self.plot.move_360degrees_right()))
         self.pd.setLabelText('Wait till the motor turns 360 degrees')
         self.pd.reset()
-        try:
+        if self.timer.receivers(self.timer.timeout):
             self.timer.timeout.disconnect()
-        except TypeError:
-            pass
         self.timer.timeout.connect(self.next_pd_tick)
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
 
     def button_move_360degrees_left_clicked(self):
-        self.pd.setMaximum(1000 * self.plot.move_360degrees_left())
+        self.pd.setMaximum(round(1000 * self.plot.move_360degrees_left()))
         self.pd.setLabelText('Wait till the motor turns 360 degrees')
         self.pd.reset()
-        try:
+        if self.timer.receivers(self.timer.timeout):
             self.timer.timeout.disconnect()
-        except TypeError:
-            pass
         self.timer.timeout.connect(self.next_pd_tick)
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
