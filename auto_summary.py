@@ -633,16 +633,17 @@ def main():
                 content = fin.read().decode()
                 json_data = preprocess(content)
                 channels: int = 1
+                skipped_channels: int = 0
                 channel: int = 0
-                while json_data is not None and channel < channels:
+                while json_data is not None and channel + skipped_channels < channels:
                     channel_label: str = get_config_value(settings, section=section,
-                                                          key=str(channel),
-                                                          default=f'Channel {channel + 1}',
+                                                          key=str(channel + skipped_channels),
+                                                          default=f'Channel {channel + skipped_channels + 1}',
                                                           _type=str)
                     if channel_label.startswith('_'):  # do not process hidden channels
-                        channel += 1
+                        skipped_channels += 1
                         continue
-                    d, f, al, ic2pa, ac2pa, channels = process(json_data, channel, principal_angles)
+                    d, f, al, ic2pa, ac2pa, channels = process(json_data, channel + skipped_channels, principal_angles)
                     lal = list(al)
                     # print(f)
                     if initial_fields is None:
@@ -653,7 +654,7 @@ def main():
 
                     absorptions = fit_dict(d, lal)
                     if not any(absorptions.values()):
-                        channel += 1
+                        skipped_channels += 1
                         continue
 
                     if TIME_FIELD not in d:
