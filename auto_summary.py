@@ -7,6 +7,7 @@ import json
 import os
 import os.path
 import re
+
 # sending email
 import smtplib
 import socket
@@ -18,7 +19,7 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Type, Optional
 
 import numpy as np
 import xlsxwriter
@@ -81,10 +82,13 @@ def calculate_bb_τ(loop_data, *, min_angle: float, max_angle: float, bb_angle: 
         d2 = loop_data[closest_to_min_angle]
         np.seterr(invalid='raise', divide='raise')
         try:
-            if (d0 > d1 and d0 > d2) or (d0 < d1 and d0 < d2):
+            if ((d0 > d1 and d0 > d2) or (d0 < d1 and d0 < d2)) and not np.isinf(d0) and not np.isinf(
+                    d1) and not np.isinf(d2):
                 τ = np.log((d0 - d1) / (d0 - d2)) / \
                     (1.0 / np.sin(np.radians(closest_to_min_angle))
                      - 1.0 / np.sin(np.radians(closest_to_max_angle)))
+        except FloatingPointError:
+            pass
         finally:
             np.seterr(invalid='warn', divide='warn')
         # if np.isnan(τ):
@@ -123,7 +127,10 @@ def calculate_leastsq_τ(loop_data) -> (float, float):
             p = np.polyfit(x, y, deg=1)
         except np.RankWarning:
             return np.nan, np.nan
-    error = np.sqrt(np.nanmean(np.square(np.polyval(p, x) - y)))
+    if np.all(np.isnan(np.polyval(p, x) - y)):
+        error = np.nan
+    else:
+        error = np.sqrt(np.nanmean(np.square(np.polyval(p, x) - y)))
     return p[0], error
 
 
@@ -224,7 +231,14 @@ def process(data, ch: int, principal_angles: PrincipalAngles) \
     # TODO: avoid repeating of `angles_data` keys
     for item in raw_data:
         if len(item['voltage'][ch]) > 0:
-            angles_data[item['angle']] = float(np.mean(item['voltage'][ch]))
+            if np.any(np.array(item['voltage'][ch]) > 5.0) and np.any(np.array(item['voltage'][ch]) < -5.0):
+                angles_data[item['angle']] = np.nan
+            elif np.any(np.array(item['voltage'][ch]) > 5.0):
+                angles_data[item['angle']] = np.inf
+            elif np.any(np.array(item['voltage'][ch]) < -5.0):
+                angles_data[item['angle']] = -np.inf
+            else:
+                angles_data[item['angle']] = float(np.mean(item['voltage'][ch]))
         elif item['angle'] not in angles_data:
             angles_data[item['angle']] = np.nan
     al, ic2pa, ac2pa = get_absorption_labels(dict((i, angles_data[i]) for i in sorted(angles_data)), principal_angles)
@@ -503,7 +517,7 @@ def check_new_files_given(filenames: List[str], timeout: float = DAY) -> bool:
     return new_files_given
 
 
-def get_config_value(settings, *, section='settings', key, default, _type) -> Union[bool, int, float, str]:
+def get_config_value(settings, *, section: str = 'settings', key: str, default: Any, _type: Type) -> Union[bool, int, float, str]:
     if section not in settings.childGroups():
         return default
     settings.beginGroup(section)
@@ -518,7 +532,7 @@ def get_config_value(settings, *, section='settings', key, default, _type) -> Un
 
 
 def get_principal_angles() -> PrincipalAngles:
-    settings = QSettings("SavSoft", "Crimea Radiometer")
+    settings: QSettings = QSettings("SavSoft", "Crimea Radiometer")
 
     return PrincipalAngles(
         bb_angle=get_config_value(settings, key='black body position', default=0, _type=float),
@@ -604,10 +618,13 @@ def main():
 
     principal_angles: PrincipalAngles = get_principal_angles()
 
-    workbook = None
+    workbook: Optional[xlsxwriter.Workbook] = None
     written_rows: List[int] = []
     header_fields: List[List[str]] = []
     initial_fields: Union[None, List[str]] = None
+
+    settings: QSettings = QSettings("SavSoft", "Crimea Radiometer")
+    section: str = 'labels'
 
     for filename in filenames:
         if os.path.exists(filename) and os.path.isfile(filename):
@@ -616,9 +633,17 @@ def main():
                 content = fin.read().decode()
                 json_data = preprocess(content)
                 channels: int = 1
+                skipped_channels: int = 0
                 channel: int = 0
-                while json_data is not None and channel < channels:
-                    d, f, al, ic2pa, ac2pa, channels = process(json_data, channel, principal_angles)
+                while json_data is not None and channel + skipped_channels < channels:
+                    channel_label: str = get_config_value(settings, section=section,
+                                                          key=str(channel + skipped_channels),
+                                                          default=f'Channel {channel + skipped_channels + 1}',
+                                                          _type=str)
+                    if channel_label.startswith('_'):  # do not process hidden channels
+                        skipped_channels += 1
+                        continue
+                    d, f, al, ic2pa, ac2pa, channels = process(json_data, channel + skipped_channels, principal_angles)
                     lal = list(al)
                     # print(f)
                     if initial_fields is None:
@@ -629,7 +654,7 @@ def main():
 
                     absorptions = fit_dict(d, lal)
                     if not any(absorptions.values()):
-                        channel += 1
+                        skipped_channels += 1
                         continue
 
                     if TIME_FIELD not in d:
@@ -637,10 +662,17 @@ def main():
 
                     if workbook is None:
                         workbook = xlsxwriter.Workbook(results_file_name,
-                                                       {'default_date_format': 'dd.mm.yyyy hh:mm:ss'})
+                                                       {'default_date_format': 'dd.mm.yyyy hh:mm:ss',
+                                                        'nan_inf_to_errors': True})
                         header_format: Format = workbook.add_format({'bold': True})
                     if len(workbook.worksheets()) <= channel:
-                        workbook.add_worksheet(f'Channel {channel + 1}')
+                        if channel_label not in workbook.sheetnames:
+                            workbook.add_worksheet(channel_label)
+                        else:
+                            i: int = 2
+                            while f'{channel_label} [{i}]' in workbook.sheetnames:
+                                i += 1
+                            workbook.add_worksheet(f'{channel_label} [{i}]')
                         if len(header_fields) <= channel:
                             header_fields.append(GENERAL_FIELDS + initial_fields)
                         write_header(workbook.worksheets()[channel], header_fields[channel], header_format)
