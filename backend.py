@@ -454,7 +454,7 @@ class Plot(Thread):
                 else:
                     print('success: A0 voltage is', v)
                 _i += 1
-            if v < _threshold:
+            if v is None or v < _threshold:
                 print('making whole turn')
                 self.motor.forward()
                 self.motor.move_home()
