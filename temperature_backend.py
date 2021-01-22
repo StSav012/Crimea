@@ -57,9 +57,11 @@ class Dallas18B20(Thread):
                     time.sleep(1)  # to be changed
 
     def _close_serial(self):
+        self._ser.cancel_read()
+        self._ser.cancel_write()
         self._ser.close()
 
-    def _block(self, timeout: float = 10.) -> bool:
+    def _block(self, timeout: float = 12.) -> bool:
         i: int = 0
         dt: float = 0.1
         while self._communicating:
