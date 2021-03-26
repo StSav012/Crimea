@@ -14,11 +14,7 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import List, Dict, Union, Any
-
-import numpy as np
-import xlsxwriter
-from xlsxwriter.format import Format
+from typing import Iterable, Iterator, List, Dict, Optional, Tuple, Union, Any
 
 TIME_FIELD: str = 'Time'
 GENERAL_FIELDS: List[str] = [TIME_FIELD]
@@ -40,7 +36,32 @@ EXCLUDED_WEATHER_FIELDS: List[str] = [
 ]
 
 
-def preprocess(text) -> Union[None, Dict[str, List[Dict[str, Union[str, float, int, List[int]]]]]]:
+class TableWriter:
+    def __init__(self, file_name: str, sep: str = '\t', date_format: str = '%Y-%m-%dT%H:%M:%S.%f'):
+        self.sep: str = sep
+        self.date_format: str = date_format
+
+        self._file_name: str = file_name
+        if os.path.exists(self._file_name):
+            with open(self._file_name, 'wt'):
+                pass
+
+    def write_row(self, values: Iterable[Any]):
+        strings: List[str] = []
+        for value in values:
+            if value is None:
+                strings.append('')
+            elif isinstance(value, str):
+                strings.append(value)
+            elif isinstance(value, datetime):
+                strings.append(value.strftime(self.date_format))
+            else:
+                strings.append(repr(value))
+        with open(self._file_name, 'at') as f_out:
+            f_out.write(self.sep.join(strings) + '\n')
+
+
+def preprocess(text) -> Optional[Dict[str, List[Dict[str, Union[str, float, int, List[int]]]]]]:
     try:
         data = json.loads(text)
     except json.decoder.JSONDecodeError:
@@ -61,99 +82,47 @@ def preprocess(text) -> Union[None, Dict[str, List[Dict[str, Union[str, float, i
     return {'raw_data': raw_data}
 
 
-def process(data) -> (Dict, List[str], int):
-    raw_data = data['raw_data']
-    for _d in reversed(raw_data):
-        if 'weather' in _d:
-            weather = dict((key, value)
-                           for key, value in _d['weather'].items()
-                           if not isinstance(value, list) and key not in EXCLUDED_WEATHER_FIELDS)
-            if not weather['Barometer']:
-                weather['Barometer'] = None
-            elif weather['Barometer'] > 1000:
-                weather['Barometer'] = weather['Barometer'] * 0.0254
-            for key in ('Barometer', 'InsideTemp', 'OutsideTemp'):
-                if weather[key] is not None:
-                    weather[key] = round(weather[key], 1)
-            for key in weather:
-                if ('Rain' in key or 'ET' in key) and weather[key] is not None:
-                    weather[key] *= 25.4
-            # move Forecast to the end
-            fc: str = weather['Forecast']
-            del weather['Forecast']
-            weather['Forecast'] = fc
+def process(data) -> Iterator[Tuple[Dict, List[str]]]:
+    def get_weather(timestamp: float, weather_dict: Dict):
+        weather = dict((key, value)
+                       for key, value in weather_dict.items()
+                       if not isinstance(value, list) and key not in EXCLUDED_WEATHER_FIELDS)
+        if 'Barometer' not in weather or not weather['Barometer']:
+            weather['Barometer'] = None
+        elif weather['Barometer'] > 1000:
+            weather['Barometer'] = weather['Barometer'] * 0.0254
+        for key in weather:
+            if ('Rain' in key or 'ET' in key) and weather[key] is not None:
+                weather[key] *= 25.4
+        for key in ('Barometer', 'InsideTemp', 'OutsideTemp', 'ETDay', 'ETMonth', 'ETYear', 'BattLevel'):
+            if weather[key] is not None:
+                weather[key] = round(weather[key], 1)
+        # move Forecast to the end
+        fc: str = weather['Forecast']
+        del weather['Forecast']
+        weather['Forecast'] = fc
 
-            _fields = list(weather.keys())
-            yield {
-                      TIME_FIELD: datetime.fromtimestamp(_d['timestamp']),
-                      **weather,
-                  }, _fields
+        _fields = list(weather.keys())
+        return {
+                   TIME_FIELD: datetime.fromtimestamp(timestamp),
+                   **weather,
+               }, _fields
+
+    if 'raw_data' in data:
+        raw_data = data['raw_data']
+        for _d in reversed(raw_data):
+            if 'weather' in _d:
+                yield get_weather(_d['timestamp'], _d['weather'])
+    else:
+        yield get_weather(data['timestamp'], data)
 
 
-def write_header(worksheet, header: List[str], text_format: Format):
-    for index, caption in enumerate(header):
-        worksheet.write_string(0, index, caption, text_format)
-
-
-def write_row(worksheet, row: int, row_dict: Dict, keys: List):
+def write_row(worksheet: TableWriter, row_dict: Dict, keys: List):
     for key in keys:
         if key not in row_dict:
             return False
-    for index, key in enumerate(keys):
-        if isinstance(row_dict[key], float) and np.isnan(row_dict[key]):
-            worksheet.write(row, index, None)
-        else:
-            if isinstance(row_dict[key], tuple):
-                print(key, row_dict[key])
-            worksheet.write(row, index, row_dict[key])
+    worksheet.write_row([row_dict[key] for key in keys])
     return True
-
-
-def write_legend(workbook, items):
-    worksheet = workbook.add_worksheet(f'Legend')
-    legend = (
-        ('Barometer', 'Current barometer (mmHg)'),
-        ('InsideTemp', 'Inside Temperature (°C)'),
-        ('InsideHum', 'Inside Humidity (%)'),
-        ('OutsideTemp', 'Outside Temperature (°C)'),
-        ('WindSpeed', 'Wind Speed'),
-        ('AvgWindSpeed', '10-Minute Average Wind Speed'),
-        ('WindDir', 'Wind Direction (°)'),
-        ('XtraTemps', 'Extra Temperatures (°C)'),
-        ('SoilTemps', 'Soil Temperatures (°C)'),
-        ('LeafTemps', 'Leaf Temperatures (°C)'),
-        ('OutsideHum', 'Outside Humidity (%)'),
-        ('XtraHums', 'Extra Humidities (%)'),
-        ('RainRate', 'Rain Rate (mm)'),
-        ('UVLevel', 'UV Level'),
-        ('SolarRad', 'Solar Radiation'),
-        ('StormRain', 'Total Storm Rain (mm)'),
-        ('StormStart', 'Start date of current storm'),
-        ('RainDay', 'Rain Today (mm)'),
-        ('RainMonth', 'Rain this Month (mm)'),
-        ('RainYear', 'Rain this Year (mm)'),
-        ('ETDay', 'Day EvapoTranspiration (mm)'),
-        ('ETMonth', 'Month EvapoTranspiration (mm)'),
-        ('ETYear', 'Year EvapoTranspiration (mm)'),
-        ('SoilMoist', 'Soil Moistures'),
-        ('LeafWet', 'Leaf Wetness'),
-        ('AlarmInside', 'Inside Alarm bits'),
-        ('AlarmRain', 'Rain Alarm bits'),
-        ('AlarmOut', 'Outside Temperature Alarm bits'),
-        ('AlarmXtra', 'Extra Temp/Hum Alarms'),
-        ('AlarmSL', 'Soil and Leaf Alarms'),
-        ('XmitBatt', 'Transmitter battery status'),
-        ('BattLevel', 'Console Battery Level (V)'),
-        ('ForecastIcon', 'Forecast Icon'),
-        ('Forecast', 'Forecast'),
-        ('Sunrise', 'Sunrise time'),
-        ('Sunset', 'Sunset time'),
-    )
-    line: int = 0
-    for a, d in legend:
-        if a in items:
-            worksheet.write_row(line, 0, [a, d])
-            line += 1
 
 
 def same_lists(list1: List, list2: List) -> bool:
@@ -205,7 +174,7 @@ def send_email(config_name: str, results_file_name: str):
             msg['To'] = cc[0]
             msg['Cc'] = ','.join(cc[1:])
             msg['Subject'] = 'Qara Dag Daily'
-            body = 'Qara Dag data summary for ' + datetime.isoformat(datetime.now(), sep=" ")
+            body = 'Qara Dag weather summary for ' + datetime.isoformat(datetime.now(), sep=" ")
             msg.attach(MIMEText(body, 'plain'))
             with open(results_file_name, 'rb') as attachment:
                 part = MIMEBase('application', 'octet-stream')
@@ -232,20 +201,6 @@ def check_new_files_given(filenames: List[str], timeout: float = 86400) -> bool:
     return new_files_given
 
 
-def get_config_value(settings, *, section='settings', key, default, _type) -> Union[bool, int, float, str]:
-    if section not in settings.childGroups():
-        return default
-    settings.beginGroup(section)
-    try:
-        v = settings.value(key, default, _type)
-        # print('get', section, key, v, _type)
-    except TypeError:
-        v = default
-        # print('get', section, key, v, '(default)', _type)
-    settings.endGroup()
-    return v
-
-
 def main():
     ap = argparse.ArgumentParser(description='extracts summary from raw data and writes it into an XLSX file')
     ap.add_argument('-I', '--ignore-existing', help='skip check whether the result file exists',
@@ -260,7 +215,7 @@ def main():
     ap.add_argument('files', metavar='PATH', nargs='+', help='path to a file to process')
     args = ap.parse_args()
 
-    results_file_name: str = args.output_prefix + '.xlsx'
+    results_file_name: str = args.output_prefix + '.tsv'
     # print(results_file_name)
     if not args.ignore_existing and os.path.exists(results_file_name):
         exit(0)
@@ -280,22 +235,20 @@ def main():
         # nothing to do
         exit(0)
 
-    workbook = None
-    worksheet = None
-    written_rows: int = 0
+    writer: TableWriter = TableWriter(results_file_name)
     header_fields: List[str] = []
-    initial_fields: Union[None, List[str]] = None
+    initial_fields: List[str] = []
 
     for filename in filenames:
         if os.path.exists(filename) and os.path.isfile(filename):
-            # print(filename)
+            print(filename)
             with gzip.GzipFile(filename, 'r') as fin:
                 content = fin.read().decode()
                 json_data = preprocess(content)
                 if json_data is not None:
                     for d, f in process(json_data):
                         # print(f)
-                        if initial_fields is None:
+                        if not initial_fields:
                             initial_fields = f.copy()
                         else:
                             if not same_lists(f, initial_fields):
@@ -307,25 +260,14 @@ def main():
                         if TIME_FIELD not in d:
                             raise RuntimeWarning(f'\'{TIME_FIELD}\' key is not found in the file {filename}')
 
-                        if workbook is None:
-                            workbook = xlsxwriter.Workbook(results_file_name,
-                                                           {'default_date_format': 'dd.mm.yyyy hh:mm:ss'})
-                            header_format: Format = workbook.add_format({'bold': True})
-                        if worksheet is None:
-                            worksheet = workbook.add_worksheet(f'Weather')
-                            write_legend(workbook, initial_fields)
-                            worksheet.freeze_panes(1, 1)  # freeze first row and first column
+                        if not header_fields:
                             header_fields = GENERAL_FIELDS + initial_fields
-                            write_header(worksheet, header_fields, header_format)
-                            written_rows = 1
+                            writer.write_row(header_fields)
 
-                        if write_row(worksheet, written_rows, d, header_fields):
-                            written_rows += 1
+                        write_row(writer, d, header_fields)
 
-    if workbook is not None:
-        workbook.close()
-        if args.send_email and written_rows:
-            send_email(args.config, results_file_name)
+    if args.send_email and header_fields:
+        send_email(args.config, results_file_name)
 
 
 if __name__ == '__main__':
