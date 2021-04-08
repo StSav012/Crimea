@@ -1410,7 +1410,7 @@ class App(QMainWindow):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='Radiometer controller')
     ap.add_argument('--no-gui', help='run without graphical interface', action='store_true', default=False)
-    args = ap.parse_args()
+    args, _ = ap.parse_known_args()
 
     # https://stackoverflow.com/a/7758075/8554611
     # Without holding a reference to our socket somewhere it gets garbage
