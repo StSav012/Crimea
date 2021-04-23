@@ -166,8 +166,8 @@ def match_rp5():
                                            # 'InsideHum',
                                            'OutsideTemp',
                                            'WindSpeed',
-                                           'AvgWindSpeed',
-                                           # 'WindDir',
+                                           # 'AvgWindSpeed',
+                                           'WindDir',
                                            'OutsideHum',
                                            'RainRate',
                                            'UVLevel',
@@ -199,10 +199,17 @@ def match_rp5():
         # noinspection PyTypeChecker
         data_piece: pd.DataFrame = data.loc[(rp5_ts - an_hour_and_a_half < data.index)
                                             & (data.index < rp5_ts + an_hour_and_a_half)]
-        if averaged_data is None:
-            averaged_data = pd.DataFrame(data_piece.median(), columns=[rp5_ts])
+        averaged_data_piece: pd.DataFrame = pd.DataFrame(data_piece.median(), columns=[rp5_ts])
+        if data_piece.size:
+            wind_sin: float = (data_piece['WindSpeed'] * np.sin(data_piece['WindDir'])).sum()
+            wind_cos: float = (data_piece['WindSpeed'] * np.cos(data_piece['WindDir'])).sum()
+            averaged_data_piece.loc['WindDir', rp5_ts] = np.rad2deg(np.arctan2(wind_sin, wind_cos))
         else:
-            averaged_data = pd.concat((averaged_data, pd.DataFrame(data_piece.median(), columns=[rp5_ts])), axis=1)
+            averaged_data_piece.loc['WindDir', rp5_ts] = np.nan
+        if averaged_data is None:
+            averaged_data = averaged_data_piece
+        else:
+            averaged_data = pd.concat((averaged_data, averaged_data_piece), axis=1)
     total_averaged_data: pd.DataFrame = pd.concat((averaged_data.T, rp5_data), axis=1)
     total_averaged_data.to_excel('/tmp/rp5 comparison.xlsx', sheet_name='Weather', freeze_panes=(1, 1))
 
