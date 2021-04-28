@@ -1,4 +1,5 @@
 import time
+import os.path
 from math import nan
 from subprocess import PIPE, Popen
 from threading import Thread
@@ -17,7 +18,8 @@ class ADC(Thread):
         if max(self._channels) > 7:
             raise ValueError(f'There is no channel {max(self._channels)}')
         self._is_running: bool = False
-        self._p = Popen([app, str(max(self._channels)+1)], stdin=PIPE, stdout=PIPE)
+        self._p = Popen([app, str(max(self._channels)+1)], stdin=PIPE, stdout=PIPE,
+                        cwd=os.path.dirname(os.path.realpath(__file__)))
 
     def stop(self):
         self._is_running = False
