@@ -1457,6 +1457,7 @@ if __name__ == '__main__':
                         traceback.print_exception(exc_type, exc_value, exc_traceback, file=f_out)
                         traceback.print_exc(file=f_out)
                         f_out.write(traceback.format_exc())
+                        sys.exit(0)
                 with open('/tmp/log', 'at') as f_out:
                     f_out.write(f'{time.asctime()}\tshowing window\n')
                 window.show()
