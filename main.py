@@ -1410,19 +1410,57 @@ class App(QMainWindow):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='Radiometer controller')
     ap.add_argument('--no-gui', help='run without graphical interface', action='store_true', default=False)
-    args, _ = ap.parse_known_args()
+    with open('/tmp/log', 'at') as f_out:
+        f_out.write(f'{time.asctime()}\tparsing args\n')
+    args, unknown_keys = ap.parse_known_args()
+    if unknown_keys:
+        with open('/tmp/log', 'at') as f_out:
+            f_out.write(f'{time.asctime()}\tgot unknown keys: {unknown_keys}\n')
 
     # https://stackoverflow.com/a/7758075/8554611
     # Without holding a reference to our socket somewhere it gets garbage
     # collected when the function exits
     _lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-    try:
-        _lock_socket.bind('\0' + __file__)
-        if not args.no_gui:
-            make_desktop_launcher()
-            app = QApplication(sys.argv)
-            window = App()
-            window.show()
-            app.exec_()
-    except socket.error:
-        print(f'{__file__} is already running')
+    with open('/tmp/log', 'at') as f_out:
+        f_out.write(f'{time.asctime()}\tchecking lock\n')
+    for check_number in range(2):
+        try:
+            _lock_socket.bind('\0' + __file__)
+        except socket.error as ex:
+            print(f'{__file__} is already running')
+
+            import traceback
+
+            with open('/tmp/log', 'at') as f_out:
+                f_out.write(f'{time.asctime()}\tsocket occupied\n')
+                f_out.write(f'{time.asctime()}\t{ex}\n')
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_tb(exc_traceback, file=f_out)
+                traceback.print_exception(exc_type, exc_value, exc_traceback, file=f_out)
+                traceback.print_exc(file=f_out)
+                f_out.write(traceback.format_exc())
+        else:
+            if not args.no_gui:
+                make_desktop_launcher()
+                app = QApplication(sys.argv)
+                with open('/tmp/log', 'at') as f_out:
+                    f_out.write(f'{time.asctime()}\tcreating window\n')
+                try:
+                    window = App()
+                except:
+                    import traceback
+
+                    with open('/tmp/log', 'at') as f_out:
+                        f_out.write(f'{time.asctime()}\twindow not created\n')
+                        exc_type, exc_value, exc_traceback = sys.exc_info()
+                        traceback.print_tb(exc_traceback, file=f_out)
+                        traceback.print_exception(exc_type, exc_value, exc_traceback, file=f_out)
+                        traceback.print_exc(file=f_out)
+                        f_out.write(traceback.format_exc())
+                with open('/tmp/log', 'at') as f_out:
+                    f_out.write(f'{time.asctime()}\tshowing window\n')
+                window.show()
+                with open('/tmp/log', 'at') as f_out:
+                    f_out.write(f'{time.asctime()}\tstarting app\n')
+                app.exec_()
+            break
