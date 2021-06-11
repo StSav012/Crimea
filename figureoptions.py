@@ -177,10 +177,10 @@ def figure_edit(axes: Axes, parent=None):
         if not (axes.get_xlim() == orig_x_lim and axes.get_ylim() == orig_y_lim):
             figure.canvas.toolbar.push_current()
         if (parent is not None
-                and hasattr(parent, 'plot')
-                and hasattr(parent.plot, 'update_legends')
-                and callable(parent.plot.update_legends)):
-            parent.plot.update_legends()
+                and hasattr(parent, 'adc_thread')
+                and hasattr(parent.adc_thread, 'update_legends')
+                and callable(parent.adc_thread.update_legends)):
+            parent.adc_thread.update_legends()
 
     if hasattr(qt_editor, '_formlayout'):
         form_layout = getattr(qt_editor, '_formlayout')

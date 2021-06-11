@@ -1,28 +1,38 @@
+# -*- coding: utf-8 -*-
+
 import time
 import os.path
 from math import nan
 from subprocess import PIPE, Popen
 from threading import Thread
-from typing import List
+from typing import Iterable, List
 
 
 class ADC(Thread):
-    def __init__(self, channels: List[int], *, timeout: float = 0.1, app: str = './ldevio'):
-        Thread.__init__(self)
+    def __init__(self, channels: Iterable[int]):
+        super().__init__()
         self.daemon: bool = True
-        self.timeout: float = timeout
-        self._channels: List[int] = channels[:]
-        self._channels_str: List[str] = [str(channel) for channel in self._channels]
-        self._app: str = app
-        self.voltages: List[float] = [nan] * len(self._channels)
-        if max(self._channels) > 7:
-            raise ValueError(f'There is no channel {max(self._channels)}')
+        self.channels: List[int] = list(channels)
+        self.voltages: List[float] = [nan] * len(self.channels)
         self._is_running: bool = False
-        self._p = Popen([app, str(max(self._channels)+1)], stdin=PIPE, stdout=PIPE,
-                        cwd=os.path.dirname(os.path.realpath(__file__)))
 
     def stop(self):
         self._is_running = False
+
+    def run(self):
+        self._is_running = True
+
+
+class LCardADC(ADC):
+    def __init__(self, channels: Iterable[int], *, timeout: float = 0.1, app: str = './ldevio'):
+        super().__init__(channels)
+        self.timeout: float = timeout
+        self._channels_str: List[str] = [str(channel) for channel in self.channels]
+        self._app: str = app
+        if max(self.channels) > 7:
+            raise ValueError(f'There is no channel {max(self.channels)}')
+        self._p = Popen([app, str(max(self.channels) + 1)], stdin=PIPE, stdout=PIPE,
+                        cwd=os.path.dirname(os.path.realpath(__file__)))
 
     def run(self):
         self._is_running = True
@@ -39,7 +49,7 @@ class ADC(Thread):
                             self.voltages[index] = nan
                     time.sleep(self.timeout)
                 if self._is_running:
-                    self._p = Popen([self._app, str(max(self._channels) + 1)], stdin=PIPE, stdout=PIPE)
+                    self._p = Popen([self._app, str(max(self.channels) + 1)], stdin=PIPE, stdout=PIPE)
             else:
                 self._p.communicate(input=b'-1', timeout=3)
         except (KeyboardInterrupt, SystemExit):

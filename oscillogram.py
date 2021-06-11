@@ -13,7 +13,7 @@ EPS: float = 0.01
 N_BEFORE: int = 10000
 N_AFTER: int = 10000
 
-adc = radiometer.ADC(channels=ADC_CHANNELS, timeout=0.01)
+adc = radiometer.LCardADC(channels=ADC_CHANNELS, timeout=0.01)
 adc.start()
 
 data: List[List[float]] = [[]] * len(ADC_CHANNELS)
