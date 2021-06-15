@@ -7,10 +7,7 @@ from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 import numpy as np
 
-try:
-    import adc_dummy as adc
-except ImportError:
-    import adc
+import adc
 
 
 class ADCAcquisition(Thread):
@@ -22,7 +19,7 @@ class ADCAcquisition(Thread):
         self._closing: bool = False
         self.targets: List[Tuple[Callable, Tuple[Any, ...]]] = []
 
-        self._adc: adc.ADC = adc.LCardADC(channels=adc_channels, timeout=0.1)
+        self._adc: adc.ADC = adc.ADCDevice(channels=adc_channels, timeout=0.1)
         self._adc.start()
 
         self._start_time: Optional[float] = None
@@ -36,6 +33,7 @@ class ADCAcquisition(Thread):
     def close(self) -> None:
         self._adc.stop()
         self._adc.join()
+        self._is_running = False
         self._closing = True
 
     def set_running(self, is_running: bool) -> None:
@@ -45,7 +43,8 @@ class ADCAcquisition(Thread):
         self._is_running = False
         self._adc.stop()
         self._adc.join()
-        self._adc = adc.LCardADC(channels=new_channels, timeout=0.1)
+        self._adc = adc.ADCDevice(channels=new_channels, timeout=0.1)
+        self.current_y = [np.empty(0)] * len(self._adc.channels)
         self._adc.start()
 
     def done(self) -> bool:
@@ -71,7 +70,7 @@ class ADCAcquisition(Thread):
                             time.sleep(0.1)
                         elif self._is_running and time.perf_counter() <= self._start_time and not self._closing:
                             time.sleep(0.01)
-                    if self._is_running and not self._closing:
+                    else:
                         self.measurement_completed_callback()
                 elif not self._closing:
                     if self.targets:

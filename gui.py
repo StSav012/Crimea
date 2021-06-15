@@ -380,7 +380,7 @@ class GUI(QMainWindow):
         self.button_move_1step_right.setText(_translate("MainWindow", "Move 1 step counter-clockwise"))
         self.button_move_1step_left.setText(_translate("MainWindow", "Move 1 step clockwise"))
         self.group_settings_measurement.setTitle(_translate("MainWindow", "Measurement"))
-        self.label_channels.setText(_translate("MainWindow", "Number of LCardADC Channels") + ':')
+        self.label_channels.setText(_translate("MainWindow", "Number of ADC Channels") + ':')
         self.label_measurement_delay.setText(_translate("MainWindow", "Delay Before Measuring") + ':')
         self.spin_measurement_delay.setSuffix(_translate("MainWindow", ' s'))
         self.group_settings_angles.setTitle(_translate("MainWindow", "Angles"))

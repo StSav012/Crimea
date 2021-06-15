@@ -1,27 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import time
-from math import nan
-from threading import Thread
 from typing import Iterable, List
 
-
-class ADC(Thread):
-    def __init__(self, channels: Iterable[int]):
-        super().__init__()
-        self.daemon: bool = True
-        self.channels: List[int] = list(channels)
-        self.voltages: List[float] = [nan] * len(self.channels)
-        self._is_running: bool = False
-
-    def stop(self):
-        self._is_running = False
-
-    def run(self):
-        self._is_running = True
+from adc import ADC
 
 
-class LCardADC(ADC):
+__all__ = ['L783']
+
+
+class L783(ADC):
     def __init__(self, channels: Iterable[int], *, timeout: float = 0.1, app: str = './ldevio'):
         super().__init__(channels)
         self.timeout: float = timeout
