@@ -68,7 +68,7 @@ class GUI(QMainWindow):
         self.label_step_fraction: QLabel = QLabel(self.group_settings_motor)
         self.grid_layout_settings_motor: QGridLayout = QGridLayout(self.group_settings_motor)
 
-        self.grid_layout_settings: QGridLayout = QGridLayout(self.tab_settings)
+        self.vertical_layout_settings: QVBoxLayout = QVBoxLayout(self.tab_settings)
 
         self.tab_main: QWidget = QWidget()
         self.button_go: QPushButton = QPushButton(self.tab_main)
@@ -92,7 +92,7 @@ class GUI(QMainWindow):
         self.button_schedule_action_up: QPushButton = QPushButton(self.group_schedule)
         self.button_schedule_action_remove: QPushButton = QPushButton(self.group_schedule)
         self.button_schedule_action_add: QPushButton = QPushButton(self.group_schedule)
-        self.table_schedule = QTableWidget(self.group_schedule)
+        self.table_schedule: QTableWidget = QTableWidget(self.group_schedule)
         self.grid_layout_schedule: QGridLayout = QGridLayout(self.group_schedule)
 
         self.group_weather_state: QGroupBox = QGroupBox(self.tab_main)
@@ -133,13 +133,10 @@ class GUI(QMainWindow):
         # whatever is written in the design file, “Go” button should be disabled initially
         self.button_go.setDisabled(True)
 
-        self.resize(484, 441)
         icon = QIcon()
         icon.addPixmap(QPixmap(os.path.join(os.path.split(__file__)[0], 'crimea-eng-circle.svg')),
                        QIcon.Normal, QIcon.Off)
         self.setWindowIcon(icon)
-        self.gridLayout.setContentsMargins(9, 9, 9, 9)
-        self.gridLayout.setSpacing(6)
 
         self.group_weather_state.setFlat(True)
         _value_label_interaction_flags = (Qt.LinksAccessibleByKeyboard
@@ -207,7 +204,6 @@ class GUI(QMainWindow):
         self.table_schedule.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.table_schedule.setColumnCount(3)
         self.table_schedule.setRowCount(0)
-        self.table_schedule.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         for col in range(self.table_schedule.columnCount()):
             item = QTableWidgetItem()
             item.setTextAlignment(Qt.AlignCenter)
@@ -266,7 +262,7 @@ class GUI(QMainWindow):
         line += 1
         self.grid_layout_settings_motor.addWidget(self.button_move_360degrees_left, line, 0, 1, 3)
         self.grid_layout_settings_motor.setColumnStretch(0, 1)
-        self.grid_layout_settings.addWidget(self.group_settings_motor, 0, 0)
+        self.vertical_layout_settings.addWidget(self.group_settings_motor)
 
         self.grid_layout_settings_measurement.addWidget(self.label_channels, 2, 0)
         self.spin_channels.setMinimum(1)
@@ -279,7 +275,7 @@ class GUI(QMainWindow):
         self.spin_measurement_delay.setSingleStep(1)
         self.grid_layout_settings_measurement.addWidget(self.spin_measurement_delay, 3, 1)
         self.grid_layout_settings_measurement.setColumnStretch(0, 1)
-        self.grid_layout_settings.addWidget(self.group_settings_measurement, 1, 0)
+        self.vertical_layout_settings.addWidget(self.group_settings_measurement)
 
         line = 0
         self.grid_layout_settings_angles.addWidget(self.label_bb_angle, line, 0)
@@ -318,7 +314,7 @@ class GUI(QMainWindow):
         self.grid_layout_settings_angles.addWidget(self.spin_min_angle_alt, line, 1)
 
         self.grid_layout_settings_angles.setColumnStretch(0, 1)
-        self.grid_layout_settings.addWidget(self.group_settings_angles, 2, 0)
+        self.vertical_layout_settings.addWidget(self.group_settings_angles)
 
         self.tab_widget.addTab(self.tab_settings, "")
 
