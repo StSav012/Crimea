@@ -17,7 +17,7 @@ from spin_list_box import SpinListBox
 
 
 class GUI(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(flags=Qt.WindowFlags())
         self.settings: QSettings = QSettings("SavSoft", "Crimea Radiometer")
 
@@ -129,11 +129,11 @@ class GUI(QMainWindow):
         self.pd.keyPressEvent = lambda e: e.ignore()
         self.pd.reset()
 
-    def setup_ui(self):
+    def setup_ui(self) -> None:
         # whatever is written in the design file, “Go” button should be disabled initially
         self.button_go.setDisabled(True)
 
-        icon = QIcon()
+        icon: QIcon = QIcon()
         icon.addPixmap(QPixmap(os.path.join(os.path.split(__file__)[0], 'crimea-eng-circle.svg')),
                        QIcon.Normal, QIcon.Off)
         self.setWindowIcon(icon)
@@ -168,7 +168,9 @@ class GUI(QMainWindow):
 
         self.grid_layout_tab_main.addWidget(self.group_weather_state, 0, 0)
 
+        line: int
         line = 0
+        i: int
         for i in range(5):
             line = i + 1
             self.labels_sensor.append(QLabel(self.group_temperature))
@@ -204,8 +206,9 @@ class GUI(QMainWindow):
         self.table_schedule.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.table_schedule.setColumnCount(3)
         self.table_schedule.setRowCount(0)
+        col: int
         for col in range(self.table_schedule.columnCount()):
-            item = QTableWidgetItem()
+            item: QTableWidgetItem = QTableWidgetItem()
             item.setTextAlignment(Qt.AlignCenter)
             self.table_schedule.setHorizontalHeaderItem(col, item)
         self.grid_layout_schedule.addWidget(self.table_schedule, 0, 0, 5, 1)
@@ -218,15 +221,15 @@ class GUI(QMainWindow):
 
         self.grid_layout_tab_main.setRowStretch(2, 1)
 
-        spacer_item = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        spacer_item: QSpacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.horizontal_layout_main.addItem(spacer_item)
         self.button_power.setCheckable(True)
         self.horizontal_layout_main.addWidget(self.button_power)
-        spacer_item1 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        spacer_item1: QSpacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.horizontal_layout_main.addItem(spacer_item1)
         self.button_go.setCheckable(True)
         self.horizontal_layout_main.addWidget(self.button_go)
-        spacer_item2 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        spacer_item2: QSpacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.horizontal_layout_main.addItem(spacer_item2)
         self.grid_layout_tab_main.addLayout(self.horizontal_layout_main, 3, 0)
 
@@ -332,7 +335,7 @@ class GUI(QMainWindow):
         self.tab_widget.setCurrentIndex(0)
         self.adjustSize()
 
-    def translate_ui(self):
+    def translate_ui(self) -> None:
         _translate = QCoreApplication.translate
         self.setWindowTitle(_translate("MainWindow", "Crimea"))
         self.group_weather_state.setTitle(_translate("MainWindow", "Current Weather"))
@@ -346,10 +349,12 @@ class GUI(QMainWindow):
         self.label_temperature_label.setText(_translate('main_window', 'T [°C]'))
         self.label_state_label.setText(_translate('main_window', 'State'))
         self.label_setpoint_label.setText(_translate('main_window', 'SP [°C]'))
+        i: int
         for i in range(len(self.labels_sensor)):
             self.labels_sensor[i].setText(_translate('main_window', 'Sensor') + f' {i + 1}:')
         self.check_auto_temperature_mode.setText(_translate('main_window', 'Automatic'))
         self.group_schedule.setTitle(_translate("MainWindow", "Schedule"))
+        item: QTableWidgetItem
         item = self.table_schedule.horizontalHeaderItem(0)
         item.setText(_translate("MainWindow", "On"))
         item = self.table_schedule.horizontalHeaderItem(1)

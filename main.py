@@ -54,7 +54,7 @@ LINE_PROPERTIES: List[str] = ['color', 'dash_capstyle', 'dash_joinstyle', 'draws
 
 
 class App(GUI):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.resuming: bool = self.get_config_value('common', 'power', False, bool)
@@ -146,7 +146,7 @@ class App(GUI):
             y, self._wind_plot.transData.inverted().transform(self.τ_plot.transData.transform((x, y)))[-1])
         self._wind_plot_line, = self._wind_plot.plot_date(np.empty(0), np.empty(0), 'k:')
 
-        def on_pick(event):
+        def on_pick(event) -> None:
             # on the pick event, find the orig line corresponding to the
             # legend proxy line, and toggle the visibility
             _legend_line = event.artist
@@ -231,7 +231,7 @@ class App(GUI):
 
         self.setup_actions()
 
-    def setup_actions(self):
+    def setup_actions(self) -> None:
         # common
         self.tab_widget.currentChanged.connect(self.tab_widget_changed)
         # tab 1
@@ -267,7 +267,7 @@ class App(GUI):
         # dirty hack: the event doesn't work directly for subplots
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         """ senseless joke in the loop """
         close = QMessageBox.No
         while close == QMessageBox.No:
@@ -299,7 +299,7 @@ class App(GUI):
                 event.ignore()
         return
 
-    def load_config_1(self):
+    def load_config_1(self) -> None:
         self._loading = True
         # common settings
         self.tab_widget.setCurrentIndex(self.get_config_value('common', 'current tab', 0, int))
@@ -326,7 +326,7 @@ class App(GUI):
         self._loading = False
         return
 
-    def load_config_2(self):
+    def load_config_2(self) -> None:
         self._loading = True
         # tab 1
         table_text: str = self.get_config_value('schedule', 'table', '', str)
@@ -385,7 +385,7 @@ class App(GUI):
         self._loading = False
         self.button_power_toggled(self.resuming)
 
-    def save_plot_config(self):
+    def save_plot_config(self) -> None:
         self.set_config_value('settings', 'voltage channels',
                               stringify_list(self.plot_lines_visibility))
         self.set_config_value('settings', 'absorption channels',
@@ -429,7 +429,7 @@ class App(GUI):
         self.settings.endGroup()
         return v
 
-    def set_config_value(self, section, key, value):
+    def set_config_value(self, section, key, value) -> None:
         if self._loading:
             return
         self.settings.beginGroup(section)
@@ -440,7 +440,7 @@ class App(GUI):
             self.settings.setValue(key, value)
         self.settings.endGroup()
 
-    def stringify_table(self):
+    def stringify_table(self) -> Tuple[str, int]:
         header = 'enabled angle delay'
         lines = [header]
         for r in range(self.table_schedule.rowCount()):
@@ -1021,7 +1021,7 @@ class App(GUI):
             self.button_power.setEnabled(True)
         self.set_config_value('common', 'power', new_state)
 
-    def step_fraction_changed(self, new_value: int):
+    def step_fraction_changed(self, new_value: int) -> None:
         self.set_config_value('motor', 'step fraction', new_value)
         self.motor.microstepping_mode = MicrosteppingMode(index=new_value)
         step: float = self.motor.step
@@ -1031,19 +1031,19 @@ class App(GUI):
             self.table_schedule.cellWidget(r, 1).setValue(angle)
             self.table_schedule.cellWidget(r, 1).setSingleStep(step)
 
-    def spin_settings_speed_changed(self, new_value):
+    def spin_settings_speed_changed(self, new_value) -> None:
         self.set_config_value('motor', 'speed', new_value)
         self.motor.speed(new_value)
 
-    def spin_settings_gear_1_changed(self, new_value):
+    def spin_settings_gear_1_changed(self, new_value) -> None:
         self.set_config_value('motor', 'gear 1 size', new_value)
         self.motor.gear_ratio(new_value / self.spin_settings_gear_2.value())
 
-    def spin_settings_gear_2_changed(self, new_value):
+    def spin_settings_gear_2_changed(self, new_value) -> None:
         self.set_config_value('motor', 'gear 2 size', new_value)
         self.motor.gear_ratio(self.spin_settings_gear_1.value() / new_value)
 
-    def button_move_home_clicked(self):
+    def button_move_home_clicked(self) -> None:
         self.pd.setMaximum(round(1000 * self.time_to_move_home()))
         self.pd.setLabelText('Wait till the motor comes home')
         self.pd.reset()
@@ -1054,7 +1054,7 @@ class App(GUI):
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
         self.move_home()
 
-    def button_move_90degrees_clicked(self):
+    def button_move_90degrees_clicked(self) -> None:
         self.pd.setMaximum(round(1000 * self.move_90degrees()))
         self.pd.setLabelText('Wait till the motor turns 90 degrees')
         self.pd.reset()
@@ -1064,7 +1064,7 @@ class App(GUI):
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
 
-    def button_move_1step_right_clicked(self):
+    def button_move_1step_right_clicked(self) -> None:
         self.pd.setMaximum(round(1000 * self.move_1step_right()))
         self.pd.setLabelText('Wait till the motor turns 1 step')
         self.pd.reset()
@@ -1074,7 +1074,7 @@ class App(GUI):
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
 
-    def button_move_1step_left_clicked(self):
+    def button_move_1step_left_clicked(self) -> None:
         self.pd.setMaximum(round(1000 * self.move_1step_left()))
         self.pd.setLabelText('Wait till the motor turns 1 step')
         self.pd.reset()
@@ -1084,7 +1084,7 @@ class App(GUI):
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
 
-    def button_move_360degrees_right_clicked(self):
+    def button_move_360degrees_right_clicked(self) -> None:
         self.pd.setMaximum(round(1000 * self.move_360degrees_right()))
         self.pd.setLabelText('Wait till the motor turns 360 degrees')
         self.pd.reset()
@@ -1094,7 +1094,7 @@ class App(GUI):
         self.timer.setSingleShot(True)
         self.timer.start(100)  # don't use QTimer.singleShot here to be able to stop the timer later!!
 
-    def button_move_360degrees_left_clicked(self):
+    def button_move_360degrees_left_clicked(self) -> None:
         self.pd.setMaximum(round(1000 * self.move_360degrees_left()))
         self.pd.setLabelText('Wait till the motor turns 360 degrees')
         self.pd.reset()
@@ -1153,32 +1153,32 @@ class App(GUI):
 
         self.adc_thread.set_channels(self.adc_channels)
 
-    def spin_measurement_delay_changed(self, new_value):
+    def spin_measurement_delay_changed(self, new_value) -> None:
         self.set_config_value('settings', 'delay before measuring', new_value)
         self.set_measurement_delay(new_value)
 
-    def spin_bb_angle_changed(self, new_value):
+    def spin_bb_angle_changed(self, new_value) -> None:
         self.set_config_value('settings', 'black body position', new_value)
         self.settings.sync()
 
-    def spin_bb_angle_alt_changed(self, new_value):
+    def spin_bb_angle_alt_changed(self, new_value) -> None:
         self.set_config_value('settings', 'black body position alt', new_value)
         self.settings.sync()
 
-    def spin_max_angle_changed(self, new_value):
+    def spin_max_angle_changed(self, new_value) -> None:
         self.set_config_value('settings', 'zenith position', new_value)
         self.settings.sync()
 
-    def spin_min_angle_changed(self, new_value):
+    def spin_min_angle_changed(self, new_value) -> None:
         self.set_config_value('settings', 'horizon position', new_value)
         self.settings.sync()
 
-    def spin_min_angle_alt_changed(self, new_value):
+    def spin_min_angle_alt_changed(self, new_value) -> None:
         self.set_config_value('settings', 'horizon position alt', new_value)
         self.settings.sync()
 
     @staticmethod
-    def on_xlim_changed(axes: Axes):
+    def on_xlim_changed(axes: Axes) -> None:
         x_lim = axes.get_xlim()
         axis_min, axis_max = min(x_lim), max(x_lim)
         if axis_min < 1.:
@@ -1215,7 +1215,7 @@ class App(GUI):
         axes.set_autoscalex_on(auto_scale)
 
     # @staticmethod
-    # def on_xlim_changed(axes: Axes):
+    # def on_xlim_changed(axes: Axes) -> None:
     #     xlim = axes.get_xlim()
     #     autoscale = True
     #     _min, _max = min(xlim), max(xlim)
@@ -1232,7 +1232,7 @@ class App(GUI):
     #     print(autoscale)
     #
     @staticmethod
-    def on_ylim_changed(axes: Axes):
+    def on_ylim_changed(axes: Axes) -> None:
         y_lim = axes.get_ylim()
         auto_scale = True
         for line in axes.lines:
@@ -1242,14 +1242,14 @@ class App(GUI):
         axes.set_autoscaley_on(auto_scale)
 
     @staticmethod
-    def on_click(event):
+    def on_click(event) -> None:
         if event.dblclick and event.inaxes is not None:
             event.inaxes.set_autoscale_on(True)
             event.inaxes.relim(visible_only=True)
             # event.inaxes.autoscale_view(None, True, True)
             event.inaxes.autoscale(enable=True, axis='both')
 
-    def _enable_motor(self, enable: bool):
+    def _enable_motor(self, enable: bool) -> None:
         if enable:
             self.motor.enable()
             self.motor.forward()
@@ -1289,7 +1289,7 @@ class App(GUI):
                 + 4. * self.motor.microstepping_mode
                 + 2. * self.motor.time_to_turn(25.2))
 
-    def _move_home(self):
+    def _move_home(self) -> None:
         _threshold: int = 768
         self.motor.move(-self._current_angle)
         time.sleep(self.motor.time_to_turn(self._current_angle))
@@ -1383,17 +1383,20 @@ class App(GUI):
         self._current_angle = 0.0
         print('got home')
 
-    def set_measurement_delay(self, delay):
+    def set_measurement_delay(self, delay) -> None:
         _delay: float = float(delay)
         if _delay < 0.0:
             raise ValueError('Measurement delay can not be negative')
         self._measurement_delay = _delay
 
-    def measurement_time(self, angle, duration):
+    def measurement_time(self, angle, duration) -> float:
         """ convenience function """
-        return self.motor.time_to_turn(angle - self._current_angle) + self._measurement_delay + duration
+        if self.motor.speed():
+            return self.motor.time_to_turn(angle - self._current_angle) + self._measurement_delay + duration
+        else:
+            return np.nan
 
-    def set_point(self):
+    def set_point(self) -> None:
         self.purge_obsolete_data()
         data_item: Dict[str, Union[Dict[str, Union[None, str, float]],
                                    List[float], List[bool], List[List[float]],
@@ -1450,7 +1453,7 @@ class App(GUI):
         self.adc_thread.set_running(False)
         self._measured = True
 
-    def purge_obsolete_data(self, purge_all: bool = False):
+    def purge_obsolete_data(self, purge_all: bool = False) -> None:
         current_time: float = date2num(datetime.now())
         time_span: float = 1.0
         not_obsolete: np.ndarray = (current_time - self.x <= time_span)
@@ -1503,34 +1506,34 @@ class App(GUI):
         if purge_all:
             self.data = []
 
-    def last_data(self):
+    def last_data(self) -> List[float]:
         return [self.y[ch][-1] if self.y[ch].size else np.nan for ch in range(len(self.y))]
 
-    def last_weather(self):
+    def last_weather(self) -> Optional[Dict[str, Any]]:
         return self.data[-1]['weather'] if len(self.data) > 0 and 'weather' in self.data[-1] else None
 
-    def add_τ(self, channel: int, τ: float):
+    def add_τ(self, channel: int, τ: float) -> None:
         current_time: float = date2num(datetime.now())
         self.τx[channel] = np.concatenate((self.τx[channel], np.array([current_time])))
         self.τy[channel] = np.concatenate((self.τy[channel], np.array([τ])))
         for ch in range(len(self.τy)):
             self._τ_plot_lines[ch].set_data(self.τx[ch], self.τy[ch])
 
-    def add_τ_alt(self, channel: int, τ: float):
+    def add_τ_alt(self, channel: int, τ: float) -> None:
         current_time: float = date2num(datetime.now())
         self.τx_alt[channel] = np.concatenate((self.τx_alt[channel], np.array([current_time])))
         self.τy_alt[channel] = np.concatenate((self.τy_alt[channel], np.array([τ])))
         for ch in range(len(self.τy_alt)):
             self._τ_plot_alt_lines[ch].set_data(self.τx_alt[ch], self.τy_alt[ch])
 
-    def add_τ_bb_alt(self, channel: int, τ: float):
+    def add_τ_bb_alt(self, channel: int, τ: float) -> None:
         current_time: float = date2num(datetime.now())
         self.τx_bb_alt[channel] = np.concatenate((self.τx_bb_alt[channel], np.array([current_time])))
         self.τy_bb_alt[channel] = np.concatenate((self.τy_bb_alt[channel], np.array([τ])))
         for ch in range(len(self.τy_bb_alt)):
             self._τ_plot_alt_bb_lines[ch].set_data(self.τx_bb_alt[ch], self.τy_bb_alt[ch])
 
-    def add_τ_leastsq(self, channel: int, τ: float, _error: float = np.nan):
+    def add_τ_leastsq(self, channel: int, τ: float, _error: float = np.nan) -> None:
         current_time: float = date2num(datetime.now())
         self.τx_leastsq[channel] = np.concatenate((self.τx_leastsq[channel], np.array([current_time])))
         self.τy_leastsq[channel] = np.concatenate((self.τy_leastsq[channel], np.array([τ])))
@@ -1538,21 +1541,21 @@ class App(GUI):
         for ch in range(len(self.τy_leastsq)):
             self._τ_plot_leastsq_lines[ch].set_data(self.τx_leastsq[ch], self.τy_leastsq[ch])
 
-    def add_τ_magic_angles(self, channel: int, τ: float):
+    def add_τ_magic_angles(self, channel: int, τ: float) -> None:
         current_time: float = date2num(datetime.now())
         self.τx_magic[channel] = np.concatenate((self.τx_magic[channel], np.array([current_time])))
         self.τy_magic[channel] = np.concatenate((self.τy_magic[channel], np.array([τ])))
         for ch in range(len(self.τy_magic)):
             self._τ_plot_magic_lines[ch].set_data(self.τx_magic[ch], self.τy_magic[ch])
 
-    # def add_τ_magic_angles_alt(self, channel: int, τ: float):
+    # def add_τ_magic_angles_alt(self, channel: int, τ: float) -> None:
     #     current_time: float = date2num(datetime.now())
     #     self._τx_magic_alt[channel] = np.concatenate((self._τx_magic_alt[channel], np.array([current_time])))
     #     self._τy_magic_alt[channel] = np.concatenate((self._τy_magic_alt[channel], np.array([τ])))
     #     for ch in range(len(self._τy_magic_alt)):
     #         self._τ_plot_magic_alt_lines[ch].set_data(self._τx_magic_alt[ch], self._τy_magic_alt[ch])
 
-    def pack_data(self):
+    def pack_data(self) -> None:
         self.purge_obsolete_data()
         if not self.data:
             return
@@ -1613,7 +1616,7 @@ class App(GUI):
                     ])), **angles_data})
             self.data = []
 
-    def update_plot_legend(self, bbox_to_anchor: Optional[Tuple[float, float]] = None):
+    def update_plot_legend(self, bbox_to_anchor: Optional[Tuple[float, float]] = None) -> None:
         if bbox_to_anchor is None:
             bbox_to_anchor = self.bbox_to_anchor
         else:
@@ -1624,7 +1627,7 @@ class App(GUI):
             _legend_line.set_pickradius(5)
         self.plot.figure.canvas.draw()
 
-    def update_τ_plot_legend(self, bbox_to_anchor: Optional[Tuple[float, float]] = None):
+    def update_τ_plot_legend(self, bbox_to_anchor: Optional[Tuple[float, float]] = None) -> None:
         if bbox_to_anchor is None:
             bbox_to_anchor = self.bbox_to_anchor
         else:
@@ -1635,11 +1638,11 @@ class App(GUI):
             _legend_line.set_pickradius(5)
         self.τ_plot.figure.canvas.draw()
 
-    def update_legends(self, bbox_to_anchor: Optional[Tuple[float, float]] = None):
+    def update_legends(self, bbox_to_anchor: Optional[Tuple[float, float]] = None) -> None:
         self.update_plot_legend(bbox_to_anchor)
         self.update_τ_plot_legend(bbox_to_anchor)
 
-    def move_legends(self, bbox_to_anchor: Optional[Tuple[float, float]] = None):
+    def move_legends(self, bbox_to_anchor: Optional[Tuple[float, float]] = None) -> None:
         if bbox_to_anchor is None:
             bbox_to_anchor = self.bbox_to_anchor
         else:
@@ -1656,7 +1659,7 @@ class App(GUI):
         return [dict(map(lambda p: (p, getattr(line, 'get_' + p)()), LINE_PROPERTIES)) for line in self._plot_lines]
 
     @plot_lines_styles.setter
-    def plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
+    def plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]) -> None:
         for index, line in enumerate(self._plot_lines):
             for key, value in props[index].items():
                 attr: str = 'set_' + key
@@ -1665,7 +1668,7 @@ class App(GUI):
         self.update_plot_legend()
 
     @property
-    def τ_plot_lines(self):
+    def τ_plot_lines(self) -> List[Line2D]:
         return (self._τ_plot_lines + self._τ_plot_alt_lines + self._τ_plot_alt_bb_lines
                 + self._τ_plot_leastsq_lines
                 + self._τ_plot_magic_lines
@@ -1678,7 +1681,7 @@ class App(GUI):
                 for line in self.τ_plot_lines]
 
     @τ_plot_lines_styles.setter
-    def τ_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]):
+    def τ_plot_lines_styles(self, props: List[Dict[str, Union[str, float, None]]]) -> None:
         for index, line in enumerate(self.τ_plot_lines):
             if index >= len(props):
                 break
@@ -1689,11 +1692,11 @@ class App(GUI):
         self.update_τ_plot_legend()
 
     @property
-    def plot_lines_visibility(self):
+    def plot_lines_visibility(self) -> List[bool]:
         return [line.get_visible() for line in self._plot_lines]
 
     @plot_lines_visibility.setter
-    def plot_lines_visibility(self, states: List[bool]):
+    def plot_lines_visibility(self, states: List[bool]) -> None:
         for line, vis in zip(self._plot_lines, states):
             line.set_visible(True)
             line.set_alpha(1.0 if vis else 0.2)
@@ -1703,11 +1706,11 @@ class App(GUI):
         self.plot.figure.canvas.draw()
 
     @property
-    def τ_plot_lines_visibility(self):
+    def τ_plot_lines_visibility(self) -> List[bool]:
         return [line.get_visible() for line in self.τ_plot_lines]
 
     @τ_plot_lines_visibility.setter
-    def τ_plot_lines_visibility(self, states: List[bool]):
+    def τ_plot_lines_visibility(self, states: List[bool]) -> None:
         # FIXME: when setting line visibility to False, lines disappear from the legend, too
         for line, vis in zip(self.τ_plot_lines, states):
             line.set_visible(True)
@@ -1723,7 +1726,7 @@ class App(GUI):
         return {attr: float(vars(self.figure.subplotpars)[attr]) for attr in _attrs}
 
     @subplotpars.setter
-    def subplotpars(self, pars: Dict[str, float]):
+    def subplotpars(self, pars: Dict[str, float]) -> None:
         self.figure.subplots_adjust(**pars)
         self.figure.canvas.draw_idle()
 
@@ -1732,7 +1735,7 @@ class App(GUI):
         return self._adc_channels_names
 
     @adc_channels_names.setter
-    def adc_channels_names(self, new_names: Iterable[str]):
+    def adc_channels_names(self, new_names: Iterable[str]) -> None:
         self._adc_channels_names = list(new_names)
         if len(self._adc_channels_names) < len(self.adc_channels):
             self._adc_channels_names += list(f'ch {ch + 1}'
@@ -1749,12 +1752,12 @@ class App(GUI):
         # label_lines(self._τ_plot_magic_alt_lines, self._adc_channels_names, suffix='3 angles alt')
         self.update_legends()
 
-    def set_adc_channels_names(self, new_names: List[str]):
+    def set_adc_channels_names(self, new_names: List[str]) -> None:
         self.adc_channels_names = new_names
 
 
 if __name__ == '__main__':
-    def main():
+    def main() -> None:
         ap = argparse.ArgumentParser(description='Radiometer controller')
         ap.add_argument('--no-gui', help='run without graphical interface', action='store_true', default=False)
         with open('/tmp/log', 'at') as f_out:
