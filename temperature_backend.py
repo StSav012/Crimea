@@ -10,13 +10,13 @@ class Dallas18B20(Thread):
     D_MIN: int = 22
     D_MAX: int = 51
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.daemon = True
         self._ser = serial.Serial()
         self._communicating: bool = False
         self._temperatures: List[float] = []
-        self._setpoints: List[float] = []
+        self._setpoints: List[int] = []
         self._states: List[bool] = []
         self._enabled: Optional[bool] = None
         self._new_setpoints: Dict[int, int] = dict()
@@ -24,7 +24,7 @@ class Dallas18B20(Thread):
         self._new_enabled: Optional[bool] = None
         self._running: bool = False
 
-    def _open_serial(self):
+    def _open_serial(self) -> None:
         self._communicating = False
         ports = serial.tools.list_ports.comports()
         for port in ports:
@@ -56,7 +56,7 @@ class Dallas18B20(Thread):
                 finally:
                     time.sleep(1)  # to be changed
 
-    def _close_serial(self):
+    def _close_serial(self) -> None:
         self._ser.cancel_read()
         self._ser.cancel_write()
         self._ser.close()
@@ -88,7 +88,7 @@ class Dallas18B20(Thread):
                 self._ser.flush()
                 # print('reading...')
                 try:
-                    resp = self._ser.read_until(terminator=terminator).decode().rstrip()
+                    resp = self._ser.read_until(terminator).decode().rstrip()
                 except UnicodeDecodeError:
                     print('UnicodeDecodeError')
                     resp = ''
@@ -144,9 +144,9 @@ class Dallas18B20(Thread):
             'A15': 69,
         }
         v: Optional[int] = None
-        if isinstance(pin, str):
-            pin = mega_pins[pin]
         try:
+            if isinstance(pin, str):
+                pin = mega_pins[pin]
             v = int(self.read_text(f'V{pin}', terminator=b'\n\r'))  # arduino firmware bug
         finally:
             return v
@@ -169,11 +169,11 @@ class Dallas18B20(Thread):
                 return []
         return []
 
-    def _get_setpoints(self) -> List[float]:
+    def _get_setpoints(self) -> List[int]:
         resp: Optional[str] = self.read_text('P')
         if resp is not None:
             try:
-                return list(map(float, resp.split(',')))
+                return list(map(int, resp.split(',')))
             except ValueError:
                 return []
         return []
@@ -187,16 +187,16 @@ class Dallas18B20(Thread):
                 return None
         return None
 
-    def set_setpoint(self, index: int, value: int):
+    def set_setpoint(self, index: int, value: int) -> None:
         self._new_setpoints[index] = value
 
-    def set_digital(self, index: int, value: bool):
+    def set_digital(self, index: int, value: bool) -> None:
         self._new_digitals[index] = value
 
-    def enable(self):
+    def enable(self) -> None:
         self._new_enabled = True
 
-    def disable(self):
+    def disable(self) -> None:
         self._new_enabled = False
 
     @property
@@ -215,19 +215,22 @@ class Dallas18B20(Thread):
     def enabled(self) -> Optional[bool]:
         return self._enabled
 
-    def stop(self):
+    def stop(self) -> None:
         self._running = False
 
-    def run(self):
+    def run(self) -> None:
         try:
             self._running = True
             while self._running:
-                init_time: float = time.perf_counter()
                 try:
                     self._temperatures = self._get_temperatures()
+                    time.sleep(1.0)
                     self._setpoints = self._get_setpoints()
+                    time.sleep(1.0)
                     self._states = self._get_states()
+                    time.sleep(1.0)
                     self._enabled = self._get_enabled()
+                    time.sleep(1.0)
                     while self._running and self._new_setpoints:
                         for key, value in self._new_setpoints.copy().items():
                             if self._setpoints[key] != value:
@@ -236,24 +239,22 @@ class Dallas18B20(Thread):
                                     self.send(f'T{value}')
                                     # time.sleep(1)
                                     self._setpoints = self._get_setpoints()
+                                    time.sleep(1.0)
                             else:
                                 del self._new_setpoints[key]
                     while self._running and self._new_digitals:
                         for key, value in self._new_digitals.copy().items():
                             if self.send(f'H{key}' if value else f'L{key}'):
                                 del self._new_digitals[key]
+                        time.sleep(1.0)
                     while self._running and self._new_enabled is not None and self._enabled is not self._new_enabled:
                         if self._new_enabled is True:
                             self.send('E')
                         elif self._new_enabled is False:
                             self.send('D')
                         self._enabled = self._get_enabled()
+                        time.sleep(1.0)
                 except (SystemExit, KeyboardInterrupt):
                     return
-                finally:
-                    spent_time: float = time.perf_counter() - init_time
-                    # print(spent_time)
-                    if spent_time < 10.:
-                        time.sleep(10. - spent_time)
         except (SystemExit, KeyboardInterrupt):
             return
