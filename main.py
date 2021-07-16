@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # TODO: emulate “ldevio” app with a Python script to check the re-connection when the number of the channels changes
@@ -746,24 +746,42 @@ class App(GUI):
                     return r
             return rows[0]
 
-    def fill_weather(self, weather: Optional[dict]) -> None:
-        if weather is not None:
-            self.label_weather_temperature_value.setNum(np.round(weather['OutsideTemp'], decimals=1))
-            self.label_weather_humidity_value.setNum(weather['OutsideHum'])
-            self.label_weather_wind_speed_value.setNum(weather['WindSpeed'])
-            self.label_weather_wind_direction_value.setNum(weather['WindDir'])
-            self.label_weather_rain_rate_value.setNum(weather['RainRate'])
-            self.label_weather_solar_radiation_value.setNum(weather['SolarRad'])
+    def fill_weather(self, weather: dict) -> None:
+        if weather:
+            if weather.get('OutsideTemp', None) is not None:
+                self.label_weather_temperature_value.setNum(np.round(weather['OutsideTemp'], decimals=1))
+            else:
+                self.label_weather_temperature_value.clear()
+            if weather.get('OutsideHum', None) is not None:
+                self.label_weather_humidity_value.setNum(weather['OutsideHum'])
+            else:
+                self.label_weather_humidity_value.clear()
+            if weather.get('WindSpeed', None) is not None:
+                self.label_weather_wind_speed_value.setNum(np.round(weather['WindSpeed'], decimals=1))
+            else:
+                self.label_weather_wind_speed_value.clear()
+            if weather.get('WindDir', None) is not None:
+                self.label_weather_wind_direction_value.setNum(weather['WindDir'])
+            else:
+                self.label_weather_wind_direction_value.clear()
+            if weather.get('RainRate', None) is not None:
+                self.label_weather_rain_rate_value.setNum(weather['RainRate'])
+            else:
+                self.label_weather_rain_rate_value.clear()
+            if weather.get('SolarRad', None) is not None:
+                self.label_weather_solar_radiation_value.setNum(weather['SolarRad'])
+            else:
+                self.label_weather_solar_radiation_value.clear()
 
     def calculate_bb_τ(self, *, callback: Callable[[int, float], Any],
                        min_angle: float, max_angle: float, bb_angle: float,
                        precision: float = 5.) -> None:
-        distance_to_max_angle: Union[None, float] = None
-        distance_to_min_angle: Union[None, float] = None
-        distance_to_bb_angle: Union[None, float] = None
-        closest_to_bb_angle: Union[None, float] = None
-        closest_to_max_angle: Union[None, float] = None
-        closest_to_min_angle: Union[None, float] = None
+        distance_to_max_angle: Optional[float] = None
+        distance_to_min_angle: Optional[float] = None
+        distance_to_bb_angle: Optional[float] = None
+        closest_to_bb_angle: Optional[float] = None
+        closest_to_max_angle: Optional[float] = None
+        closest_to_min_angle: Optional[float] = None
         for angle in self.last_loop_data:
             if abs(angle - max_angle) < precision and (distance_to_max_angle is None
                                                        or distance_to_max_angle > abs(angle - max_angle)):
@@ -1407,8 +1425,8 @@ class App(GUI):
             data_item['weather'] = weather_data
             self.wind_x = np.concatenate((self.wind_x, np.array([date2num(datetime.now())])))
             self.wind_y = np.concatenate((self.wind_y,
-                                          np.array([weather_data['AvgWindSpeed']
-                                                    * np.cos(np.radians(weather_data['WindDir']))])))
+                                          np.array([weather_data.get('AvgWindSpeed', np.nan)
+                                                    * np.cos(np.radians(weather_data.get('WindDir', np.nan)))])))
             self._wind_plot_line.set_data(self.wind_x, self.wind_y)
             self._wind_plot.relim(visible_only=True)
             # follow the autoscale settings of self.τ_plot
@@ -1509,8 +1527,8 @@ class App(GUI):
     def last_data(self) -> List[float]:
         return [self.y[ch][-1] if self.y[ch].size else np.nan for ch in range(len(self.y))]
 
-    def last_weather(self) -> Optional[Dict[str, Any]]:
-        return self.data[-1]['weather'] if len(self.data) > 0 and 'weather' in self.data[-1] else None
+    def last_weather(self) -> Dict[str, Any]:
+        return self.data[-1]['weather'] if len(self.data) > 0 and 'weather' in self.data[-1] else dict()
 
     def add_τ(self, channel: int, τ: float) -> None:
         current_time: float = date2num(datetime.now())
