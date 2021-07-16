@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
 import configparser
@@ -220,6 +220,8 @@ def main():
     if not args.ignore_existing and os.path.exists(results_file_name):
         exit(0)
 
+    index: int
+    filename: str
     filenames: List[str] = []
     for filename in args.files:
         filenames.extend(list_files(filename))
@@ -239,9 +241,9 @@ def main():
     header_fields: List[str] = []
     initial_fields: List[str] = []
 
-    for filename in filenames:
+    for index, filename in enumerate(filenames):
         if os.path.exists(filename) and os.path.isfile(filename):
-            print(filename)
+            print(f'{(index + 1) / len(filenames):.2%}\t{filename}')
             with gzip.GzipFile(filename, 'r') as fin:
                 content = fin.read().decode()
                 json_data = preprocess(content)
