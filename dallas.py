@@ -2,19 +2,27 @@ import io
 import re
 import struct
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from io import TextIOWrapper
+from typing import Dict, List, Match, Optional, Tuple, Union
 
 import crcmod.predefined
 import serial
 import serial.tools.list_ports
+from crcmod.predefined import PredefinedCrc
+from serial.tools.list_ports_common import ListPortInfo
+from serial.tools.list_ports_linux import SysFS
 
 EXCLUDED_WEATHER_FIELDS: List[str] = [
     'PacketType',  # 4 Always zero for current firmware release
     'NextRec',  # 5 loc in archive memory for next data packet
 ]
 
+WeatherDataItemType = Union[None, int, float, str, List[None], List[int], List[float], List[str]]
+WeatherDataType = Dict[str, WeatherDataItemType]
+
 
 def expand_keys(_l: List[str]) -> List[str]:
+    item: str
     for item in _l.copy():
         m = re.search(r'\[\d+]$', item)
         if m:
@@ -25,32 +33,31 @@ def expand_keys(_l: List[str]) -> List[str]:
     return _l
 
 
-def collect_keys(d: Dict[str, Union[None, int, float, str,
-                                    List[None], List[int], List[float], List[str]]]) \
-        -> Dict[str, Union[None, int, float, str, List[None], List[int], List[float], List[str]]]:
-    dd = {}
+def collect_keys(d: WeatherDataType) -> WeatherDataType:
+    dd: Dict[str, WeatherDataType] = {}
+    key: str
     for key in d.copy():
-        m = re.search(r'\[\d+]$', key)
+        m: Optional[Match[str]] = re.search(r'\[\d+]$', key)
         if m:
-            k = key[:m.start()]
+            k: str = key[:m.start()]
             if k not in dd:
                 dd[k] = {}
             dd[k][m.group()[1:-1]] = d.pop(key)
     for key in dd:
-        d[key] = [dd[key][i] for i in sorted(dd[key])]
+        d[key] = [dd[key][k] for k in sorted(dd[key])]
     return d
 
 
 class Dallas:
-    crc = crcmod.predefined.Crc('xmodem')
+    crc: PredefinedCrc = crcmod.predefined.Crc('xmodem')
     models: Dict[int, str] = {
         0x00: 'Wizard III',
         0x01: 'Wizard II',
         0x02: 'Monitor',
         0x03: 'Perception',
         0x04: 'GroWeather',
-        0x05: 'Energy Environmonitor',
-        0x06: 'Health Environmonitor',
+        0x05: 'Energy EnvironMonitor',
+        0x06: 'Health EnvironMonitor',
         0x10: 'Vantage Pro'
     }
     realtime_data_names: List[str] = expand_keys([
@@ -74,7 +81,7 @@ class Dallas:
         'OutsideTemp',  # 12 Outside Temperature as (DegF / 10)
         'WindSpeed',  # 14 Wind Speed
         'AvgWindSpeed',  # 15 10-Minute Average Wind Speed
-        'WindDir',  # 16 Wind Direction in degress
+        'WindDir',  # 16 Wind Direction in degrees
         'XtraTemps[7]',  # 18 Extra Temperatures
         'SoilTemps[4]',  # 25 Soil Temperatures
         'LeafTemps[4]',  # 29 Leaf Temperatures
@@ -106,7 +113,7 @@ class Dallas:
         'Sunrise',  # 91 Sunrise time (BCD encoded, 24hr)
         'Sunset',  # 93 Sunset time  (BCD encoded, 24hr)
         # 'LF',               # 95 Line Feed (\n) 0x0a
-        # 'CR',               # 96 Carraige Return (\r) 0x0d
+        # 'CR',               # 96 Carriage Return (\r) 0x0d
         # 'CRC',              # 97 CRC check bytes (CCITT-16 standard)
     ])
     #                       -          1111111 2222222222 3333333333 444444 55555 666 777777777 888888 9999999
@@ -451,15 +458,16 @@ class Dallas:
         'Mostly clear and cooler.',
     )
 
-    def __init__(self):
-        self._ser = serial.Serial()
+    def __init__(self) -> None:
+        self._ser: serial.Serial = serial.Serial()
         # noinspection PyTypeChecker
-        self._sio = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser, 1), newline='\r')
+        self._sio: TextIOWrapper = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser, 1), newline='\r')
         self._communicating: bool = False
 
-    def open_serial(self):
+    def open_serial(self) -> None:
         self._communicating = False
-        ports = serial.tools.list_ports.comports()
+        ports: Union[List[ListPortInfo], List[SysFS]] = serial.tools.list_ports.comports()
+        port: Union[ListPortInfo, SysFS]
         for port in ports:
             if port.pid == 0xea60 and port.vid == 0x10c4:
                 self._ser.port = port.device
@@ -482,7 +490,7 @@ class Dallas:
         if not self._ser.is_open:
             time.sleep(1)
 
-    def close_serial(self):
+    def close_serial(self) -> None:
         self._ser.close()
 
     def _block(self, timeout: float = 3.) -> bool:
@@ -495,7 +503,7 @@ class Dallas:
                 return False
         return True
 
-    def read_text(self, cmd: str) -> Union[None, str]:
+    def read_text(self, cmd: str) -> Optional[str]:
         if not self._block():
             print('controller is very busy to respond to', cmd)
             return None
@@ -503,14 +511,14 @@ class Dallas:
         if not self._ser.is_open:
             self.open_serial()
         while self._ser.is_open:
-            msg = cmd + '\n'
+            msg: str = cmd + '\n'
             try:
                 self._communicating = True
                 self._sio.write(msg)
                 # print('written', msg.encode('ascii'))
                 self._sio.flush()
                 # print('reading...')
-                resp = [_l.strip() for _l in self._sio.readlines()]
+                resp: List[str] = [_l.strip() for _l in self._sio.readlines()]
                 self._sio.flush()
                 self._communicating = False
             except (serial.SerialException, TypeError):
@@ -529,16 +537,16 @@ class Dallas:
             return resp[2]
         return None
 
-    def read_bytes(self, cmd, length=None) -> Optional[bytes]:
+    def read_bytes(self, cmd: str, length: Optional[int] = None) -> bytes:
         if not self._block():
             print('controller is very busy to respond to', cmd)
-            return None
+            return b''
         # print('command:', cmd)
-        resp = None
+        resp: bytes = b''
         if not self._ser.is_open:
             self.open_serial()
         while self._ser.is_open:
-            msg = cmd + '\n'
+            msg: str = cmd + '\n'
             resp = b''
             try:
                 self._communicating = True
@@ -580,17 +588,16 @@ class Dallas:
         return self.read_text('VER')
 
     def get_model(self) -> str:
-        model = self.read_bytes('WRD\022\115', 2)
-        if model is not None and model[1] in self.models:
+        model: bytes = self.read_bytes('WRD\022\115', 2)
+        if model and model[1] in self.models:
             return self.models[model[1]]
         else:
             return 'unknown'
 
-    def get_realtime_data(self) -> Dict[str, Union[None, int, float, str,
-                                                   List[None], List[int], List[float]]]:
-        r: Optional[bytes] = self.read_bytes('LOOP 1')
-        data: Dict[str, Union[None, int, float, str, List[None], List[int], List[float]]] = {}
-        if r is None:
+    def get_realtime_data(self) -> WeatherDataType:
+        r: bytes = self.read_bytes('LOOP 1')
+        data: WeatherDataType = {}
+        if not r:
             return data
         if len(r) == struct.calcsize(self.realtime_data_types):
             data = dict(zip(self.realtime_data_names, struct.unpack(self.realtime_data_types, r)))
@@ -622,8 +629,11 @@ class Dallas:
             data['Forecast'] = self.forecast_sentences[data['Forecast']] \
                 if data['Forecast'] < len(self.forecast_sentences) else None
             collect_keys(data)
+            key: str
             for key, default in [('XtraTemps', -1), ('SoilTemps', -1), ('LeafTemps', -1), ('XtraHums', 255)]:
                 if isinstance(data[key], list):
+                    index: int
+                    item: WeatherDataItemType
                     for index, item in enumerate(data[key]):
                         if item == default:
                             data[key][index] = None
@@ -638,6 +648,9 @@ class Dallas:
     def get_highlow_data(self) -> Dict[str, Union[None, int, float, str]]:
         r: bytes = self.read_bytes('HILOWS')
         data: Dict[str, Union[None, int, float, str]] = {}
+        key: str
+        key2: str
+        denom: float
         if len(r) == struct.calcsize(self.highlow_data_types):
             data = dict(zip(self.highlow_data_names, struct.unpack(self.highlow_data_types, r)))
             # correcting values to get human-readable format
@@ -650,7 +663,7 @@ class Dallas:
                 for key, denom in (('Solar', 10.0), ('UV', 10.0), ('Rain', 100.0)):
                     data[key + key2] /= denom
             for key in data:
-                if key.endswith('Time'):
+                if key.endswith('Time') and data[key] is not None:
                     data[key] = '{HH}:{MM}'.format(HH=int(data[key] // 100), MM=data[key] % 100) \
                         if data[key] not in (0x7fff, 0xffff) else None
             collect_keys(data)
@@ -691,9 +704,11 @@ class Dallas:
 
 
 if __name__ == '__main__':
-    def main():
-        ws = Dallas()
+    def main() -> None:
+        ws: Dallas = Dallas()
         ws.open_serial()
+        key: str
+        value: Union[None, int, float, str, List[None], List[int], List[float], List[str]]
         for key, value in ws.get_realtime_data().items():
             print(key, '\t', value)
         ws.close_serial()
