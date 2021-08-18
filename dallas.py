@@ -707,6 +707,8 @@ if __name__ == '__main__':
     def main() -> None:
         ws: Dallas = Dallas()
         ws.open_serial()
+        print('model', '\t', ws.get_model())
+        print('version', '\t', ws.get_version())
         key: str
         value: Union[None, int, float, str, List[None], List[int], List[float], List[str]]
         for key, value in ws.get_realtime_data().items():
