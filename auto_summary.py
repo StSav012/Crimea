@@ -159,29 +159,29 @@ def calculate_bb_τ(loop_data: Dict[float, float], *,
                                                   or distance_to_bb_angle > abs(angle - bb_angle)):
             distance_to_bb_angle = abs(angle - bb_angle)
             closest_to_bb_angle = angle
-    if closest_to_bb_angle is not None and closest_to_max_angle is not None \
-            and closest_to_min_angle is not None and closest_to_max_angle != closest_to_min_angle:
-        d0: float = loop_data[closest_to_bb_angle]
-        d1: float = loop_data[closest_to_max_angle]
-        d2: float = loop_data[closest_to_min_angle]
-        np.seterr(invalid='raise', divide='raise')
-        try:
-            if ((d0 > d1 and d0 > d2) or (d0 < d1 and d0 < d2)) and not np.isinf(d0) and not np.isinf(
-                    d1) and not np.isinf(d2):
-                τ = np.log((d0 - d1) / (d0 - d2)) / \
-                    (1.0 / np.sin(np.radians(closest_to_min_angle))
-                     - 1.0 / np.sin(np.radians(closest_to_max_angle)))
-        except FloatingPointError:
-            pass
-        finally:
-            np.seterr(invalid='warn', divide='warn')
-        # if np.isnan(τ):
-        #     print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({θ2}°) - 1/cos({θ1}°))'.format(
-        #         d0=d0,
-        #         d1=d1,
-        #         d2=d2,
-        #         θ1=90 - closest_to_min_angle,
-        #         θ2=90 - closest_to_max_angle))
+    if closest_to_bb_angle is None or closest_to_max_angle is None or closest_to_min_angle is None \
+            or closest_to_max_angle == closest_to_min_angle:
+        return τ
+    d0: float = loop_data[closest_to_bb_angle]
+    d1: float = loop_data[closest_to_max_angle]
+    d2: float = loop_data[closest_to_min_angle]
+    np.seterr(invalid='raise', divide='raise')
+    try:
+        if ((d2 < d0 > d1) or (d2 > d0 < d1)) and not np.isinf(d0) and not np.isinf(d1) and not np.isinf(d2):
+            τ = np.log((d0 - d1) / (d0 - d2)) / \
+                (1.0 / np.sin(np.radians(closest_to_min_angle))
+                 - 1.0 / np.sin(np.radians(closest_to_max_angle)))
+    except FloatingPointError:
+        pass
+    finally:
+        np.seterr(invalid='warn', divide='warn')
+    # if np.isnan(τ):
+    #     print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({θ2}°) - 1/cos({θ1}°))'.format(
+    #         d0=d0,
+    #         d1=d1,
+    #         d2=d2,
+    #         θ1=90 - closest_to_min_angle,
+    #         θ2=90 - closest_to_max_angle))
     return τ
 
 
@@ -272,7 +272,8 @@ def calculate_magic_angles_τ(loop_data: Dict[float, float], lower_angle: float,
     if min_diff > 0.02:
         return np.nan
     τ: float = np.nan
-    if (d[i] < d[j] < d[k] or d[i] > d[j] > d[k]) and h[i] != h[j] and not np.any(np.isinf([d[[i, j, k]]])):
+    if i != j != k and h[i] != h[j] and (d[i] < d[j] < d[k] or d[i] > d[j] > d[k]) \
+            and not np.any(np.isinf([d[[i, j, k]]])):
         np.seterr(invalid='raise', divide='raise')
         try:
             τ = np.log((d[j] - d[k]) / (d[i] - d[j])) / (1. / np.sin(np.deg2rad(h[i])) - 1. / np.sin(np.deg2rad(h[j])))
