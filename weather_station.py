@@ -67,8 +67,7 @@ class UiMainWindow(object):
                                           | Qt.TextSelectableByKeyboard
                                           | Qt.TextSelectableByMouse)
         icon = QIcon()
-        icon.addPixmap(QPixmap(os.path.join(os.path.split(__file__)[0], 'crimea-eng-circle.svg')),
-                       QIcon.Normal, QIcon.Off)
+        icon.addPixmap(QPixmap(os.path.join(os.path.split(__file__)[0], 'qaradag.svg')), QIcon.Normal, QIcon.Off)
         main_window.setWindowIcon(icon)
         self.grid_layout_temperature.addWidget(self.label_temperature_inside, 0, 0, 1, 1)
         self.label_temperature_inside_value.setTextInteractionFlags(_value_label_interaction_flags)
@@ -157,7 +156,7 @@ def make_launcher(entry_path: str):
                     'Name=Dallas Meteo',
                     f'Comment=Dallas Weather Station Logger, {time.localtime().tm_year}',
                     'Exec=python3 ' + os.path.abspath(__file__),
-                    'Icon=' + os.path.join(os.path.split(os.path.abspath(__file__))[0], 'crimea-eng-circle.svg'),
+                    'Icon=' + os.path.join(os.path.split(os.path.abspath(__file__))[0], 'qaradag.svg'),
                     'Path=' + os.path.split(os.path.abspath(__file__))[0],
                     'Terminal=true',
                     'Type=Application',

@@ -30,7 +30,7 @@ def make_desktop_launcher():
                     'Name=Arduino Temperature',
                     f'Comment=Arduino Temperature Logger, {datetime.now().year}',
                     'Exec=python3 ' + os.path.abspath(__file__),
-                    'Icon=' + os.path.join(os.path.split(os.path.abspath(__file__))[0], 'crimea-eng-circle.svg'),
+                    'Icon=' + os.path.join(os.path.split(os.path.abspath(__file__))[0], 'qaradag.svg'),
                     'Path=' + os.path.split(os.path.abspath(__file__))[0],
                     'Terminal=true',
                     'Type=Application',
@@ -93,8 +93,7 @@ class App(QMainWindow):
                                           | Qt.TextSelectableByKeyboard
                                           | Qt.TextSelectableByMouse)
         icon = QIcon()
-        icon.addPixmap(QPixmap(os.path.join(os.path.split(__file__)[0], 'crimea-eng-circle.svg')), QIcon.Normal,
-                       QIcon.Off)
+        icon.addPixmap(QPixmap(os.path.join(os.path.split(__file__)[0], 'qaradag.svg')), QIcon.Normal, QIcon.Off)
         main_window.setWindowIcon(icon)
 
         for i in range(5):

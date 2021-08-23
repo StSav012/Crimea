@@ -134,8 +134,7 @@ class GUI(QMainWindow):
         self.button_go.setDisabled(True)
 
         icon: QIcon = QIcon()
-        icon.addPixmap(QPixmap(os.path.join(os.path.split(__file__)[0], 'crimea-eng-circle.svg')),
-                       QIcon.Normal, QIcon.Off)
+        icon.addPixmap(QPixmap(os.path.join(os.path.split(__file__)[0], 'qaradag.svg')), QIcon.Normal, QIcon.Off)
         self.setWindowIcon(icon)
 
         self.group_weather_state.setFlat(True)
