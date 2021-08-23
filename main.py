@@ -1788,7 +1788,7 @@ if __name__ == '__main__':
         # https://stackoverflow.com/a/7758075/8554611
         # Without holding a reference to our socket somewhere it gets garbage
         # collected when the function exits
-        _lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        _lock_socket: socket.socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         with open('/tmp/log', 'at') as f_out:
             f_out.write(f'{time.asctime()}\tchecking lock\n')
         for check_number in range(2):
@@ -1810,11 +1810,13 @@ if __name__ == '__main__':
             else:
                 if not args.no_gui:
                     make_desktop_launcher(os.path.abspath(__file__))
-                    app = QApplication(sys.argv)
+                    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+                    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+                    app: QApplication = QApplication(sys.argv)
                     with open('/tmp/log', 'at') as f_out:
                         f_out.write(f'{time.asctime()}\tcreating window\n')
                     try:
-                        window = App()
+                        window: App = App()
                     except Exception as ex:
                         import traceback
 
