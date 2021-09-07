@@ -749,29 +749,29 @@ class App(GUI):
     def fill_weather(self, weather: dict) -> None:
         if weather:
             if weather.get('OutsideTemp', None) is not None:
-                self.label_weather_temperature_value.setNum(np.round(weather['OutsideTemp'], decimals=1))
+                self.label_weather_temperature.setNum(np.round(weather['OutsideTemp'], decimals=1))
             else:
-                self.label_weather_temperature_value.clear()
+                self.label_weather_temperature.clear()
             if weather.get('OutsideHum', None) is not None:
-                self.label_weather_humidity_value.setNum(weather['OutsideHum'])
+                self.label_weather_humidity.setNum(weather['OutsideHum'])
             else:
-                self.label_weather_humidity_value.clear()
+                self.label_weather_humidity.clear()
             if weather.get('WindSpeed', None) is not None:
-                self.label_weather_wind_speed_value.setNum(np.round(weather['WindSpeed'], decimals=1))
+                self.label_weather_wind_speed.setNum(np.round(weather['WindSpeed'], decimals=1))
             else:
-                self.label_weather_wind_speed_value.clear()
+                self.label_weather_wind_speed.clear()
             if weather.get('WindDir', None) is not None:
-                self.label_weather_wind_direction_value.setNum(weather['WindDir'])
+                self.label_weather_wind_direction.setNum(weather['WindDir'])
             else:
-                self.label_weather_wind_direction_value.clear()
+                self.label_weather_wind_direction.clear()
             if weather.get('RainRate', None) is not None:
-                self.label_weather_rain_rate_value.setNum(weather['RainRate'])
+                self.label_weather_rain_rate.setNum(weather['RainRate'])
             else:
-                self.label_weather_rain_rate_value.clear()
+                self.label_weather_rain_rate.clear()
             if weather.get('SolarRad', None) is not None:
-                self.label_weather_solar_radiation_value.setNum(weather['SolarRad'])
+                self.label_weather_solar_radiation.setNum(weather['SolarRad'])
             else:
-                self.label_weather_solar_radiation_value.clear()
+                self.label_weather_solar_radiation.clear()
 
     def calculate_bb_τ(self, *, callback: Callable[[int, float], Any],
                        min_angle: float, max_angle: float, bb_angle: float,

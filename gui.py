@@ -5,10 +5,9 @@ from typing import List
 
 from PyQt5.QtCore import QCoreApplication, QSettings, QTimer, Qt
 from PyQt5.QtGui import QIcon, QKeySequence, QPixmap
-from PyQt5.QtWidgets import QAbstractItemView, QCheckBox, QDoubleSpinBox, \
-    QFrame, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QMainWindow, QProgressDialog, QPushButton, QShortcut, \
-    QSizePolicy, QSpacerItem, QSpinBox, QTabWidget, QTableWidget, \
-    QTableWidgetItem, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QAbstractItemView, QCheckBox, QDoubleSpinBox, QFormLayout, QFrame, QGridLayout, QGroupBox, \
+    QHBoxLayout, QLabel, QMainWindow, QProgressDialog, QPushButton, QShortcut, QSizePolicy, QSpacerItem, QSpinBox, \
+    QTabWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -32,16 +31,11 @@ class GUI(QMainWindow):
 
         self.group_settings_angles: QGroupBox = QGroupBox(self.tab_settings)
         self.spin_bb_angle: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
-        self.label_bb_angle: QLabel = QLabel(self.group_settings_angles)
         self.spin_bb_angle_alt: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
-        self.label_bb_angle_alt: QLabel = QLabel(self.group_settings_angles)
         self.spin_max_angle: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
-        self.label_max_angle: QLabel = QLabel(self.group_settings_angles)
         self.spin_min_angle: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
-        self.label_min_angle: QLabel = QLabel(self.group_settings_angles)
         self.spin_min_angle_alt: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_angles)
-        self.label_min_angle_alt: QLabel = QLabel(self.group_settings_angles)
-        self.grid_layout_settings_angles: QGridLayout = QGridLayout(self.group_settings_angles)
+        self.form_layout_settings_angles: QFormLayout = QFormLayout(self.group_settings_angles)
 
         self.group_settings_measurement: QGroupBox = QGroupBox(self.tab_settings)
         self.spin_measurement_delay: QDoubleSpinBox = QDoubleSpinBox(self.group_settings_measurement)
@@ -96,19 +90,13 @@ class GUI(QMainWindow):
         self.grid_layout_schedule: QGridLayout = QGridLayout(self.group_schedule)
 
         self.group_weather_state: QGroupBox = QGroupBox(self.tab_main)
-        self.label_weather_solar_radiation_value: QLabel = QLabel(self.group_weather_state)
         self.label_weather_solar_radiation: QLabel = QLabel(self.group_weather_state)
-        self.label_weather_rain_rate_value: QLabel = QLabel(self.group_weather_state)
         self.label_weather_rain_rate: QLabel = QLabel(self.group_weather_state)
-        self.label_weather_wind_direction_value: QLabel = QLabel(self.group_weather_state)
         self.label_weather_wind_direction: QLabel = QLabel(self.group_weather_state)
-        self.label_weather_wind_speed_value: QLabel = QLabel(self.group_weather_state)
         self.label_weather_wind_speed: QLabel = QLabel(self.group_weather_state)
-        self.label_weather_humidity_value: QLabel = QLabel(self.group_weather_state)
         self.label_weather_humidity: QLabel = QLabel(self.group_weather_state)
-        self.label_weather_temperature_value: QLabel = QLabel(self.group_weather_state)
         self.label_weather_temperature: QLabel = QLabel(self.group_weather_state)
-        self.grid_layout_weather_state: QGridLayout = QGridLayout(self.group_weather_state)
+        self.form_layout_weather_state: QFormLayout = QFormLayout(self.group_weather_state)
         self.grid_layout_tab_main: QGridLayout = QGridLayout(self.tab_main)
 
         self.tab_widget: QTabWidget = QTabWidget(self.central_widget)
@@ -130,7 +118,9 @@ class GUI(QMainWindow):
         self.pd.reset()
 
     def setup_ui(self) -> None:
-        # whatever is written in the design file, “Go” button should be disabled initially
+        _translate = QCoreApplication.translate
+
+        # “Go” button should be disabled initially
         self.button_go.setDisabled(True)
 
         icon: QIcon = QIcon()
@@ -143,27 +133,18 @@ class GUI(QMainWindow):
                                           | Qt.TextBrowserInteraction
                                           | Qt.TextSelectableByKeyboard
                                           | Qt.TextSelectableByMouse)
-        self.grid_layout_weather_state.addWidget(self.label_weather_temperature, 0, 0)
-        self.label_weather_temperature_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_temperature_value, 0, 1)
-        self.grid_layout_weather_state.addWidget(self.label_weather_humidity, 1, 0)
-        self.label_weather_humidity_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_humidity_value, 1, 1)
-        self.grid_layout_weather_state.addWidget(self.label_weather_wind_speed, 2, 0)
-        self.label_weather_wind_speed_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_wind_speed_value, 2, 1)
-
-        self.grid_layout_weather_state.addWidget(self.label_weather_wind_direction, 3, 0)
-        self.label_weather_wind_direction_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_wind_direction_value, 3, 1)
-
-        self.grid_layout_weather_state.addWidget(self.label_weather_rain_rate, 4, 0)
-        self.label_weather_rain_rate_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_rain_rate_value, 4, 1)
-
-        self.grid_layout_weather_state.addWidget(self.label_weather_solar_radiation, 5, 0)
-        self.label_weather_solar_radiation_value.setTextInteractionFlags(_value_label_interaction_flags)
-        self.grid_layout_weather_state.addWidget(self.label_weather_solar_radiation_value, 5, 1)
+        self.label_weather_temperature.setTextInteractionFlags(_value_label_interaction_flags)
+        self.label_weather_humidity.setTextInteractionFlags(_value_label_interaction_flags)
+        self.label_weather_wind_speed.setTextInteractionFlags(_value_label_interaction_flags)
+        self.label_weather_wind_direction.setTextInteractionFlags(_value_label_interaction_flags)
+        self.label_weather_rain_rate.setTextInteractionFlags(_value_label_interaction_flags)
+        self.label_weather_solar_radiation.setTextInteractionFlags(_value_label_interaction_flags)
+        self.form_layout_weather_state.addRow(self.tr("Temperature [°C]") + ':', self.label_weather_temperature)
+        self.form_layout_weather_state.addRow(self.tr("Humidity [%]") + ':', self.label_weather_humidity)
+        self.form_layout_weather_state.addRow(self.tr("Wind Speed") + ':', self.label_weather_wind_speed)
+        self.form_layout_weather_state.addRow(self.tr("Wind Direction [°]") + ':', self.label_weather_wind_direction)
+        self.form_layout_weather_state.addRow(self.tr("Rain Rate") + ':', self.label_weather_rain_rate)
+        self.form_layout_weather_state.addRow(self.tr("Solar Radiation") + ':', self.label_weather_solar_radiation)
 
         self.grid_layout_tab_main.addWidget(self.group_weather_state, 0, 0)
 
@@ -199,7 +180,7 @@ class GUI(QMainWindow):
 
         self.group_schedule.setFlat(True)
         self.table_schedule.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table_schedule.setProperty("showDropIndicator", False)
+        self.table_schedule.setProperty('showDropIndicator', False)
         self.table_schedule.setDragDropOverwriteMode(False)
         self.table_schedule.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table_schedule.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -279,46 +260,35 @@ class GUI(QMainWindow):
         self.grid_layout_settings_measurement.setColumnStretch(0, 1)
         self.vertical_layout_settings.addWidget(self.group_settings_measurement)
 
-        line = 0
-        self.grid_layout_settings_angles.addWidget(self.label_bb_angle, line, 0)
         self.spin_bb_angle.setRange(-180, 180)
         self.spin_bb_angle.setDecimals(1)
         self.spin_bb_angle.setSuffix('°')
         self.spin_bb_angle.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_bb_angle, line, 1)
-        line += 1
-        self.grid_layout_settings_angles.addWidget(self.label_bb_angle_alt, line, 0)
+        self.form_layout_settings_angles.addRow(self.tr('Black Body Position') + ':', self.spin_bb_angle)
         self.spin_bb_angle_alt.setRange(-180, 180)
         self.spin_bb_angle_alt.setDecimals(1)
         self.spin_bb_angle_alt.setSuffix('°')
         self.spin_bb_angle_alt.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_bb_angle_alt, line, 1)
-        line += 1
-        self.grid_layout_settings_angles.addWidget(self.label_max_angle, line, 0)
+        self.form_layout_settings_angles.addRow(self.tr('Black Body Position (alt)') + ':', self.spin_bb_angle_alt)
         self.spin_max_angle.setRange(-180, 180)
         self.spin_max_angle.setDecimals(1)
         self.spin_max_angle.setSuffix('°')
         self.spin_max_angle.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_max_angle, line, 1)
-        line += 1
-        self.grid_layout_settings_angles.addWidget(self.label_min_angle, line, 0)
+        self.form_layout_settings_angles.addRow(self.tr('Zenith Position') + ':', self.spin_max_angle)
         self.spin_min_angle.setRange(-180, 180)
         self.spin_min_angle.setDecimals(1)
         self.spin_min_angle.setSuffix('°')
         self.spin_min_angle.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_min_angle, line, 1)
-        line += 1
-        self.grid_layout_settings_angles.addWidget(self.label_min_angle_alt, line, 0)
+        self.form_layout_settings_angles.addRow(self.tr('Horizon Position') + ':', self.spin_min_angle)
         self.spin_min_angle_alt.setRange(-180, 180)
         self.spin_min_angle_alt.setDecimals(1)
         self.spin_min_angle_alt.setSuffix('°')
         self.spin_min_angle_alt.setSingleStep(1)
-        self.grid_layout_settings_angles.addWidget(self.spin_min_angle_alt, line, 1)
+        self.form_layout_settings_angles.addRow(self.tr('Horizon Position (alt)') + ':', self.spin_min_angle_alt)
 
-        self.grid_layout_settings_angles.setColumnStretch(0, 1)
         self.vertical_layout_settings.addWidget(self.group_settings_angles)
 
-        self.tab_widget.addTab(self.tab_settings, "")
+        self.tab_widget.addTab(self.tab_settings, self.tr('Settings'))
 
         self.gridLayout.addWidget(self.tab_widget, 0, 1)
 
@@ -330,64 +300,48 @@ class GUI(QMainWindow):
 
         self.setCentralWidget(self.central_widget)
 
-        self.translate_ui()
-        self.tab_widget.setCurrentIndex(0)
-        self.adjustSize()
-
-    def translate_ui(self) -> None:
-        _translate = QCoreApplication.translate
-        self.setWindowTitle(_translate("MainWindow", "Crimea"))
-        self.group_weather_state.setTitle(_translate("MainWindow", "Current Weather"))
-        self.label_weather_temperature.setText(_translate("MainWindow", "Temperature [°C]") + ':')
-        self.label_weather_humidity.setText(_translate("MainWindow", "Humidity [%]") + ':')
-        self.label_weather_wind_speed.setText(_translate("MainWindow", "Wind Speed") + ':')
-        self.label_weather_wind_direction.setText(_translate("MainWindow", "Wind Direction [°]") + ':')
-        self.label_weather_rain_rate.setText(_translate("MainWindow", "Rain Rate") + ':')
-        self.label_weather_solar_radiation.setText(_translate("MainWindow", "Solar Radiation") + ':')
-        self.group_temperature.setTitle(_translate("MainWindow", "Temperature"))
-        self.label_temperature_label.setText(_translate('main_window', 'T [°C]'))
-        self.label_state_label.setText(_translate('main_window', 'State'))
-        self.label_setpoint_label.setText(_translate('main_window', 'SP [°C]'))
+        self.setWindowTitle(self.tr('Crimea'))
+        self.group_weather_state.setTitle(self.tr('Current Weather'))
+        self.group_temperature.setTitle(self.tr('Temperature'))
+        self.label_temperature_label.setText(self.tr('T [°C]'))
+        self.label_state_label.setText(self.tr('State'))
+        self.label_setpoint_label.setText(self.tr('SP [°C]'))
         i: int
         for i in range(len(self.labels_sensor)):
-            self.labels_sensor[i].setText(_translate('main_window', 'Sensor') + f' {i + 1}:')
-        self.check_auto_temperature_mode.setText(_translate('main_window', 'Automatic'))
-        self.group_schedule.setTitle(_translate("MainWindow", "Schedule"))
+            self.labels_sensor[i].setText(self.tr('Sensor') + f' {i + 1}:')
+        self.check_auto_temperature_mode.setText(self.tr('Automatic'))
+        self.group_schedule.setTitle(self.tr('Schedule'))
         item: QTableWidgetItem
         item = self.table_schedule.horizontalHeaderItem(0)
-        item.setText(_translate("MainWindow", "On"))
+        item.setText(self.tr('On'))
         item = self.table_schedule.horizontalHeaderItem(1)
-        item.setText(_translate("MainWindow", "Angle h"))
+        item.setText(self.tr('Angle h'))
         item = self.table_schedule.horizontalHeaderItem(2)
-        item.setText(_translate("MainWindow", "Delay"))
-        self.button_schedule_action_add.setText(_translate("MainWindow", "+"))
-        self.button_schedule_action_remove.setText(_translate("MainWindow", "−"))
-        self.button_schedule_action_up.setText(_translate("MainWindow", "↑"))
-        self.button_schedule_action_down.setText(_translate("MainWindow", "↓"))
-        self.button_power.setText(_translate("MainWindow", "Power ON"))
-        self.button_go.setText(_translate("MainWindow", "Go"))
-        self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab_main), _translate("MainWindow", "Main"))
-        self.group_settings_motor.setTitle(_translate("MainWindow", "Motor"))
-        self.label_step_fraction.setText(_translate("MainWindow", "Step Fraction") + ':')
-        self.label_settings_speed.setText(_translate("MainWindow", "Motor Speed") + ':')
-        self.label_settings_speed_unit.setText(_translate("MainWindow", "°/s"))
-        self.label_settings_gear_1.setText(_translate("MainWindow", "Gear 1 Size") + ':')
-        self.label_settings_gear_2.setText(_translate("MainWindow", "Gear 2 Size") + ':')
-        self.button_move_home.setText(_translate("MainWindow", "Move home"))
-        self.button_move_90degrees.setText(_translate("MainWindow", "Move 90° counter-clockwise"))
-        self.button_move_360degrees_right.setText(_translate("MainWindow", "Move 360° counter-clockwise"))
-        self.button_move_360degrees_left.setText(_translate("MainWindow", "Move 360° clockwise"))
-        self.button_move_1step_right.setText(_translate("MainWindow", "Move 1 step counter-clockwise"))
-        self.button_move_1step_left.setText(_translate("MainWindow", "Move 1 step clockwise"))
-        self.group_settings_measurement.setTitle(_translate("MainWindow", "Measurement"))
-        self.label_channels.setText(_translate("MainWindow", "Number of ADC Channels") + ':')
-        self.label_measurement_delay.setText(_translate("MainWindow", "Delay Before Measuring") + ':')
-        self.spin_measurement_delay.setSuffix(_translate("MainWindow", ' s'))
-        self.group_settings_angles.setTitle(_translate("MainWindow", "Angles"))
-        self.label_bb_angle.setText(_translate("MainWindow", "Black Body Position") + ':')
-        self.label_bb_angle_alt.setText(_translate("MainWindow", "Black Body Position (alt)") + ':')
-        self.label_max_angle.setText(_translate("MainWindow", "Zenith Position") + ':')
-        self.label_min_angle.setText(_translate("MainWindow", "Horizon Position") + ':')
-        self.label_min_angle_alt.setText(_translate("MainWindow", "Horizon Position (alt)") + ':')
+        item.setText(self.tr('Delay'))
+        self.button_schedule_action_add.setText(self.tr('+'))
+        self.button_schedule_action_remove.setText(self.tr('−'))
+        self.button_schedule_action_up.setText(self.tr('↑'))
+        self.button_schedule_action_down.setText(self.tr('↓'))
+        self.button_power.setText(self.tr('Power ON'))
+        self.button_go.setText(self.tr('Go'))
+        self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab_main), self.tr('Main'))
+        self.group_settings_motor.setTitle(self.tr('Motor'))
+        self.label_step_fraction.setText(self.tr('Step Fraction') + ':')
+        self.label_settings_speed.setText(self.tr('Motor Speed') + ':')
+        self.label_settings_speed_unit.setText(self.tr('°/s'))
+        self.label_settings_gear_1.setText(self.tr('Gear 1 Size') + ':')
+        self.label_settings_gear_2.setText(self.tr('Gear 2 Size') + ':')
+        self.button_move_home.setText(self.tr('Move home'))
+        self.button_move_90degrees.setText(self.tr('Move 90° counter-clockwise'))
+        self.button_move_360degrees_right.setText(self.tr('Move 360° counter-clockwise'))
+        self.button_move_360degrees_left.setText(self.tr('Move 360° clockwise'))
+        self.button_move_1step_right.setText(self.tr('Move 1 step counter-clockwise'))
+        self.button_move_1step_left.setText(self.tr('Move 1 step clockwise'))
+        self.group_settings_measurement.setTitle(self.tr('Measurement'))
+        self.label_channels.setText(self.tr('Number of ADC Channels') + ':')
+        self.label_measurement_delay.setText(self.tr('Delay Before Measuring') + ':')
+        self.spin_measurement_delay.setSuffix(self.tr(' s'))
+        self.group_settings_angles.setTitle(self.tr('Angles'))
 
-        self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab_settings), _translate("MainWindow", "Settings"))
+        self.tab_widget.setCurrentIndex(0)
+        self.adjustSize()
