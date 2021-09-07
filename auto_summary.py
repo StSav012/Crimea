@@ -18,8 +18,9 @@ GENERAL_FIELDS: List[str] = [TIME_FIELD]
 WEATHER_FIELDS: List[str] = [
     'Wind Direction [°]',
     'Wind Speed',
-    'Humidity [%]',
+    'Relative Humidity [%]',
     'Temperature [°C]',
+    'Absolute Humidity [g/m³]',
     'Rain Rate',
     'UV Level',
     'Solar Radiation',
@@ -381,13 +382,20 @@ def process(data: Data, ch: int, principal_angles: PrincipalAngles) -> Processin
     angles_data_str: Dict[str, float] = dict((f'θ = {90 - i:.3f}'.rstrip('0').rstrip('.') + '°', angles_data[i])
                                              for i in sorted(angles_data))
 
-    weather: Dict[str, Union[None, str, int, float]] = {'WindDir': None, 'AvgWindSpeed': None, 'OutsideHum': None,
-                                                        'OutsideTemp': None, 'RainRate': None, 'UVLevel': None,
-                                                        'SolarRad': None}
+    weather: Dict[str, Union[None, str, int, float]] = {'WindDir': None, 'AvgWindSpeed': None,
+                                                        'OutsideHum': None, 'OutsideTemp': None, 'AH': None,
+                                                        'RainRate': None,
+                                                        'UVLevel': None, 'SolarRad': None}
     for item in data:
         if item.weather:
-            weather.update(item.weather)
-            break
+            for key, value in item.weather.items():
+                if key not in weather or weather[key] is None:
+                    weather[key] = value
+    # https://carnotcycle.wordpress.com/2012/08/04/how-to-convert-relative-humidity-to-absolute-humidity/
+    if weather['OutsideHum'] is not None and weather['OutsideTemp'] is not None:
+        weather['AH'] = (13.2473 * np.exp((17.67 * weather['OutsideTemp']) / (weather['OutsideTemp'] + 243.5))
+                         * weather['OutsideHum']
+                         / (273.15 + weather['OutsideTemp']))
 
     arduino_state: Dict[str, Union[int, float, bool]] = dict()
     index: int
@@ -426,6 +434,7 @@ def process(data: Data, ch: int, principal_angles: PrincipalAngles) -> Processin
                 weather['AvgWindSpeed'],
                 weather['OutsideHum'],
                 weather['OutsideTemp'],
+                weather['AH'],
                 weather['RainRate'],
                 weather['UVLevel'],
                 weather['SolarRad'],
