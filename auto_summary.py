@@ -809,7 +809,7 @@ def main():
 
         already_sorted_fields: Set[str] = set()
 
-        def sort(s: set[str], excluded: set[str]) -> list[str]:
+        def sort(s: Set[str], excluded: Set[str]) -> List[str]:
             s -= already_sorted_fields
             if not s:
                 return []
