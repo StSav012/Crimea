@@ -580,8 +580,9 @@ class Dallas:
         return resp
 
     def get_time(self) -> Dict[str, int]:
-        r = self.read_bytes('GETTIME')
-        t = {'seconds': r[1], 'minutes': r[2], 'hours': r[3], 'day': r[4], 'month': r[5], 'year': r[6] + 1900}
+        r: bytes = self.read_bytes('GETTIME')
+        t: Dict[str, int] = {'seconds': r[1], 'minutes': r[2], 'hours': r[3],
+                             'day': r[4], 'month': r[5], 'year': r[6] + 1900}
         return t
 
     def get_version(self) -> str:
