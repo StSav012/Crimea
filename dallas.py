@@ -482,7 +482,7 @@ class Dallas:
                     print(f'Permission to open {self._ser.port} denied')
                     time.sleep(1)  # to be changed
                 except serial.serialutil.SerialException as ex:
-                    print(ex.strerror)
+                    print('SerialException:', ex.strerror)
                 else:
                     print(self._ser.port, "opened for the Davis Instruments Data Logger")
                     self._communicating = False

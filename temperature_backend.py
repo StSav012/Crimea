@@ -48,7 +48,7 @@ class Dallas18B20(Thread):
                 except TypeError:
                     print(f'Incorrect device: {port}')
                 except serial.serialutil.SerialException as ex:
-                    print(ex.strerror)
+                    print('SerialException:', ex.strerror)
                 else:
                     print(f'{self._ser.port} opened for the Arduino Mega 2560 R3 (CDC ACM)')
                     self._communicating = False
