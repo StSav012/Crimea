@@ -90,7 +90,7 @@ class Dallas18B20(Thread):
                 try:
                     resp = self._ser.read_until(terminator).decode().rstrip()
                 except UnicodeDecodeError:
-                    print('UnicodeDecodeError')
+                    print('UnicodeDecodeError while reading a response to', cmd)
                     resp = ''
                 self._ser.flush()
                 self._communicating = False
