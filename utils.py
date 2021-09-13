@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os.path
+import sys
 from datetime import date
 from typing import Any, Iterable, List
 
@@ -24,7 +25,7 @@ def make_launcher(entry_path: str, file_path: str):
                     'Version=1.1',
                     'Name=Crimea Radiometer',
                     f'Comment=Crimea Radiometer Controller, {date.today().year}',
-                    'Exec=python3 ' + file_path,
+                    f'Exec={sys.executable} ' + file_path,
                     'Icon=' + os.path.join(os.path.split(file_path)[0], 'qaradag.svg'),
                     'Path=' + os.path.split(file_path)[0],
                     'Terminal=true',
