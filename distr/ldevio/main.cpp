@@ -297,7 +297,7 @@ public:
 	HANDLE OpenLDevice();
 	bool CloseLDevice();
 
-	bool SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned short** Data, unsigned int** Sync);
+	bool SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned short** data, unsigned int** Sync);
 	bool RequestBufferStream(unsigned int* Size);  // in words
 	bool FillDAQParameters(ADC_PAR* sp);
 
@@ -312,8 +312,8 @@ public:
 		m_Slot = Slot;
 		hVxd = INVALID_HANDLE_VALUE;
 		hEvent = 0;
-		DataBuffer = nullptr;
-		DataSize = 0;
+		dataBuffer = nullptr;
+		dataSize = 0;
 
 		map_inSize = 0;
 		map_inBuffer = nullptr;
@@ -476,16 +476,16 @@ bool DaqL780::CloseLDevice()
 bool DaqL780::RequestBufferStream(unsigned int* Size) //in words
 {
 	size_t cbRet;
-	unsigned int OutBuf;
+	unsigned int outBuffer;
 	bool status;
 
 	unsigned int pb = *Size;
 
 	status = !LDeviceIoControl(hVxd, DIOC_SET_BUFFER,
 		&pb, sizeof(unsigned int),
-		&OutBuf, sizeof(unsigned int),
+		&outBuffer, sizeof(unsigned int),
 		cbRet);
-	*Size = OutBuf;
+	*Size = outBuffer;
 	// in linux 128*2048
 
 	// +2048 for mapping page count page
@@ -504,10 +504,10 @@ bool DaqL780::RequestBufferStream(unsigned int* Size) //in words
 	return status;
 }
 
-bool DaqL780::SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned short** Data, unsigned int** Sync)
+bool DaqL780::SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned short** data, unsigned int** Sync)
 {
 	size_t cbRet;
-	unsigned int OutBuf[4];
+	unsigned int outBuffer[4];
 	bool status;
 	unsigned short* d1;
 
@@ -521,12 +521,12 @@ bool DaqL780::SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned 
 
 	status = !LDeviceIoControl(hVxd, DIOC_SETUP,
 		dp, sz,
-		OutBuf, sizeof(OutBuf[0]) * 4, // sizeof(void*) void* platform dependent
+		outBuffer, sizeof(outBuffer[0]) * 4, // sizeof(void*) void* platform dependent
 		cbRet);
 
-	tPages = static_cast<unsigned short>(OutBuf[0]);
-	tFIFO = static_cast<unsigned short>(OutBuf[1]);
-	tIRQStep = static_cast<unsigned short>(OutBuf[2]);
+	tPages = static_cast<unsigned short>(outBuffer[0]);
+	tFIFO = static_cast<unsigned short>(outBuffer[1]);
+	tIRQStep = static_cast<unsigned short>(outBuffer[2]);
 
 	dp->t1.Pages = tPages;
 	dp->t1.FIFO = tFIFO;
@@ -539,7 +539,7 @@ bool DaqL780::SetParametersStream(DAQ_PAR* sp, unsigned int* UsedSize, unsigned 
 	}
 	*Sync = reinterpret_cast<unsigned int*>(ptr);
 	d1 = reinterpret_cast<unsigned short*>(ptr);
-	*Data = &d1[2048];
+	*data = &d1[2048];
 
 	if (sp != nullptr) {
 		sp->Pages = tPages; // update properties to new real values;
@@ -563,31 +563,31 @@ bool DaqL780::FillDAQParameters(ADC_PAR* sp)
 bool DaqL780::InitStartLDevice()
 {
 	size_t cbRet;
-	unsigned int InBuf, OutBuf;
+	unsigned int inBuffer, outBuffer;
 	return !LDeviceIoControl(hVxd, DIOC_INIT_SYNC,
-		&InBuf, sizeof(unsigned int),
-		&OutBuf, sizeof(unsigned int),
+		&inBuffer, sizeof(unsigned int),
+		&outBuffer, sizeof(unsigned int),
 		cbRet);
 }
 
 bool DaqL780::StartLDevice()
 {
 	size_t cbRet;
-	unsigned int InBuf;
+	unsigned int inBuffer;
 
 	return !LDeviceIoControl(hVxd, DIOC_START,
-		&InBuf, sizeof(unsigned int),
-		DataBuffer, DataSize, // here we send data buffer parameters to lock in driver
+		&inBuffer, sizeof(unsigned int),
+		dataBuffer, dataSize, // here we send data buffer parameters to lock in driver
 		cbRet);
 }
 
 bool DaqL780::StopLDevice()
 {
 	size_t cbRet;
-	unsigned int InBuf, OutBuf;
+	unsigned int inBuffer, outBuffer;
 	return !LDeviceIoControl(hVxd, DIOC_STOP,
-		&InBuf, sizeof(unsigned int),
-		&OutBuf, sizeof(unsigned int),
+		&inBuffer, sizeof(unsigned int),
+		&outBuffer, sizeof(unsigned int),
 		cbRet);
 };
 
@@ -626,7 +626,7 @@ unsigned int DaqL780::GetWord_DM(unsigned short address, unsigned short* data)
 	unsigned short par = address;
 	return !LDeviceIoControl(hVxd, DIOC_GET_DM_A, //DIOC_GET_DM_W,
 		&par, sizeof(par),
-		Data, sizeof(unsigned short),
+		data, sizeof(unsigned short),
 		cbRet);
 }
 
@@ -636,7 +636,7 @@ unsigned int DaqL780::PutWord_DM(unsigned short address, unsigned short data)
 	unsigned short par = address;
 	return !LDeviceIoControl(hVxd, DIOC_PUT_DM_A, //DIOC_PUT_DM_W,
 		&par, sizeof(par),
-		&Data, sizeof(unsigned short),
+		&data, sizeof(unsigned short),
 		cbRet);
 }
 
@@ -657,7 +657,7 @@ unsigned int DaqL780::PutWord_PM(unsigned short address, unsigned int data)
 	unsigned short par = address;
 	return !LDeviceIoControl(hVxd, DIOC_PUT_PM_A,
 		&par, sizeof(par),
-		&Data, sizeof(unsigned int),
+		&data, sizeof(unsigned int),
 		cbRet);
 }
 
@@ -673,12 +673,12 @@ unsigned int DaqL780::PutArray_DM(unsigned short address, unsigned int Count, un
 		}
 		status = !LDeviceIoControl(hVxd, DIOC_PUT_DM_A,
 			&par, sizeof(par),
-			Data, len * sizeof(unsigned short),
+			data, len * sizeof(unsigned short),
 			cbRet);
 		if (status) {
 			break;
 		}
-		Data += len;
+		data += len;
 		par += static_cast<unsigned short>(len);
 		Count -= len;
 	} while (Count);
@@ -697,12 +697,12 @@ unsigned int DaqL780::GetArray_DM(unsigned short address, unsigned int Count, un
 		}
 		status = !LDeviceIoControl(hVxd, DIOC_GET_DM_A,
 			&par, sizeof(par),
-			Data, len * sizeof(unsigned short),
+			data, len * sizeof(unsigned short),
 			cbRet);
 		if (status) {
 			break;
 		}
-		Data += len;
+		data += len;
 		par += static_cast<unsigned short>(len);
 		Count -= len;
 	} while (Count);
@@ -721,12 +721,12 @@ unsigned int DaqL780::PutArray_PM(unsigned short address, unsigned int Count, un
 		}
 		status = !LDeviceIoControl(hVxd, DIOC_PUT_PM_A,
 			&par, sizeof(par),
-			Data, len * sizeof(unsigned int),
+			data, len * sizeof(unsigned int),
 			cbRet);
 		if (status) {
 			break;
 		}
-		Data += len;
+		data += len;
 		par += static_cast<unsigned short>(len);
 		Count -= len;
 	} while (Count);
@@ -898,7 +898,7 @@ unsigned int DaqL780::ReadFlashWord(unsigned short FlashAddress, unsigned short*
 	unsigned short par = FlashAddress;
 	return !LDeviceIoControl(hVxd, DIOC_READ_FLASH_WORD, //DIOC_GET_DM_W,
 		&par, sizeof(par),
-		Data, sizeof(unsigned short),
+		data, sizeof(unsigned short),
 		cbRet);
 }
 
