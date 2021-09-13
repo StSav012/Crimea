@@ -347,7 +347,7 @@ public:
 	unsigned int ReadFlashWord(unsigned short Addr, unsigned short* Data);
 	unsigned int ReadPlataDescr(void* pd);
 
-	unsigned int FillADCparameters(ADC_PAR* sp);
+	bool FillADCParameters(ADC_PAR* sp);
 
 private:
 	atomic_t m_cRef;
@@ -555,7 +555,7 @@ bool DaqL780::FillDAQparameters(ADC_PAR* sp)
 	if (sp == nullptr || sp->s_Type != L_ADC_PARAM) {
 		return false;
 	}
-	return DaqL780::FillADCparameters(sp);
+	return DaqL780::FillADCParameters(sp);
 }
 
 // end of uni stream interface
@@ -771,14 +771,14 @@ unsigned int DaqL780::PlataTest()
 	return L_SUCCESS;
 }
 
-bool DaqL780::FillADCparameters(ADC_PAR* ap)
+bool DaqL780::FillADCParameters(ADC_PAR* ap)
 {
 	const double max_rate = 3300.0;
 	unsigned int i;
 	double QF;
 	double DSP_CLOCK_OUT_PLX;
 	double SCLOCK_DIV;
-	double framedelay;
+	double frameDelay;
 
 	if (ap->dRate < 0) {
 		return false;
@@ -825,11 +825,11 @@ bool DaqL780::FillADCparameters(ADC_PAR* ap)
 		ap->dFrame = 1.0 / (ap->dRate);
 	}
 	//
-	framedelay = (ap->dFrame) * (ap->dRate) - 0.5;
-	if (framedelay > 65500.0) {
-		framedelay = 65500.0;
+	frameDelay = (ap->dFrame) * (ap->dRate) - 0.5;
+	if (frameDelay > 65500.0) {
+		frameDelay = 65500.0;
 	}
-	adc_par.Frame = static_cast<unsigned short>(framedelay);
+	adc_par.Frame = static_cast<unsigned short>(frameDelay);
 
 	ap->dFrame = (adc_par.Frame + 1) / (ap->dRate);
 
