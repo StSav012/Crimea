@@ -566,9 +566,7 @@ class Dallas:
             # print('read', resp)
             if len(resp) == 0:
                 self.close_serial()
-                print('restarting ' + self._ser.port)
-                self.open_serial()
-                continue
+                break
             if (length is not None and len(resp) != length) or \
                     (len(resp) >= 2 and resp[0] != 0x06) or \
                     ((length is None or length > 2)  # ↓↓ ACK or checksum ↓↓
