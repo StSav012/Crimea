@@ -489,6 +489,7 @@ class Dallas:
             time.sleep(1)
 
     def close_serial(self) -> None:
+        print('closing', self._ser.port)
         self._ser.close()
 
     def _block(self, timeout: float = 3.) -> bool:
@@ -524,9 +525,7 @@ class Dallas:
                 continue
             if len(resp) == 0:
                 self.close_serial()
-                print('restarting', self._ser.port)
-                self.open_serial()
-                continue
+                break
             if resp[1] != 'OK':
                 print('wrong response:', msg, resp)
                 continue
