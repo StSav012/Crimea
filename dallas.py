@@ -551,9 +551,12 @@ class Dallas:
                 self._ser.write(msg.encode('ascii'))
                 self._ser.flush()
                 if length is None:
+                    initial_time: float = time.perf_counter()
                     while self._ser.is_open and (len(resp) < 3
                                                  or self.crc.new(resp[1:-2]).crcValue != resp[-1] + 0x100 * resp[-2]):
                         resp += self._ser.read()
+                        if time.perf_counter() - initial_time > self._ser.timeout:
+                            break
                 else:
                     resp = self._ser.read(size=length)
                 self._ser.flush()
