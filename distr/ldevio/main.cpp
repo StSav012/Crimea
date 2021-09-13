@@ -555,7 +555,7 @@ bool DaqL780::FillDAQparameters(ADC_PAR* sp)
 	if (sp == nullptr || sp->s_Type != L_ADC_PARAM) {
 		return false;
 	}
-	return FillADCparameters(sp);
+	return DaqL780::FillADCparameters(sp);
 }
 
 // end of uni stream interface
@@ -564,7 +564,7 @@ bool DaqL780::InitStartLDevice()
 {
 	size_t cbRet;
 	unsigned int InBuf, OutBuf;
-	return = !LDeviceIoControl(hVxd, DIOC_INIT_SYNC,
+	return !LDeviceIoControl(hVxd, DIOC_INIT_SYNC,
 		&InBuf, sizeof(unsigned int),
 		&OutBuf, sizeof(unsigned int),
 		cbRet);
