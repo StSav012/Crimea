@@ -1,8 +1,8 @@
-import io
+# -*- coding: utf-8 -*-
+
 import re
 import struct
 import time
-from io import TextIOWrapper
 from typing import Dict, List, Match, Optional, Tuple, Union
 
 import crcmod.predefined
@@ -460,8 +460,6 @@ class Dallas:
 
     def __init__(self) -> None:
         self._ser: serial.Serial = serial.Serial()
-        # noinspection PyTypeChecker
-        self._sio: TextIOWrapper = io.TextIOWrapper(io.BufferedRWPair(self._ser, self._ser, 1), newline='\r')
         self._communicating: bool = False
 
     def open_serial(self) -> None:
@@ -514,12 +512,12 @@ class Dallas:
             msg: str = cmd + '\n'
             try:
                 self._communicating = True
-                self._sio.write(msg)
+                self._ser.write(msg)
                 # print('written', msg.encode('ascii'))
-                self._sio.flush()
+                self._ser.flush()
                 # print('reading...')
-                resp: List[str] = [_l.strip() for _l in self._sio.readlines()]
-                self._sio.flush()
+                resp: List[str] = [_l.decode().strip() for _l in self._ser.readlines()]
+                self._ser.flush()
                 self._communicating = False
             except (serial.SerialException, TypeError):
                 self._communicating = False
