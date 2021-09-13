@@ -5,7 +5,6 @@
 # TODO: translate most of the stuff into Russian
 
 import argparse
-import csv
 import gzip
 import json
 import os
@@ -219,10 +218,6 @@ class App(GUI):
 
         self.output_folder: str = self.get_config_value('settings', 'output folder',
                                                         os.path.join(os.path.curdir, 'data'), str)
-        self.summary_file_prefix: str = time.strftime("%Y%m%d%H%M%S")
-        if self.summary_file_prefix:
-            print('summary is stored into', ', '.join(f'{self.summary_file_prefix}.{ch + 1}.csv'
-                                                      for ch in range(len(self.adc_channels))))
         self.data: List[dict] = []
 
         self.adc_thread: ADCAcquisition = ADCAcquisition(self.adc_channels, self.set_point)
@@ -1590,49 +1585,6 @@ class App(GUI):
             f.write(json.dumps(
                 {'raw_data': self.data},
                 indent=4).encode())
-        if self.summary_file_prefix is not None:
-            fields: List[str] = [
-                'time',
-                'timestamp',
-                'wind direction',
-                'wind speed',
-                'humidity',
-                'temperature',
-            ]
-            for ch in range(len(self.τy)):
-                path: str = f'{self.summary_file_prefix}.{ch + 1}.csv'
-                is_new_file: bool = not os.path.exists(path)
-                if not is_new_file and (os.path.isdir(path) or not os.access(path, os.W_OK)):
-                    print('ERROR: can not append to', path)
-                    continue
-                with open(path, 'a') as csv_file:
-                    angles_data: Dict[float, float] = {}
-                    for a in self.data:
-                        angles_data[a['angle']] = float(np.mean(a['voltage'][ch])) if ch < len(a['voltage']) else np.nan
-                    angles_fields: List[str] = [f'angle {a}' for a in sorted(angles_data)]
-                    angles_data: Dict[str, float] = dict((f'angle {i}', angles_data[i]) for i in sorted(angles_data))
-                    csv_writer = csv.DictWriter(csv_file, fieldnames=fields + angles_fields, dialect='excel-tab')
-                    if is_new_file:
-                        csv_writer.writeheader()
-                    weather: Dict[str, Union[None, int, float]] = \
-                        {'WindDir': -1, 'AvgWindSpeed': -1, 'OutsideHum': -1, 'OutsideTemp': -1,
-                         'RainRate': -1, 'UVLevel': -1, 'SolarRad': -1}
-                    for _d in self.data:
-                        if 'weather' in _d:
-                            weather = _d['weather']
-                            break
-                    csv_writer.writerow({**dict(zip(fields, [
-                        self.data[0]['time'],
-                        self.data[0]['timestamp'],
-                        weather['WindDir'],
-                        weather['AvgWindSpeed'],
-                        weather['OutsideHum'],
-                        weather['OutsideTemp'],
-                        weather['RainRate'],
-                        weather['UVLevel'],
-                        weather['SolarRad'],
-                    ])), **angles_data})
-            self.data = []
 
     def update_plot_legend(self, bbox_to_anchor: Optional[Tuple[float, float]] = None) -> None:
         if bbox_to_anchor is None:
