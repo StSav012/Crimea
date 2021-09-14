@@ -79,3 +79,31 @@ def stringify_list(values: List[Any], sep: str = ' '):
 def label_lines(lines: List[Line2D], labels: Iterable[str], suffix: str = ''):
     for line, label in zip(lines, labels):
         line.set_label(f'{label} ({suffix})' if suffix else label)
+
+
+def take_webcam_shot() -> bytes:
+    from io import BytesIO
+
+    # https://stackoverflow.com/a/54906316/8554611
+    import os
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = ''
+
+    import pygame
+    from pygame import camera, image, surface
+
+    pygame.init()
+    camera.init()
+    cam: str
+    for cam in camera.list_cameras():
+        c: camera.Camera = camera.Camera(cam, (10000, 10000))
+        try:
+            c.start()
+        except SystemError:
+            continue
+        else:
+            s: surface.Surface = c.get_image()
+            buffer: BytesIO = BytesIO()
+            image.save(s, buffer, '.jpg')
+            c.stop()
+            return buffer.getvalue()
+    return b''
