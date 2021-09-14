@@ -1585,6 +1585,12 @@ class App(GUI):
             f.write(json.dumps(
                 {'raw_data': self.data},
                 indent=4).encode())
+            print('saved data to',
+                  os.path.join(
+                      self.output_folder,
+                      f'{datetime.fromtimestamp(self.data[0]["timestamp"]).strftime("%Y%m%d%H%M%S%f")}.json.gz'
+                  )
+                  )
 
     def update_plot_legend(self, bbox_to_anchor: Optional[Tuple[float, float]] = None) -> None:
         if bbox_to_anchor is None:
