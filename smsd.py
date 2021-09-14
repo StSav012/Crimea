@@ -158,6 +158,10 @@ class Motor(Thread):
                 continue
             if resp[0] != cmd:
                 print('wrong response:', msg, resp)
+                if cmd in resp:
+                    print('re-opening port')
+                    self._ser.close()
+                    self._ser.open()
                 continue
             # print(msg, self.decode_response(resp[1]))
             return resp[1]
