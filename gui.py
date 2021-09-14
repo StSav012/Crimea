@@ -300,7 +300,7 @@ class GUI(QMainWindow):
 
         self.setCentralWidget(self.central_widget)
 
-        self.setWindowTitle(self.tr('Crimea'))
+        self.setWindowTitle(self.tr('Crimea Radiometer'))
         self.group_weather_state.setTitle(self.tr('Current Weather'))
         self.group_temperature.setTitle(self.tr('Temperature'))
         self.label_temperature_label.setText(self.tr('T [°C]'))
