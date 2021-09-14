@@ -71,14 +71,14 @@ class Dallas18B20(Thread):
                 return False
         return True
 
-    def read_text(self, cmd: str, terminator: bytes = serial.serialutil.LF) -> Optional[str]:
+    def read_text(self, cmd: str, terminator: bytes = serial.serialutil.LF) -> str:
         if not self._block():
             print("Arduino is very busy to respond to", cmd)
-            return None
+            return ''
         # print('command:', cmd)
         if not self._ser.is_open:
             self._open_serial()
-        resp: Optional[str] = None
+        resp: str = ''
         try:
             if self._ser.is_open:
                 msg: str = cmd + '\n'
@@ -87,10 +87,11 @@ class Dallas18B20(Thread):
                 # print('written', msg.encode('ascii'))
                 self._ser.flush()
                 # print('reading...')
+                resp_bytes: bytes = self._ser.read_until(terminator)
                 try:
-                    resp = self._ser.read_until(terminator).decode().rstrip()
+                    resp = resp_bytes.decode().rstrip()
                 except UnicodeDecodeError:
-                    print('UnicodeDecodeError while reading a response to', cmd)
+                    print(f'UnicodeDecodeError while reading response {resp_bytes} to {cmd}')
                     resp = ''
                 self._ser.flush()
                 self._communicating = False
@@ -152,8 +153,8 @@ class Dallas18B20(Thread):
             return v
 
     def _get_temperatures(self) -> List[float]:
-        resp: Optional[str] = self.read_text('R')
-        if resp is not None:
+        resp: str = self.read_text('R')
+        if resp:
             try:
                 return list(map(float, resp.split(',')))
             except ValueError:
@@ -161,8 +162,8 @@ class Dallas18B20(Thread):
         return []
 
     def _get_states(self) -> List[bool]:
-        resp: Optional[str] = self.read_text('S')
-        if resp is not None:
+        resp: str = self.read_text('S')
+        if resp:
             try:
                 return list(map(bool, map(int, resp.split(','))))
             except ValueError:
@@ -170,8 +171,8 @@ class Dallas18B20(Thread):
         return []
 
     def _get_setpoints(self) -> List[int]:
-        resp: Optional[str] = self.read_text('P')
-        if resp is not None:
+        resp: str = self.read_text('P')
+        if resp:
             try:
                 return list(map(int, resp.split(',')))
             except ValueError:
@@ -179,8 +180,8 @@ class Dallas18B20(Thread):
         return []
 
     def _get_enabled(self) -> Optional[bool]:
-        resp: Optional[str] = self.read_text('Q')
-        if resp is not None:
+        resp: str = self.read_text('Q')
+        if resp:
             try:
                 return bool(int(resp))
             except ValueError:
