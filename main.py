@@ -183,18 +183,13 @@ class App(GUI):
 
         self.voltage_x: np.ndarray = np.empty(0)
         self.voltage_y: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
-        self.τx: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
+        self.τx: np.ndarray = np.empty(0)
         self.τy: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
-        self.τx_alt: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         self.τy_alt: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
-        self.τx_bb_alt: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         self.τy_bb_alt: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
-        self.τx_leastsq: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         self.τy_leastsq: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         # self.τy_error_leastsq: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
-        self.τx_magic: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         self.τy_magic: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
-        # self.τx_magic_alt: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         # self.τy_magic_alt: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         self.wind_x: np.ndarray = np.empty(0)
         self.wind_y: np.ndarray = np.empty(0)
@@ -793,9 +788,9 @@ class App(GUI):
         if closest_to_bb_angle is not None and closest_to_max_angle is not None \
                 and closest_to_min_angle is not None and closest_to_max_angle != closest_to_min_angle:
             for ch in range(len(self.last_loop_data[closest_to_bb_angle])):
-                d0 = self.last_loop_data[closest_to_bb_angle][ch]
-                d1 = self.last_loop_data[closest_to_max_angle][ch]
-                d2 = self.last_loop_data[closest_to_min_angle][ch]
+                d0: float = self.last_loop_data[closest_to_bb_angle][ch]
+                d1: float = self.last_loop_data[closest_to_max_angle][ch]
+                d2: float = self.last_loop_data[closest_to_min_angle][ch]
                 np.seterr(invalid='raise', divide='raise')
                 try:
                     if (d0 > d1 and d0 > d2) or (d0 < d1 and d0 < d2):
@@ -809,11 +804,10 @@ class App(GUI):
                         d0=d0,
                         d1=d1,
                         d2=d2,
-                        θ1=90 - closest_to_min_angle,
-                        θ2=90 - closest_to_max_angle), file=sys.stderr)
+                        θ1=90. - closest_to_min_angle,
+                        θ2=90. - closest_to_max_angle), file=sys.stderr)
                 else:
-                    if not np.isnan(τ):
-                        callback(ch, τ)
+                    callback(ch, τ)
                 np.seterr(invalid='warn', divide='warn')
 
     def calculate_leastsq_τ(self, ch: int) -> Tuple[float, float]:
@@ -865,15 +859,57 @@ class App(GUI):
                     (1. / np.sin(h_a) - 1. / np.sin(np.deg2rad(h[j])))
             finally:
                 pass
-            np.seterr(invalid='warn', divide='warn')
+        np.seterr(invalid='warn', divide='warn')
         if np.isnan(τ):
             print('τ = ln(({d1} - {d0})/({d2} - {d1})) / (1/cos({θ2}°) - 1/cos({θ1}°))'.format(
                 d0=d[k],
                 d1=d[j],
                 d2=d[i],
-                θ1=90 - h[j],
-                θ2=90 - h[i]), file=sys.stderr)
+                θ1=90. - h[j],
+                θ2=90. - h[i]), file=sys.stderr)
         return τ
+
+    def add_τ(self, channel: int, τ: float) -> None:
+        self.τy[channel] = np.concatenate((self.τy[channel], np.array([τ])))
+
+    def add_τ_alt(self, channel: int, τ: float) -> None:
+        self.τy_alt[channel] = np.concatenate((self.τy_alt[channel], np.array([τ])))
+
+    def add_τ_bb_alt(self, channel: int, τ: float) -> None:
+        self.τy_bb_alt[channel] = np.concatenate((self.τy_bb_alt[channel], np.array([τ])))
+
+    def add_τs(self) -> None:
+        # calculate τ in different manners
+        max_angle: float = self.spin_max_angle.value()
+        self.τx = np.concatenate((self.τx, np.array([date2num(datetime.now())])))
+        for min_angle, bb_angle, callback in [
+            (self.spin_min_angle.value(), self.spin_bb_angle.value(), self.add_τ),
+            (self.spin_min_angle_alt.value(), self.spin_bb_angle.value(), self.add_τ_alt),
+            (self.spin_min_angle_alt.value(), self.spin_bb_angle_alt.value(), self.add_τ_bb_alt),
+        ]:
+            self.calculate_bb_τ(callback=callback,
+                                min_angle=min_angle, max_angle=max_angle, bb_angle=bb_angle)
+        for ch in range(len(self.τy)):
+            self._τ_plot_lines[ch].set_data(self.τx, self.τy[ch])
+        for ch in range(len(self.τy_alt)):
+            self._τ_plot_alt_lines[ch].set_data(self.τx, self.τy_alt[ch])
+        for ch in range(len(self.τy_bb_alt)):
+            self._τ_plot_alt_bb_lines[ch].set_data(self.τx, self.τy_bb_alt[ch])
+        for ch in range(len(self.last_voltages())):
+            τ, error = self.calculate_leastsq_τ(ch)
+            self.τy_leastsq[ch] = np.concatenate((self.τy_leastsq[ch], np.array([τ])))
+            self._τ_plot_leastsq_lines[ch].set_data(self.τx, self.τy_leastsq[ch])
+            # self._τy_error_leastsq[ch] = np.concatenate((self._τy_error_leastsq[ch], np.array([error])))
+            τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle.value(), self.spin_max_angle.value())
+            self.τy_magic[ch] = np.concatenate((self.τy_magic[ch], np.array([τ])))
+            self._τ_plot_magic_lines[ch].set_data(self.τx, self.τy_magic[ch])
+            # τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle_alt.value(),
+            #                                    self.spin_max_angle.value())
+            # self._τy_magic_alt[ch] = np.concatenate((self._τy_magic_alt[ch], np.array([τ])))
+            # self._τ_plot_magic_alt_lines[ch].set_data(self._τx, self._τy_magic_alt[ch])
+
+        self.last_loop_data = {}
+        self.canvas.draw_idle()
 
     def measure_next(self, ignore_home: bool = False) -> None:
         self.fill_weather(self.last_weather())
@@ -887,29 +923,7 @@ class App(GUI):
                 return
 
             if self._current_row >= next_row and not ignore_home:
-                # calculate τ in different manners
-                max_angle = self.spin_max_angle.value()
-                for min_angle, bb_angle, callback in [
-                    (self.spin_min_angle.value(), self.spin_bb_angle.value(), self.add_τ),
-                    (self.spin_min_angle_alt.value(), self.spin_bb_angle.value(), self.add_τ_alt),
-                    (self.spin_min_angle_alt.value(), self.spin_bb_angle_alt.value(), self.add_τ_bb_alt),
-                ]:
-                    self.calculate_bb_τ(callback=callback,
-                                        min_angle=min_angle, max_angle=max_angle, bb_angle=bb_angle)
-                for ch in range(len(self.last_loop_data[current_angle])):
-                    _τ, _error = self.calculate_leastsq_τ(ch)
-                    if not np.isnan(_error):
-                        self.add_τ_leastsq(ch, _τ, _error)
-                    _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle.value(), self.spin_max_angle.value())
-                    if not np.isnan(_τ):
-                        self.add_τ_magic_angles(ch, _τ)
-                    # _τ = self.calculate_magic_angles_τ(ch, self.spin_min_angle_alt.value(),
-                    #                                    self.spin_max_angle.value())
-                    # if not np.isnan(_τ):
-                    #     self.adc_thread.add_τ_magic_angles_alt(ch, _τ)
-
-                self.last_loop_data = {}
-                self.canvas.draw_idle()
+                self.add_τs()
 
                 self.pd.setMaximum(round(1000 * self.time_to_move_home()))
                 self.pd.setLabelText('Wait till the motor comes home')
@@ -1146,18 +1160,13 @@ class App(GUI):
 
         self.voltage_x = np.empty(0)
         self.voltage_y = [np.empty(0)] * len(self.adc_channels)
-        self.τx = [np.empty(0)] * len(self.adc_channels)
+        self.τx = np.empty(0)
         self.τy = [np.empty(0)] * len(self.adc_channels)
-        self.τx_alt = [np.empty(0)] * len(self.adc_channels)
         self.τy_alt = [np.empty(0)] * len(self.adc_channels)
-        self.τx_bb_alt = [np.empty(0)] * len(self.adc_channels)
         self.τy_bb_alt = [np.empty(0)] * len(self.adc_channels)
-        self.τx_leastsq = [np.empty(0)] * len(self.adc_channels)
         self.τy_leastsq = [np.empty(0)] * len(self.adc_channels)
         # self.τy_error_leastsq = [np.empty(0)] * len(self.adc_channels)
-        self.τx_magic = [np.empty(0)] * len(self.adc_channels)
         self.τy_magic = [np.empty(0)] * len(self.adc_channels)
-        # self.τx_magic_alt = [np.empty(0)] * len(self.adc_channels)
         # self.τy_magic_alt = [np.empty(0)] * len(self.adc_channels)
         self.wind_x = np.empty(0)
         self.wind_y = np.empty(0)
@@ -1479,49 +1488,30 @@ class App(GUI):
     def purge_obsolete_data(self, purge_all: bool = False) -> None:
         current_time: float = date2num(datetime.now())
         time_span: float = 1.0
-        not_obsolete: np.ndarray = (current_time - self.voltage_x <= time_span)
+        not_obsolete: np.ndarray
+        not_obsolete = (current_time - self.voltage_x <= time_span)
         self.voltage_x = self.voltage_x[not_obsolete]
         self.voltage_y = [self.voltage_y[ch][not_obsolete] for ch in range(len(self.voltage_y))]
         if self.voltage_x.size > 0 and self.voltage_x[0] > np.mean(self.plot.get_xlim()):
             self.plot.set_autoscalex_on(True)
-        for ch in range(len(self.τx)):
-            not_obsolete: np.ndarray = (current_time - self.τx[ch] <= time_span)
-            self.τx[ch] = self.τx[ch][not_obsolete]
+        not_obsolete = (current_time - self.τx <= time_span)
+        self.τx = self.τx[not_obsolete]
+        if self.τx.size > 0 and self.τx[0] > np.mean(self.τ_plot.get_xlim()):
+            self.τ_plot.set_autoscalex_on(True)
+        for ch in range(len(self.τy)):
             self.τy[ch] = self.τy[ch][not_obsolete]
-            if self.τx[ch].size > 0 and self.τx[ch][0] > np.mean(self.τ_plot.get_xlim()):
-                self.τ_plot.set_autoscalex_on(True)
-        for ch in range(len(self.τx_alt)):
-            not_obsolete: np.ndarray = (current_time - self.τx_alt[ch] <= time_span)
-            self.τx_alt[ch] = self.τx_alt[ch][not_obsolete]
+        for ch in range(len(self.τy_alt)):
             self.τy_alt[ch] = self.τy_alt[ch][not_obsolete]
-            if self.τx_alt[ch].size > 0 and self.τx_alt[ch][0] > np.mean(self.τ_plot.get_xlim()):
-                self.τ_plot.set_autoscalex_on(True)
-        for ch in range(len(self.τx_bb_alt)):
-            not_obsolete: np.ndarray = (current_time - self.τx_bb_alt[ch] <= time_span)
-            self.τx_bb_alt[ch] = self.τx_bb_alt[ch][not_obsolete]
+        for ch in range(len(self.τy_bb_alt)):
             self.τy_bb_alt[ch] = self.τy_bb_alt[ch][not_obsolete]
-            if self.τx_bb_alt[ch].size > 0 and self.τx_bb_alt[ch][0] > np.mean(self.τ_plot.get_xlim()):
-                self.τ_plot.set_autoscalex_on(True)
-        for ch in range(len(self.τx_leastsq)):
-            not_obsolete: np.ndarray = (current_time - self.τx_leastsq[ch] <= time_span)
-            self.τx_leastsq[ch] = self.τx_leastsq[ch][not_obsolete]
+        for ch in range(len(self.τy_leastsq)):
             self.τy_leastsq[ch] = self.τy_leastsq[ch][not_obsolete]
             # self._τy_error_leastsq[ch] = self._τy_error_leastsq[ch][not_obsolete]
-            if self.τx_leastsq[ch].size > 0 and self.τx_leastsq[ch][0] > np.mean(self.τ_plot.get_xlim()):
-                self.τ_plot.set_autoscalex_on(True)
-        for ch in range(len(self.τx_magic)):
-            not_obsolete: np.ndarray = (current_time - self.τx_magic[ch] <= time_span)
-            self.τx_magic[ch] = self.τx_magic[ch][not_obsolete]
+        for ch in range(len(self.τy_magic)):
             self.τy_magic[ch] = self.τy_magic[ch][not_obsolete]
-            if self.τx_magic[ch].size > 0 and self.τx_magic[ch][0] > np.mean(self.τ_plot.get_xlim()):
-                self.τ_plot.set_autoscalex_on(True)
-        # for ch in range(len(self._τx_magic_alt)):
-        #     not_obsolete: np.ndarray = (current_time - self._τx_magic_alt[ch] <= time_span)
-        #     self._τx_magic_alt[ch] = self._τx_magic_alt[ch][not_obsolete]
+        # for ch in range(len(self._τy_magic_alt)):
         #     self._τy_magic_alt[ch] = self._τy_magic_alt[ch][not_obsolete]
-        #     if self._τx_magic_alt[ch].size > 0 and self._τx_magic_alt[ch][0] > np.mean(self.τ_plot.get_xlim()):
-        #         self.τ_plot.set_autoscalex_on(True)
-        not_obsolete: np.ndarray = (current_time - self.wind_x <= time_span)
+        not_obsolete = (current_time - self.wind_x <= time_span)
         self.wind_x = self.wind_x[not_obsolete]
         self.wind_y = self.wind_y[not_obsolete]
         if self.wind_x.size > 0 and self.wind_x[0] > np.mean(self._wind_plot.get_xlim()):
@@ -1534,49 +1524,6 @@ class App(GUI):
 
     def last_weather(self) -> Dict[str, Any]:
         return self.data[-1]['weather'] if self.data and 'weather' in self.data[-1] else dict()
-
-    def add_τ(self, channel: int, τ: float) -> None:
-        current_time: float = date2num(datetime.now())
-        self.τx[channel] = np.concatenate((self.τx[channel], np.array([current_time])))
-        self.τy[channel] = np.concatenate((self.τy[channel], np.array([τ])))
-        for ch in range(len(self.τy)):
-            self._τ_plot_lines[ch].set_data(self.τx[ch], self.τy[ch])
-
-    def add_τ_alt(self, channel: int, τ: float) -> None:
-        current_time: float = date2num(datetime.now())
-        self.τx_alt[channel] = np.concatenate((self.τx_alt[channel], np.array([current_time])))
-        self.τy_alt[channel] = np.concatenate((self.τy_alt[channel], np.array([τ])))
-        for ch in range(len(self.τy_alt)):
-            self._τ_plot_alt_lines[ch].set_data(self.τx_alt[ch], self.τy_alt[ch])
-
-    def add_τ_bb_alt(self, channel: int, τ: float) -> None:
-        current_time: float = date2num(datetime.now())
-        self.τx_bb_alt[channel] = np.concatenate((self.τx_bb_alt[channel], np.array([current_time])))
-        self.τy_bb_alt[channel] = np.concatenate((self.τy_bb_alt[channel], np.array([τ])))
-        for ch in range(len(self.τy_bb_alt)):
-            self._τ_plot_alt_bb_lines[ch].set_data(self.τx_bb_alt[ch], self.τy_bb_alt[ch])
-
-    def add_τ_leastsq(self, channel: int, τ: float, _error: float = np.nan) -> None:
-        current_time: float = date2num(datetime.now())
-        self.τx_leastsq[channel] = np.concatenate((self.τx_leastsq[channel], np.array([current_time])))
-        self.τy_leastsq[channel] = np.concatenate((self.τy_leastsq[channel], np.array([τ])))
-        # self._τy_error_leastsq[channel] = np.concatenate((self._τy_error_leastsq[channel], np.array([error])))
-        for ch in range(len(self.τy_leastsq)):
-            self._τ_plot_leastsq_lines[ch].set_data(self.τx_leastsq[ch], self.τy_leastsq[ch])
-
-    def add_τ_magic_angles(self, channel: int, τ: float) -> None:
-        current_time: float = date2num(datetime.now())
-        self.τx_magic[channel] = np.concatenate((self.τx_magic[channel], np.array([current_time])))
-        self.τy_magic[channel] = np.concatenate((self.τy_magic[channel], np.array([τ])))
-        for ch in range(len(self.τy_magic)):
-            self._τ_plot_magic_lines[ch].set_data(self.τx_magic[ch], self.τy_magic[ch])
-
-    # def add_τ_magic_angles_alt(self, channel: int, τ: float) -> None:
-    #     current_time: float = date2num(datetime.now())
-    #     self._τx_magic_alt[channel] = np.concatenate((self._τx_magic_alt[channel], np.array([current_time])))
-    #     self._τy_magic_alt[channel] = np.concatenate((self._τy_magic_alt[channel], np.array([τ])))
-    #     for ch in range(len(self._τy_magic_alt)):
-    #         self._τ_plot_magic_alt_lines[ch].set_data(self._τx_magic_alt[ch], self._τy_magic_alt[ch])
 
     def pack_data(self) -> None:
         self.purge_obsolete_data()
