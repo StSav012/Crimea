@@ -181,8 +181,8 @@ class App(GUI):
 
         self.figure.canvas.mpl_connect('pick_event', on_pick)
 
-        self.x: np.ndarray = np.empty(0)
-        self.y: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
+        self.voltage_x: np.ndarray = np.empty(0)
+        self.voltage_y: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         self.τx: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         self.τy: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
         self.τx_alt: List[np.ndarray] = [np.empty(0)] * len(self.adc_channels)
@@ -810,7 +810,7 @@ class App(GUI):
                         d1=d1,
                         d2=d2,
                         θ1=90 - closest_to_min_angle,
-                        θ2=90 - closest_to_max_angle))
+                        θ2=90 - closest_to_max_angle), file=sys.stderr)
                 else:
                     if not np.isnan(τ):
                         callback(ch, τ)
@@ -872,7 +872,7 @@ class App(GUI):
                 d1=d[j],
                 d2=d[i],
                 θ1=90 - h[j],
-                θ2=90 - h[i]))
+                θ2=90 - h[i]), file=sys.stderr)
         return τ
 
     def measure_next(self, ignore_home: bool = False) -> None:
@@ -881,7 +881,7 @@ class App(GUI):
         if self._measured or ignore_home:
             self.canvas.draw_idle()
             current_angle = self.table_schedule.cellWidget(self._current_row, 1).value()
-            self.last_loop_data[current_angle] = self.last_data()
+            self.last_loop_data[current_angle] = self.last_voltages()
             next_row = self.next_enabled_row(self._current_row)
             if next_row is None:
                 return
@@ -1144,8 +1144,8 @@ class App(GUI):
             #                                                           color=self._plot_lines[-1].get_color(),
             #                                                           ls='-.')[0])
 
-        self.x = np.empty(0)
-        self.y = [np.empty(0)] * len(self.adc_channels)
+        self.voltage_x = np.empty(0)
+        self.voltage_y = [np.empty(0)] * len(self.adc_channels)
         self.τx = [np.empty(0)] * len(self.adc_channels)
         self.τy = [np.empty(0)] * len(self.adc_channels)
         self.τx_alt = [np.empty(0)] * len(self.adc_channels)
@@ -1168,7 +1168,7 @@ class App(GUI):
 
     def spin_measurement_delay_changed(self, new_value) -> None:
         self.set_config_value('settings', 'delay before measuring', new_value)
-        self.set_measurement_delay(new_value)
+        self.measurement_delay = new_value
 
     def spin_bb_angle_changed(self, new_value) -> None:
         self.set_config_value('settings', 'black body position', new_value)
@@ -1309,7 +1309,7 @@ class App(GUI):
         v: Optional[int] = self.arduino.voltage('A0')
         print('A0 voltage is', v)
         if v is None:
-            print('no “0” position data')
+            print('no “0” position data', file=sys.stderr)
             print('making whole turn')
             self.motor.forward()
             self.motor.move_home()
@@ -1359,7 +1359,7 @@ class App(GUI):
         v = self.arduino.voltage('A0')
         print('A0 voltage is', v)
         if v is None:
-            print('no “0” position data')
+            print('no “0” position data', file=sys.stderr)
         else:
             _i: int = 0
             if v is not None and v > _threshold:
@@ -1396,7 +1396,12 @@ class App(GUI):
         self._current_angle = 0.0
         print('got home')
 
-    def set_measurement_delay(self, delay) -> None:
+    @property
+    def measurement_delay(self) -> float:
+        return self._measurement_delay
+
+    @measurement_delay.setter
+    def measurement_delay(self, delay: float) -> None:
         _delay: float = float(delay)
         if _delay < 0.0:
             raise ValueError('Measurement delay can not be negative')
@@ -1411,6 +1416,7 @@ class App(GUI):
 
     def set_point(self) -> None:
         self.purge_obsolete_data()
+
         data_item: Dict[str, Union[Dict[str, Union[None, str, float]],
                                    List[float], List[bool], List[List[float]],
                                    None, bool, float, str]] = {}
@@ -1436,30 +1442,34 @@ class App(GUI):
         # noinspection PyTypeChecker
         data_item['voltage'] = [ys.tolist() for ys in self.adc_thread.current_y]
         self.data.append(data_item)
-        self.x = np.concatenate((self.x, np.array([date2num(self.adc_thread.current_x)])))
+
+        self.voltage_x = np.concatenate((self.voltage_x, np.array([date2num(self.adc_thread.current_x)])))
         for ch, ys in enumerate(self.adc_thread.current_y):
             if ys.size:
-                if len(self.y) > ch:
-                    self.y[ch] = np.concatenate((self.y[ch], np.array([np.mean(ys)])))
+                if len(self.voltage_y) > ch:
+                    self.voltage_y[ch] = np.concatenate((self.voltage_y[ch], np.array([np.mean(ys)])))
                 else:
-                    self.y.append(np.full(self.y[-1].shape, np.nan))
-                if self.x.shape != self.y[ch].shape:
-                    print('data shapes don\'t match:')
-                    print('channel', ch)
-                    print(self.x)
-                    print(self.y[ch])
+                    self.voltage_y.append(np.full(self.voltage_y[-1].shape, np.nan))
+                if self.voltage_x.shape != self.voltage_y[ch].shape:
+                    print('data shapes do not match:', file=sys.stderr)
+                    print('channel', ch, file=sys.stderr)
+                    print(self.voltage_x, file=sys.stderr)
+                    print(self.voltage_y[ch], file=sys.stderr)
                 else:
-                    self._plot_lines[ch].set_data(self.x, self.y[ch])
+                    self._plot_lines[ch].set_data(self.voltage_x, self.voltage_y[ch])
             else:
-                print('empty y for channel', ch + 1)
-                self.y[ch] = np.concatenate((self.y[ch], np.array([np.nan])))
+                print('empty y for channel', ch + 1, file=sys.stderr)
+                self.voltage_y[ch] = np.concatenate((self.voltage_y[ch], np.array([np.nan])))
             self.adc_thread.current_y[ch] = np.array([])
-        for ch in range(len(self.adc_thread.current_y), len(self.y)):  # deactivated channels after the count changed
-            self.y[ch] = np.concatenate((self.y[ch], np.array([np.nan])))
+        for ch in range(len(self.adc_thread.current_y), len(self.voltage_y)):
+            # deactivated channels after the count changed ↑
+            self.voltage_y[ch] = np.concatenate((self.voltage_y[ch], np.array([np.nan])))
+
         self.plot.relim(visible_only=True)
         self.plot.autoscale_view(None, self.plot.get_autoscalex_on(), self.plot.get_autoscaley_on())
         self.τ_plot.relim(visible_only=True)
         self.τ_plot.autoscale_view(None, False, self.τ_plot.get_autoscaley_on())
+
         # rotate and align the tick labels so they look better
         self.figure.autofmt_xdate(bottom=self.subplotpars['bottom'])
         self.figure.canvas.draw_idle()
@@ -1469,10 +1479,10 @@ class App(GUI):
     def purge_obsolete_data(self, purge_all: bool = False) -> None:
         current_time: float = date2num(datetime.now())
         time_span: float = 1.0
-        not_obsolete: np.ndarray = (current_time - self.x <= time_span)
-        self.x = self.x[not_obsolete]
-        self.y = [self.y[ch][not_obsolete] for ch in range(len(self.y))]
-        if self.x.size > 0 and self.x[0] > np.mean(self.plot.get_xlim()):
+        not_obsolete: np.ndarray = (current_time - self.voltage_x <= time_span)
+        self.voltage_x = self.voltage_x[not_obsolete]
+        self.voltage_y = [self.voltage_y[ch][not_obsolete] for ch in range(len(self.voltage_y))]
+        if self.voltage_x.size > 0 and self.voltage_x[0] > np.mean(self.plot.get_xlim()):
             self.plot.set_autoscalex_on(True)
         for ch in range(len(self.τx)):
             not_obsolete: np.ndarray = (current_time - self.τx[ch] <= time_span)
@@ -1519,11 +1529,11 @@ class App(GUI):
         if purge_all:
             self.data = []
 
-    def last_data(self) -> List[float]:
-        return [self.y[ch][-1] if self.y[ch].size else np.nan for ch in range(len(self.y))]
+    def last_voltages(self) -> List[float]:
+        return [self.voltage_y[ch][-1] if self.voltage_y[ch].size else np.nan for ch in range(len(self.voltage_y))]
 
     def last_weather(self) -> Dict[str, Any]:
-        return self.data[-1]['weather'] if len(self.data) > 0 and 'weather' in self.data[-1] else dict()
+        return self.data[-1]['weather'] if self.data and 'weather' in self.data[-1] else dict()
 
     def add_τ(self, channel: int, τ: float) -> None:
         current_time: float = date2num(datetime.now())
@@ -1730,6 +1740,7 @@ class App(GUI):
         self.update_legends()
 
     def set_adc_channels_names(self, new_names: List[str]) -> None:
+        # the function is for NavigationToolbar
         self.adc_channels_names = new_names
 
 
@@ -1754,7 +1765,7 @@ if __name__ == '__main__':
             try:
                 _lock_socket.bind('\0' + __file__)
             except socket.error as ex:
-                print(f'{__file__} is already running')
+                print(f'{__file__} is already running', file=sys.stderr)
 
                 import traceback
 
