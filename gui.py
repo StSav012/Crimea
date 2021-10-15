@@ -7,7 +7,7 @@ from PyQt5.QtCore import QCoreApplication, QSettings, QTimer, Qt
 from PyQt5.QtGui import QIcon, QKeySequence, QPixmap
 from PyQt5.QtWidgets import QAbstractItemView, QCheckBox, QDoubleSpinBox, QFormLayout, QFrame, QGridLayout, QGroupBox, \
     QHBoxLayout, QLabel, QMainWindow, QProgressDialog, QPushButton, QShortcut, QSizePolicy, QSpacerItem, QSpinBox, \
-    QTabWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+    QTabWidget, QTableWidget, QTableWidgetItem, QToolButton, QVBoxLayout, QWidget
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -82,10 +82,10 @@ class GUI(QMainWindow):
         self.check_auto_temperature_mode: QCheckBox = QCheckBox(self.group_temperature)
 
         self.group_schedule: QGroupBox = QGroupBox(self.tab_main)
-        self.button_schedule_action_down: QPushButton = QPushButton(self.group_schedule)
-        self.button_schedule_action_up: QPushButton = QPushButton(self.group_schedule)
-        self.button_schedule_action_remove: QPushButton = QPushButton(self.group_schedule)
-        self.button_schedule_action_add: QPushButton = QPushButton(self.group_schedule)
+        self.button_schedule_action_down: QToolButton = QToolButton(self.group_schedule)
+        self.button_schedule_action_up: QToolButton = QToolButton(self.group_schedule)
+        self.button_schedule_action_remove: QToolButton = QToolButton(self.group_schedule)
+        self.button_schedule_action_add: QToolButton = QToolButton(self.group_schedule)
         self.table_schedule: QTableWidget = QTableWidget(self.group_schedule)
         self.grid_layout_schedule: QGridLayout = QGridLayout(self.group_schedule)
 
