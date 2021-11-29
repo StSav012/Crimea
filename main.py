@@ -12,6 +12,7 @@ import socket
 import sys
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import matplotlib.style
@@ -1530,7 +1531,7 @@ class App(GUI):
         if not self.data:
             return
         if not os.path.exists(self.output_folder):
-            os.mkdir(self.output_folder)
+            Path(self.output_folder).mkdir(exist_ok=True, parents=True)
         elif not os.path.isdir(self.output_folder):
             os.remove(self.output_folder)
             os.mkdir(self.output_folder)
