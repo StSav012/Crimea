@@ -764,9 +764,8 @@ class App(GUI):
             else:
                 self.label_weather_solar_radiation.clear()
 
-    def calculate_bb_τ(self, *, callback: Callable[[int, float], Any],
-                       min_angle: float, max_angle: float, bb_angle: float,
-                       precision: float = 5.) -> None:
+    def calculate_bb_τ(self, *, min_angle: float, max_angle: float, bb_angle: float,
+                       angle_precision: float = 5.) -> Dict[int, float]:
         distance_to_max_angle: Optional[float] = None
         distance_to_min_angle: Optional[float] = None
         distance_to_bb_angle: Optional[float] = None
@@ -774,18 +773,19 @@ class App(GUI):
         closest_to_max_angle: Optional[float] = None
         closest_to_min_angle: Optional[float] = None
         for angle in self.last_loop_data:
-            if abs(angle - max_angle) < precision and (distance_to_max_angle is None
-                                                       or distance_to_max_angle > abs(angle - max_angle)):
+            if abs(angle - max_angle) < angle_precision and (distance_to_max_angle is None
+                                                             or distance_to_max_angle > abs(angle - max_angle)):
                 distance_to_max_angle = abs(angle - max_angle)
                 closest_to_max_angle = angle
-            if abs(angle - min_angle) < precision and (distance_to_min_angle is None
-                                                       or distance_to_min_angle > abs(angle - min_angle)):
+            if abs(angle - min_angle) < angle_precision and (distance_to_min_angle is None
+                                                             or distance_to_min_angle > abs(angle - min_angle)):
                 distance_to_min_angle = abs(angle - min_angle)
                 closest_to_min_angle = angle
-            if abs(angle - bb_angle) < precision and (distance_to_bb_angle is None
-                                                      or distance_to_bb_angle > abs(angle - bb_angle)):
+            if abs(angle - bb_angle) < angle_precision and (distance_to_bb_angle is None
+                                                            or distance_to_bb_angle > abs(angle - bb_angle)):
                 distance_to_bb_angle = abs(angle - bb_angle)
                 closest_to_bb_angle = angle
+        τ_dict: Dict[int, float] = dict()
         if closest_to_bb_angle is not None and closest_to_max_angle is not None \
                 and closest_to_min_angle is not None and closest_to_max_angle != closest_to_min_angle:
             for ch in range(len(self.last_loop_data[closest_to_bb_angle])):
@@ -795,11 +795,11 @@ class App(GUI):
                 np.seterr(invalid='raise', divide='raise')
                 try:
                     if (d0 > d1 and d0 > d2) or (d0 < d1 and d0 < d2):
-                        τ = np.log((d0 - d1) / (d0 - d2)) / \
-                            (1.0 / np.sin(np.radians(closest_to_min_angle))
-                             - 1.0 / np.sin(np.radians(closest_to_max_angle)))
+                        τ_dict[ch] = np.log((d0 - d1) / (d0 - d2)) / \
+                                     (1.0 / np.sin(np.radians(closest_to_min_angle))
+                                      - 1.0 / np.sin(np.radians(closest_to_max_angle)))
                     else:
-                        τ = np.nan
+                        τ_dict[ch] = np.nan
                 except FloatingPointError:
                     print('τ = ln(({d0} - {d1})/({d0} - {d2})) / (1/cos({θ2}°) - 1/cos({θ1}°))'.format(
                         d0=d0,
@@ -807,9 +807,9 @@ class App(GUI):
                         d2=d2,
                         θ1=90. - closest_to_min_angle,
                         θ2=90. - closest_to_max_angle), file=sys.stderr)
-                else:
-                    callback(ch, τ)
+                    τ_dict[ch] = np.nan
                 np.seterr(invalid='warn', divide='warn')
+        return τ_dict
 
     def calculate_leastsq_τ(self, ch: int) -> Tuple[float, float]:
         h: np.ndarray = np.array(list(self.last_loop_data))
@@ -870,31 +870,23 @@ class App(GUI):
                 θ2=90. - h[i]), file=sys.stderr)
         return τ
 
-    def add_τ(self, channel: int, τ: float) -> None:
-        self.τy[channel] = np.concatenate((self.τy[channel], np.array([τ])))
-
-    def add_τ_alt(self, channel: int, τ: float) -> None:
-        self.τy_alt[channel] = np.concatenate((self.τy_alt[channel], np.array([τ])))
-
-    def add_τ_bb_alt(self, channel: int, τ: float) -> None:
-        self.τy_bb_alt[channel] = np.concatenate((self.τy_bb_alt[channel], np.array([τ])))
-
     def add_τs(self) -> None:
         # calculate τ in different manners
         max_angle: float = self.spin_max_angle.value()
         self.τx = np.concatenate((self.τx, np.array([date2num(datetime.now())])))
-        for min_angle, bb_angle, callback in [
-            (self.spin_min_angle.value(), self.spin_bb_angle.value(), self.add_τ),
-            (self.spin_min_angle_alt.value(), self.spin_bb_angle.value(), self.add_τ_alt),
-            (self.spin_min_angle_alt.value(), self.spin_bb_angle_alt.value(), self.add_τ_bb_alt),
-        ]:
-            self.calculate_bb_τ(callback=callback,
-                                min_angle=min_angle, max_angle=max_angle, bb_angle=bb_angle)
-        for ch in range(len(self.τy)):
+        τ: float
+        ch: int
+        for ch, τ in self.calculate_bb_τ(min_angle=self.spin_min_angle.value(), max_angle=max_angle,
+                                         bb_angle=self.spin_bb_angle.value()).items():
+            self.τy[ch] = np.concatenate((self.τy[ch], np.array([τ])))
             self._τ_plot_lines[ch].set_data(self.τx, self.τy[ch])
-        for ch in range(len(self.τy_alt)):
+        for ch, τ in self.calculate_bb_τ(min_angle=self.spin_min_angle_alt.value(), max_angle=max_angle,
+                                         bb_angle=self.spin_bb_angle.value()).items():
+            self.τy_alt[ch] = np.concatenate((self.τy_alt[ch], np.array([τ])))
             self._τ_plot_alt_lines[ch].set_data(self.τx, self.τy_alt[ch])
-        for ch in range(len(self.τy_bb_alt)):
+        for ch, τ in self.calculate_bb_τ(min_angle=self.spin_min_angle_alt.value(), max_angle=max_angle,
+                                         bb_angle=self.spin_bb_angle_alt.value()).items():
+            self.τy_bb_alt[ch] = np.concatenate((self.τy_bb_alt[ch], np.array([τ])))
             self._τ_plot_alt_bb_lines[ch].set_data(self.τx, self.τy_bb_alt[ch])
         for ch in range(len(self.last_voltages())):
             τ, error = self.calculate_leastsq_τ(ch)
@@ -1500,18 +1492,25 @@ class App(GUI):
         if self.τx.size > 0 and self.τx[0] > np.mean(self.τ_plot.get_xlim()):
             self.τ_plot.set_autoscalex_on(True)
         for ch in range(len(self.τy)):
-            self.τy[ch] = self.τy[ch][not_obsolete]
+            if self.τy[ch].shape == not_obsolete.shape:
+                self.τy[ch] = self.τy[ch][not_obsolete]
         for ch in range(len(self.τy_alt)):
-            self.τy_alt[ch] = self.τy_alt[ch][not_obsolete]
+            if self.τy_alt[ch].shape == not_obsolete.shape:
+                self.τy_alt[ch] = self.τy_alt[ch][not_obsolete]
         for ch in range(len(self.τy_bb_alt)):
-            self.τy_bb_alt[ch] = self.τy_bb_alt[ch][not_obsolete]
+            if self.τy_bb_alt[ch].shape == not_obsolete.shape:
+                self.τy_bb_alt[ch] = self.τy_bb_alt[ch][not_obsolete]
         for ch in range(len(self.τy_leastsq)):
-            self.τy_leastsq[ch] = self.τy_leastsq[ch][not_obsolete]
-            # self._τy_error_leastsq[ch] = self._τy_error_leastsq[ch][not_obsolete]
+            if self.τy_leastsq[ch].shape == not_obsolete.shape:
+                self.τy_leastsq[ch] = self.τy_leastsq[ch][not_obsolete]
+            # if self.τy_error_leastsq[ch].shape == not_obsolete.shape:
+            #     self._τy_error_leastsq[ch] = self._τy_error_leastsq[ch][not_obsolete]
         for ch in range(len(self.τy_magic)):
-            self.τy_magic[ch] = self.τy_magic[ch][not_obsolete]
+            if self.τy_magic[ch].shape == not_obsolete.shape:
+                self.τy_magic[ch] = self.τy_magic[ch][not_obsolete]
         # for ch in range(len(self._τy_magic_alt)):
-        #     self._τy_magic_alt[ch] = self._τy_magic_alt[ch][not_obsolete]
+        #     if self.τy_magic_alt[ch].shape == not_obsolete.shape:
+        #         self._τy_magic_alt[ch] = self._τy_magic_alt[ch][not_obsolete]
         not_obsolete = (current_time - self.wind_x <= time_span)
         self.wind_x = self.wind_x[not_obsolete]
         self.wind_y = self.wind_y[not_obsolete]
