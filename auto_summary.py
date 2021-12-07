@@ -57,7 +57,10 @@ class OrderedSet:
 
     def update(self, items: Union['OrderedSet', Iterable[Hashable]]) -> None:
         item: Hashable
-        return self._items.extend(item for item in items if item not in self._items)
+        if isinstance(items, OrderedSet):
+            return self._items.extend(item for item in items._items if item not in self._items)
+        else:
+            return self._items.extend(item for item in items if item not in self._items)
 
     def union(self, items: Union['OrderedSet', Iterable[Hashable]]) -> 'OrderedSet':
         new_ordered_set: 'OrderedSet' = OrderedSet(self._items)
