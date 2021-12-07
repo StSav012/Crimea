@@ -515,10 +515,14 @@ def list_files(path, *, max_age: float = -1., suffix: str = '') -> List[str]:
 
 
 def take_screenshot() -> bytes:
+    if not os.getenv('DISPLAY', ''):
+        # to screen to shoot
+        return bytes()
+
     from PyQt5.QtWidgets import QApplication
     from PyQt5.Qt import QBuffer, QIODevice
-    app = QApplication([])
-    buffer = QBuffer()
+    app: QApplication = QApplication([])
+    buffer: QBuffer = QBuffer()
     buffer.open(QIODevice.ReadWrite)
     app.primaryScreen().grabWindow(app.desktop().winId()).save(buffer, 'png')
     buffer.seek(0)
