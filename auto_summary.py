@@ -762,7 +762,7 @@ def main():
 
     principal_angles: PrincipalAngles = get_principal_angles()
 
-    fields_set: Set[Tuple[str, ...]] = set()
+    fields_set: OrderedSet = OrderedSet()
 
     settings: QSettings = QSettings("SavSoft", "Crimea Radiometer")
     section: str = 'labels'
