@@ -5,7 +5,7 @@ import os.path
 import warnings
 from datetime import datetime
 from typing import BinaryIO, Dict, Iterable, List, Sequence, Set, Tuple, Union, Type, Optional, cast, Hashable, \
-    SupportsIndex
+    SupportsIndex, Iterator
 
 import numpy as np
 from PyQt5.QtCore import QSettings
@@ -45,22 +45,19 @@ class OrderedSet:
         item: Hashable
         return OrderedSet(item for item in self._items if item not in other._items)
 
+    def __iter__(self) -> Iterator[Hashable]:
+        yield from self._items
+
     def add(self, item: Hashable) -> None:
         if item not in self._items:
             self._items.append(item)
 
-    def pop(self, index: Optional[SupportsIndex] = None) -> Hashable:
-        if index is None:
-            return self._items.pop()
-        else:
-            return self._items.pop(index)
+    def pop(self, index: SupportsIndex = -1) -> Hashable:
+        return self._items.pop(index)
 
     def update(self, items: Union['OrderedSet', Iterable[Hashable]]) -> None:
         item: Hashable
-        if isinstance(items, OrderedSet):
-            return self._items.extend(item for item in items._items if item not in self._items)
-        else:
-            return self._items.extend(item for item in items if item not in self._items)
+        return self._items.extend(item for item in items if item not in self._items)
 
     def union(self, items: Union['OrderedSet', Iterable[Hashable]]) -> 'OrderedSet':
         new_ordered_set: 'OrderedSet' = OrderedSet(self._items)
