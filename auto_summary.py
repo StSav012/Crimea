@@ -179,7 +179,7 @@ class ProcessingResult:
 
 
 def calculate_bb_τ(loop_data: Dict[float, float], *,
-                   min_angle: float, max_angle: float, bb_angle: float, precision: float = 5.) -> float:
+                   min_angle: float, max_angle: float, bb_angle: float, precision: float = 5.1) -> float:
     distance_to_max_angle: Optional[float] = None
     distance_to_min_angle: Optional[float] = None
     distance_to_bb_angle: Optional[float] = None
