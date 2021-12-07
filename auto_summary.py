@@ -325,6 +325,13 @@ def normalize(text) -> Data:
     return Data(raw_data)
 
 
+def theta_string(angle: Union[float, Iterable[float]]) -> str:
+    if isinstance(angle, float):
+        return f'θ = {90 - angle:.3f}'.rstrip('0').rstrip('.') + '°'
+    else:
+        return 'θ = ' + ', '.join((f'{90 - a:.3f}'.rstrip('0').rstrip('.') + '°') for a in angle)
+
+
 def process(data: Data, ch: int, principal_angles: PrincipalAngles) -> ProcessingResult:
     channels_count: int = 0
     if ch < 0:
@@ -381,7 +388,7 @@ def process(data: Data, ch: int, principal_angles: PrincipalAngles) -> Processin
     else:
         absorptions = dict()
     # rename `angles_data` keys
-    angles_data_str: Dict[str, float] = dict((f'θ = {90 - i:.3f}'.rstrip('0').rstrip('.') + '°', angles_data[i])
+    angles_data_str: Dict[str, float] = dict((theta_string(i), angles_data[i])
                                              for i in sorted(angles_data))
 
     weather: Dict[str, Union[None, str, int, float]] = {'WindDir': None, 'AvgWindSpeed': None,
@@ -644,29 +651,24 @@ def get_absorption_labels(angles_data: Sequence[float], principal_angles: Princi
         PrincipalAngles(**dict(zip(indices_closest_to_principal_angles.fields,
                                    h[indices_closest_to_principal_angles.values])))
     return PrincipalAnglesAbsorptionLabels(
-        bb_τ_label=(
-         f'τ for θ = {90 - angles_closest_to_principal_angles.bb_angle:.3f}'.rstrip('0').rstrip('.') +
-         f'°, {90 - angles_closest_to_principal_angles.min_angle:.3f}'.rstrip('0').rstrip('.') +
-         f'°, {90 - angles_closest_to_principal_angles.max_angle:.3f}'.rstrip('0').rstrip('.') + '°'),
-        bb_τ_label_alt=(
-         f'τ for θ = {90 - angles_closest_to_principal_angles.bb_angle:.3f}'.rstrip('0').rstrip('.') +
-         f'°, {90 - angles_closest_to_principal_angles.min_angle_alt:.3f}'.rstrip('0').rstrip('.') +
-         f'°, {90 - angles_closest_to_principal_angles.max_angle:.3f}'.rstrip('0').rstrip('.') + '°'),
+        bb_τ_label='τ for ' + theta_string((angles_closest_to_principal_angles.bb_angle,
+                                            angles_closest_to_principal_angles.min_angle,
+                                            angles_closest_to_principal_angles.max_angle)),
+        bb_τ_label_alt='τ for ' + theta_string((angles_closest_to_principal_angles.bb_angle,
+                                                angles_closest_to_principal_angles.min_angle_alt,
+                                                angles_closest_to_principal_angles.max_angle)),
         leastsq_τ='leastsq τ',
         leastsq_τ_error='leastsq τ error',
-        magic_angles_τ_label=(
-         f'τ for θ = {90 - angles_closest_to_principal_angles.min_angle:.3f}'.rstrip('0').rstrip('.') +
-         f'''°, {90 - h[best_magic_angle(
-             h, angles_closest_to_principal_angles.min_angle,
-             angles_closest_to_principal_angles.max_angle)[0]]:.3f}'''.rstrip('0').rstrip('.') +
-         f'°, {90 - angles_closest_to_principal_angles.max_angle:.3f}'.rstrip('0').rstrip('.') + '°'),
-        magic_angles_τ_label_alt=(
-         f'τ for θ = {90 - angles_closest_to_principal_angles.min_angle_alt:.3f}'.rstrip('0').rstrip('.') +
-         f'''°, {90 -
-                 h[best_magic_angle(
-                     h, angles_closest_to_principal_angles.min_angle_alt,
-                     angles_closest_to_principal_angles.max_angle)[0]]:.3f}'''.rstrip('0').rstrip('.') +
-         f'°, {90 - angles_closest_to_principal_angles.max_angle:.3f}'.rstrip('0').rstrip('.') + '°'),
+        magic_angles_τ_label='τ for ' + theta_string((angles_closest_to_principal_angles.min_angle,
+                                                      h[best_magic_angle(
+                                                          h, angles_closest_to_principal_angles.min_angle,
+                                                          angles_closest_to_principal_angles.max_angle)[0]],
+                                                      angles_closest_to_principal_angles.max_angle)),
+        magic_angles_τ_label_alt='τ for ' + theta_string((angles_closest_to_principal_angles.min_angle_alt,
+                                                          h[best_magic_angle(
+                                                              h, angles_closest_to_principal_angles.min_angle_alt,
+                                                              angles_closest_to_principal_angles.max_angle)[0]],
+                                                          angles_closest_to_principal_angles.max_angle)),
     ), indices_closest_to_principal_angles, angles_closest_to_principal_angles
 
 
@@ -837,15 +839,15 @@ def main():
                 # for bb_τ_label
                 formula: str = '=LN((${d0_c}{row} - ${d2_c}{row})/(${d0_c}{row} - ${d1_c}{row})) ' \
                                '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))' \
-                    .format(d0_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.bb_angle),
-                            d1_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.min_angle),
-                            d2_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.max_angle),
-                            row=written_rows[channel] + 1,
-                            θ1=90 - data_piece.angles_closest_to_principal_angles.min_angle,
-                            θ2=90 - data_piece.angles_closest_to_principal_angles.max_angle)
+                    .format(d0_c=xl_col_to_name(
+                        header_fields.index(theta_string(data_piece.angles_closest_to_principal_angles.bb_angle))),
+                        d1_c=xl_col_to_name(header_fields.index(
+                            theta_string(data_piece.angles_closest_to_principal_angles.min_angle))),
+                        d2_c=xl_col_to_name(header_fields.index(
+                            theta_string(data_piece.angles_closest_to_principal_angles.max_angle))),
+                        row=written_rows[channel] + 1,
+                        θ1=90 - data_piece.angles_closest_to_principal_angles.min_angle,
+                        θ2=90 - data_piece.angles_closest_to_principal_angles.max_angle)
                 # print(formula)
                 label: str = data_piece.absorption_labels.bb_τ_label
                 if data_piece.data[label] is not None and not np.isnan(data_piece.data[label]):
@@ -857,15 +859,15 @@ def main():
                 # for bb_τ_label_alt
                 formula: str = '=LN((${d0_c}{row} - ${d2_c}{row})/(${d0_c}{row} - ${d1_c}{row})) ' \
                                '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))' \
-                    .format(d0_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.bb_angle),
-                            d1_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.min_angle_alt),
-                            d2_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.max_angle),
-                            row=written_rows[channel] + 1,
-                            θ1=90 - data_piece.angles_closest_to_principal_angles.min_angle_alt,
-                            θ2=90 - data_piece.angles_closest_to_principal_angles.max_angle)
+                    .format(d0_c=xl_col_to_name(
+                        header_fields.index(theta_string(data_piece.angles_closest_to_principal_angles.bb_angle))),
+                        d1_c=xl_col_to_name(header_fields.index(
+                            theta_string(data_piece.angles_closest_to_principal_angles.min_angle_alt))),
+                        d2_c=xl_col_to_name(header_fields.index(
+                            theta_string(data_piece.angles_closest_to_principal_angles.max_angle))),
+                        row=written_rows[channel] + 1,
+                        θ1=90 - data_piece.angles_closest_to_principal_angles.min_angle_alt,
+                        θ2=90 - data_piece.angles_closest_to_principal_angles.max_angle)
                 # print(formula)
                 label: str = data_piece.absorption_labels.bb_τ_label_alt
                 if data_piece.data[label] is not None and not np.isnan(data_piece.data[label]):
@@ -877,15 +879,15 @@ def main():
                 # for magic_angles_τ_label
                 formula: str = '=LN((${d2_c}{row} - ${d3_c}{row})/(${d1_c}{row} - ${d2_c}{row})) ' \
                                '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))' \
-                    .format(d1_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.min_angle),
-                            d2_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.magic_angle),
-                            d3_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.max_angle),
-                            row=written_rows[channel] + 1,
-                            θ1=90 - data_piece.angles_closest_to_principal_angles.min_angle,
-                            θ2=90 - data_piece.angles_closest_to_principal_angles.magic_angle)
+                    .format(d1_c=xl_col_to_name(
+                        header_fields.index(theta_string(data_piece.angles_closest_to_principal_angles.min_angle))),
+                        d2_c=xl_col_to_name(header_fields.index(
+                            theta_string(data_piece.angles_closest_to_principal_angles.magic_angle))),
+                        d3_c=xl_col_to_name(header_fields.index(
+                            theta_string(data_piece.angles_closest_to_principal_angles.max_angle))),
+                        row=written_rows[channel] + 1,
+                        θ1=90 - data_piece.angles_closest_to_principal_angles.min_angle,
+                        θ2=90 - data_piece.angles_closest_to_principal_angles.magic_angle)
                 # print(formula)
                 label: str = data_piece.absorption_labels.magic_angles_τ_label
                 if data_piece.data[label] is not None and not np.isnan(data_piece.data[label]):
@@ -897,15 +899,15 @@ def main():
                 # for magic_angles_τ_label_alt
                 formula: str = '=LN((${d2_c}{row} - ${d3_c}{row})/(${d1_c}{row} - ${d2_c}{row})) ' \
                                '/ (1/COS(RADIANS({θ1})) - 1/COS(RADIANS({θ2})))' \
-                    .format(d1_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.min_angle_alt),
-                            d2_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.magic_angle_alt),
-                            d3_c=xl_col_to_name(len(GENERAL_FIELDS) + len(data_piece.absorption_labels.values)
-                                                + data_piece.indices_closest_to_principal_angles.max_angle),
-                            row=written_rows[channel] + 1,
-                            θ1=90 - data_piece.angles_closest_to_principal_angles.min_angle_alt,
-                            θ2=90 - data_piece.angles_closest_to_principal_angles.magic_angle_alt)
+                    .format(d1_c=xl_col_to_name(
+                        header_fields.index(theta_string(data_piece.angles_closest_to_principal_angles.min_angle_alt))),
+                        d2_c=xl_col_to_name(header_fields.index(
+                            theta_string(data_piece.angles_closest_to_principal_angles.magic_angle_alt))),
+                        d3_c=xl_col_to_name(header_fields.index(
+                            theta_string(data_piece.angles_closest_to_principal_angles.max_angle))),
+                        row=written_rows[channel] + 1,
+                        θ1=90 - data_piece.angles_closest_to_principal_angles.min_angle_alt,
+                        θ2=90 - data_piece.angles_closest_to_principal_angles.magic_angle_alt)
                 # print(formula)
                 label: str = data_piece.absorption_labels.magic_angles_τ_label_alt
                 if data_piece.data[label] is not None and not np.isnan(data_piece.data[label]):
