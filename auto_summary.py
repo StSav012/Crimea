@@ -4,7 +4,8 @@ import os
 import os.path
 import warnings
 from datetime import datetime
-from typing import BinaryIO, Dict, Iterable, List, Sequence, Set, Tuple, Union, Type, Optional, cast
+from typing import BinaryIO, Dict, Iterable, List, Sequence, Set, Tuple, Union, Type, Optional, cast, Hashable, \
+    SupportsIndex
 
 import numpy as np
 from PyQt5.QtCore import QSettings
@@ -27,6 +28,41 @@ WEATHER_FIELDS: List[str] = [
     'UV Level',
     'Solar Radiation',
 ]
+
+
+class OrderedSet:
+    def __init__(self, items: Optional[Iterable[Hashable]] = None) -> None:
+        self._items: List[Hashable] = []
+        if items is not None:
+            item: Hashable
+            self._items = list(item for item in items if item not in self._items)
+
+    def __repr__(self) -> str:
+        item: Hashable
+        return '{' + ', '.join(repr(item) for item in self._items) + '}'
+
+    def __sub__(self, other: 'OrderedSet') -> 'OrderedSet':
+        item: Hashable
+        return OrderedSet(item for item in self._items if item not in other._items)
+
+    def add(self, item: Hashable) -> None:
+        if item not in self._items:
+            self._items.append(item)
+
+    def pop(self, index: Optional[SupportsIndex] = None) -> Hashable:
+        if index is None:
+            return self._items.pop()
+        else:
+            return self._items.pop(index)
+
+    def update(self, items: Union['OrderedSet', Iterable[Hashable]]) -> None:
+        item: Hashable
+        return self._items.extend(item for item in items if item not in self._items)
+
+    def union(self, items: Union['OrderedSet', Iterable[Hashable]]) -> 'OrderedSet':
+        new_ordered_set: 'OrderedSet' = OrderedSet(self._items)
+        new_ordered_set.update(items)
+        return new_ordered_set
 
 
 class PrincipalAngles:
@@ -756,8 +792,8 @@ def main():
     def all_fields() -> List[str]:
         class TwoSides:
             def __init__(self, to_the_left: Iterable[str] = (), to_the_right: Iterable[str] = ()) -> None:
-                self.to_the_left: Set[str] = set(to_the_left)
-                self.to_the_right: Set[str] = set(to_the_right)
+                self.to_the_left: OrderedSet = OrderedSet(to_the_left)
+                self.to_the_right: OrderedSet = OrderedSet(to_the_right)
 
             def __repr__(self) -> str:
                 return f'{{to the left: {self.to_the_left}, to the right: {self.to_the_right}}}'
@@ -774,13 +810,13 @@ def main():
                     other_fields[field].to_the_left.update(chunk[:index])
                     other_fields[field].to_the_right.update(chunk[index + 1:])
 
-        already_sorted_fields: Set[str] = set()
+        already_sorted_fields: OrderedSet = OrderedSet()
 
-        def sort(s: Set[str], excluded: Set[str]) -> List[str]:
+        def sort(s: OrderedSet, excluded: OrderedSet) -> List[str]:
             s -= already_sorted_fields
             if not s:
                 return []
-            f: str = s.pop()
+            f: str = cast(str, s.pop())
             already_sorted_fields.add(f)
             if not s:
                 return [f]
@@ -788,7 +824,7 @@ def main():
                     + [f]
                     + sort(other_fields[f].to_the_right - excluded, other_fields[f].to_the_left.union(excluded)))
 
-        return sort(set(other_fields.keys()), set())
+        return sort(OrderedSet(other_fields.keys()), OrderedSet())
 
     header_fields: List[str] = all_fields()
 
