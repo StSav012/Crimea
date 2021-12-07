@@ -756,13 +756,13 @@ def main():
     def all_fields() -> List[str]:
         class TwoSides:
             def __init__(self, to_the_left: Iterable[str] = (), to_the_right: Iterable[str] = ()) -> None:
-                self.to_the_left: set[str] = set(to_the_left)
-                self.to_the_right: set[str] = set(to_the_right)
+                self.to_the_left: Set[str] = set(to_the_left)
+                self.to_the_right: Set[str] = set(to_the_right)
 
             def __repr__(self) -> str:
                 return f'{{to the left: {self.to_the_left}, to the right: {self.to_the_right}}}'
 
-        other_fields: dict[str, TwoSides] = {}
+        other_fields: Dict[str, TwoSides] = dict()
         index: int
         field: str
         chunk: str
