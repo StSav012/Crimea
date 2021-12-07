@@ -41,6 +41,9 @@ class OrderedSet:
         item: Hashable
         return '{' + ', '.join(repr(item) for item in self._items) + '}'
 
+    def __bool__(self) -> bool:
+        return bool(self._items)
+
     def __sub__(self, other: 'OrderedSet') -> 'OrderedSet':
         item: Hashable
         return OrderedSet(item for item in self._items if item not in other._items)
