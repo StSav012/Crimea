@@ -4,7 +4,7 @@ import os
 import os.path
 import warnings
 from datetime import datetime
-from typing import BinaryIO, Dict, Iterable, List, Sequence, Set, Tuple, Union, Type, Optional, cast, Hashable, \
+from typing import BinaryIO, Dict, Iterable, List, Sequence, Tuple, Union, Type, Optional, cast, Hashable, \
     SupportsIndex, Iterator
 
 import numpy as np
