@@ -477,6 +477,7 @@ def process(data: Data, ch: int, principal_angles: PrincipalAngles) -> Processin
         {
             TIME_FIELD: datetime.fromtimestamp(cast(float, data[0].timestamp)),
             **absorptions,
+            **angles_data_str,
             **dict(zip(WEATHER_FIELDS, [
                 weather['WindDir'],
                 weather['AvgWindSpeed'],
@@ -487,7 +488,6 @@ def process(data: Data, ch: int, principal_angles: PrincipalAngles) -> Processin
                 weather['UVLevel'],
                 weather['SolarRad'],
             ])),
-            **angles_data_str,
             **arduino_state
         },
         absorption_labels,
