@@ -4,8 +4,8 @@ import os
 import os.path
 import warnings
 from datetime import datetime
-from typing import BinaryIO, Dict, Iterable, List, Sequence, Set, Tuple, Union, Type, Optional, cast, Hashable, \
-    SupportsIndex, Iterator
+from typing import (BinaryIO, Dict, Hashable, Iterable, Iterator, List, Optional, Sequence, SupportsIndex, Tuple, Type,
+                    Union, cast)
 
 import numpy as np
 from PyQt5.QtCore import QSettings
