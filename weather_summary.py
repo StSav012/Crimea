@@ -6,16 +6,19 @@ import gzip
 import json
 import os.path
 import re
+from datetime import datetime
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 # sending email
 import smtplib
-from datetime import datetime
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Iterable, Iterator, List, Dict, Optional, Tuple, Union, Any
 
+CURRENT_TIME: float = datetime.now().timestamp()
+
+DAY: float = 86400.
 TIME_FIELD: str = 'Time'
 GENERAL_FIELDS: List[str] = [TIME_FIELD]
 
@@ -142,16 +145,20 @@ def fit_dict(_d: Dict, keys: List, default: Any = None) -> Dict:
     return new_dict
 
 
-def list_files(path):
+def list_files(path, *, max_age: float = -1., suffix: str = '') -> List[str]:
     files: List[str] = []
     if os.path.isdir(path):
         for file in os.listdir(path):
-            if os.path.isfile(os.path.join(path, file)):
-                files.append(os.path.join(path, file))
-            elif os.path.isdir(os.path.join(path, file)):
-                files.extend(list_files(os.path.join(path, file)))
-    elif os.path.isfile(path):
-        files.append(path)
+            full_path: str = os.path.join(path, file)
+            files.extend(list_files(full_path, max_age=max_age, suffix=suffix))
+    elif os.path.isfile(path) and (not suffix or path.endswith(suffix)):
+        new_enough: bool = True
+        if max_age > 0.:
+            mod_time: float = os.path.getmtime(path)
+            if CURRENT_TIME - mod_time > max_age:
+                new_enough = False
+        if new_enough:
+            files.append(path)
     return files
 
 
@@ -189,7 +196,7 @@ def send_email(config_name: str, results_file_name: str):
                 server.quit()
 
 
-def check_new_files_given(filenames: List[str], timeout: float = 86400) -> bool:
+def check_new_files_given(filenames: List[str], timeout: float = DAY) -> bool:
     new_files_given = False
     current_time = datetime.now().timestamp()
     for filename in filenames:
@@ -202,12 +209,14 @@ def check_new_files_given(filenames: List[str], timeout: float = 86400) -> bool:
 
 
 def main():
-    ap = argparse.ArgumentParser(description='extracts summary from raw data and writes it into an XLSX file')
+    ap = argparse.ArgumentParser(description='extracts summary from raw data and writes it into an CSV file')
     ap.add_argument('-I', '--ignore-existing', help='skip check whether the result file exists',
                     action='store_true', default=False)
     ap.add_argument('-c', '--config', help='configuration file', default=os.path.splitext(__file__)[0] + '.ini')
     ap.add_argument('-e', '--send-email', help='email the result file to the recipients listed in config',
                     action='store_true', default=False)
+    ap.add_argument('-m', '--max-age', help='maximal age of files to take into account (in days)',
+                    default=-1., type=float)
     ap.add_argument('-a', '--anyway', help='process files even if no new files given (younger than a day)',
                     action='store_true', default=False)
     ap.add_argument('-o', '--output-prefix', help='prefix for the result files',
@@ -215,7 +224,7 @@ def main():
     ap.add_argument('files', metavar='PATH', nargs='+', help='path to a file to process')
     args = ap.parse_args()
 
-    results_file_name: str = args.output_prefix + '.tsv'
+    results_file_name: str = args.output_prefix + '.csv'
     # print(results_file_name)
     if not args.ignore_existing and os.path.exists(results_file_name):
         exit(0)
@@ -224,8 +233,7 @@ def main():
     filename: str
     filenames: List[str] = []
     for filename in args.files:
-        filenames.extend(list_files(filename))
-    filenames = list(filter(lambda _filename: _filename.endswith('.json.gz'), filenames))
+        filenames.extend(list_files(filename, max_age=args.max_age * DAY, suffix='.json.gz'))
 
     def sorting_key(_fn: str) -> str:
         bn = os.path.basename(_fn)
