@@ -178,6 +178,9 @@ class _L791:
         create_instance.restype = _L791.PCL791
         self._instance: _L791.PCL791 = create_instance(c_ulong(slot))
 
+    def __bool__(self) -> bool:
+        return bool(self._instance)
+
     def open(self) -> int:
         return lib_l_comp.openBoard(self._instance)
 
@@ -242,6 +245,9 @@ class L791(ADC):
 
         error: int
         self._board: _L791 = _L791()
+        if not self._board:
+            raise RuntimeError('Failed to initialize L791')
+
         self._board.open()
         self._board.read_description()
         error = self._board.request_stream_buffer(stream_id=_L791.STREAM_ADC)
