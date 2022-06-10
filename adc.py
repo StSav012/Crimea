@@ -36,8 +36,10 @@ if _is_raspberrypi():
     ADCDevice = ads1256.ADS1256
 else:
     try:
-        import ldev_dummy as l791
+        import ldev_dummy
+
+        ADCDevice = ldev_dummy.LDevDummy
     except ImportError:
         import l791
 
-    ADCDevice = l791.L791
+        ADCDevice = l791.L791
