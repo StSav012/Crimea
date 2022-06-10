@@ -10,7 +10,7 @@ __all__ = ['LDevDummy']
 
 
 class LDevDummy(ADC):
-    def __init__(self, channels: Iterable[int], *, timeout: float = 0.1, kwargs: Any):
+    def __init__(self, channels: Iterable[int], *, timeout: float = 0.1, **kwargs: Any):
         super().__init__(channels)
         self.timeout: float = timeout
         self._channels_str: List[str] = [str(channel) for channel in self.channels]
