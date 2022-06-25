@@ -5,9 +5,10 @@ from typing import List
 
 from PyQt5.QtCore import QCoreApplication, QSettings, QTimer, Qt
 from PyQt5.QtGui import QIcon, QKeySequence, QPixmap
-from PyQt5.QtWidgets import QAbstractItemView, QCheckBox, QDoubleSpinBox, QFormLayout, QFrame, QGridLayout, QGroupBox, \
-    QHBoxLayout, QLabel, QMainWindow, QProgressDialog, QPushButton, QShortcut, QSizePolicy, QSpacerItem, QSpinBox, \
-    QTabWidget, QTableWidget, QToolButton, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import (QAbstractItemView, QCheckBox, QDoubleSpinBox, QFormLayout, QFrame, QGridLayout, QGroupBox,
+                             QHBoxLayout, QLabel, QMainWindow, QProgressDialog, QPushButton, QScrollArea, QShortcut,
+                             QSizePolicy, QSpacerItem, QSpinBox, QTabWidget, QTableWidget, QToolButton, QVBoxLayout,
+                             QWidget)
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -27,6 +28,7 @@ class GUI(QMainWindow):
         self.plot_frame: QFrame = QFrame(self.central_widget)
         self.vertical_layout_plot: QVBoxLayout = QVBoxLayout(self.plot_frame)
 
+        self.tab_settings_area: QScrollArea = QScrollArea(self.central_widget)
         self.tab_settings: QWidget = QWidget()
 
         self.group_settings_angles: QGroupBox = QGroupBox(self.tab_settings)
@@ -64,6 +66,7 @@ class GUI(QMainWindow):
 
         self.vertical_layout_settings: QVBoxLayout = QVBoxLayout(self.tab_settings)
 
+        self.tab_main_area: QScrollArea = QScrollArea(self.central_widget)
         self.tab_main: QWidget = QWidget()
         self.button_go: QPushButton = QPushButton(self.tab_main)
         self.button_power: QPushButton = QPushButton(self.tab_main)
@@ -209,7 +212,11 @@ class GUI(QMainWindow):
         self.horizontal_layout_main.addItem(spacer_item2)
         self.grid_layout_tab_main.addLayout(self.horizontal_layout_main, 3, 0)
 
-        self.tab_widget.addTab(self.tab_main, "")
+        self.vertical_layout_settings.addStretch()
+
+        self.tab_main_area.setWidget(self.tab_main)
+        self.tab_main_area.setWidgetResizable(True)
+        self.tab_widget.addTab(self.tab_main_area, self.tr('Main'))
 
         line = 0
         self.grid_layout_settings_motor.addWidget(self.label_step_fraction, line, 0)
@@ -284,7 +291,11 @@ class GUI(QMainWindow):
 
         self.vertical_layout_settings.addWidget(self.group_settings_angles)
 
-        self.tab_widget.addTab(self.tab_settings, self.tr('Settings'))
+        self.vertical_layout_settings.addStretch()
+
+        self.tab_settings_area.setWidget(self.tab_settings)
+        self.tab_settings_area.setWidgetResizable(True)
+        self.tab_widget.addTab(self.tab_settings_area, self.tr('Settings'))
 
         self.gridLayout.addWidget(self.tab_widget, 0, 1)
 
@@ -313,7 +324,6 @@ class GUI(QMainWindow):
         self.button_schedule_action_down.setText(self.tr('↓'))
         self.button_power.setText(self.tr('Power ON'))
         self.button_go.setText(self.tr('Go'))
-        self.tab_widget.setTabText(self.tab_widget.indexOf(self.tab_main), self.tr('Main'))
         self.group_settings_motor.setTitle(self.tr('Motor'))
         self.label_step_fraction.setText(self.tr('Step Fraction') + ':')
         self.label_settings_speed.setText(self.tr('Motor Speed') + ':')
