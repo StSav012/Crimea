@@ -7,7 +7,7 @@ from PyQt5.QtCore import QCoreApplication, QSettings, QTimer, Qt
 from PyQt5.QtGui import QIcon, QKeySequence, QPixmap
 from PyQt5.QtWidgets import QAbstractItemView, QCheckBox, QDoubleSpinBox, QFormLayout, QFrame, QGridLayout, QGroupBox, \
     QHBoxLayout, QLabel, QMainWindow, QProgressDialog, QPushButton, QShortcut, QSizePolicy, QSpacerItem, QSpinBox, \
-    QTabWidget, QTableWidget, QTableWidgetItem, QToolButton, QVBoxLayout, QWidget
+    QTabWidget, QTableWidget, QToolButton, QVBoxLayout, QWidget
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -180,17 +180,13 @@ class GUI(QMainWindow):
 
         self.group_schedule.setFlat(True)
         self.table_schedule.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table_schedule.setProperty('showDropIndicator', False)
+        self.table_schedule.setDropIndicatorShown(False)
         self.table_schedule.setDragDropOverwriteMode(False)
         self.table_schedule.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table_schedule.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.table_schedule.setColumnCount(3)
         self.table_schedule.setRowCount(0)
-        col: int
-        for col in range(self.table_schedule.columnCount()):
-            item: QTableWidgetItem = QTableWidgetItem()
-            item.setTextAlignment(Qt.AlignCenter)
-            self.table_schedule.setHorizontalHeaderItem(col, item)
+        self.table_schedule.setHorizontalHeaderLabels((self.tr('On'), self.tr('Angle h'), self.tr('Delay')))
         self.grid_layout_schedule.addWidget(self.table_schedule, 0, 0, 5, 1)
         self.grid_layout_schedule.addWidget(self.button_schedule_action_add, 0, 1)
         self.grid_layout_schedule.addWidget(self.button_schedule_action_remove, 1, 1)
@@ -311,13 +307,6 @@ class GUI(QMainWindow):
             self.labels_sensor[i].setText(self.tr('Sensor') + f' {i + 1}:')
         self.check_auto_temperature_mode.setText(self.tr('Automatic'))
         self.group_schedule.setTitle(self.tr('Schedule'))
-        item: QTableWidgetItem
-        item = self.table_schedule.horizontalHeaderItem(0)
-        item.setText(self.tr('On'))
-        item = self.table_schedule.horizontalHeaderItem(1)
-        item.setText(self.tr('Angle h'))
-        item = self.table_schedule.horizontalHeaderItem(2)
-        item.setText(self.tr('Delay'))
         self.button_schedule_action_add.setText(self.tr('+'))
         self.button_schedule_action_remove.setText(self.tr('−'))
         self.button_schedule_action_up.setText(self.tr('↑'))
