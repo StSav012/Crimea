@@ -19,7 +19,7 @@ class ADC(Thread):
     def __init__(self, channels: Iterable[int]):
         super().__init__()
         self.daemon: bool = True
-        self.channels: List[int] = list(channels)
+        self.channels: List[int] = list(sorted(channels))
         self.voltages: List[float] = [nan] * len(self.channels)
         self._is_running: bool = False
 
@@ -36,8 +36,10 @@ if _is_raspberrypi():
     ADCDevice = ads1256.ADS1256
 else:
     try:
-        import l783_dummy as l783
-    except ImportError:
-        import l783
+        import ldev_dummy
 
-    ADCDevice = l783.L783
+        ADCDevice = ldev_dummy.LDevDummy
+    except ImportError:
+        import l791
+
+        ADCDevice = l791.L791

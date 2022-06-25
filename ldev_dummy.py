@@ -1,20 +1,19 @@
 # -*- coding: utf-8 -*-
 
 import time
-from typing import Iterable, List
+from typing import Any, Iterable, List
 
 from adc import ADC
 
 
-__all__ = ['L783']
+__all__ = ['LDevDummy']
 
 
-class L783(ADC):
-    def __init__(self, channels: Iterable[int], *, timeout: float = 0.1, app: str = './ldevio'):
+class LDevDummy(ADC):
+    def __init__(self, channels: Iterable[int], *, timeout: float = 0.1, **kwargs: Any):
         super().__init__(channels)
         self.timeout: float = timeout
         self._channels_str: List[str] = [str(channel) for channel in self.channels]
-        self._app: str = app
         if max(self.channels) > 7:
             raise ValueError(f'There is no channel {max(self.channels)}')
         self._is_running: bool = False
