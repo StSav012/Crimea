@@ -38,6 +38,7 @@ EXCLUDED_WEATHER_FIELDS: list[str] = [
     'AlarmSL',
     'XmitBatt',
     'ForecastIcon',
+    'Forecast',
 ]
 
 _T = TypeVar('_T')
@@ -110,10 +111,10 @@ def process(data) -> Iterator[tuple[dict[str,
         for key in ('Barometer', 'InsideTemp', 'OutsideTemp', 'ETDay', 'ETMonth', 'ETYear', 'BattLevel'):
             if weather[key] is not None:
                 weather[key] = round(weather[key], 1)
-        # move Forecast to the end
-        fc: str = weather['Forecast']
-        del weather['Forecast']
-        weather['Forecast'] = fc
+        # # move Forecast to the end
+        # fc: str = weather['Forecast']
+        # del weather['Forecast']
+        # weather['Forecast'] = fc
 
         _fields = list(weather.keys())
         return {
