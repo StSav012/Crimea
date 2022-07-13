@@ -11,7 +11,7 @@ from typing import Iterable
 from adc import ADC
 
 __all__ = ['L791']
-lib_l_comp: CDLL = CDLL(find_library('l''comp') or './lib''l''comp.so')
+lib_l791: CDLL = CDLL(find_library('l791') or './lib''l791.so')
 
 
 class _L791:
@@ -174,7 +174,7 @@ class _L791:
     STREAM_DAC: int = 2
 
     def __init__(self, slot: int = 0) -> None:
-        create_instance = lib_l_comp.createInstance
+        create_instance = lib_l791.createInstance
         create_instance.restype = _L791.PCL791
         self._instance: _L791.PCL791 = create_instance(c_ulong(slot))
         if not self._instance:
@@ -184,58 +184,58 @@ class _L791:
         return bool(self._instance)
 
     def open(self) -> int:
-        return lib_l_comp.openBoard(self._instance)
+        return lib_l791.openBoard(self._instance)
 
     def close(self) -> int:
-        return lib_l_comp.closeBoard(self._instance)
+        return lib_l791.closeBoard(self._instance)
 
     def read_description(self):
-        pd = _L791.L791BoardDescription()
-        lib_l_comp.readBoardDescription(self._instance, byref(pd))
+        pd: _L791.L791BoardDescription = _L791.L791BoardDescription()
+        lib_l791.readBoardDescription(self._instance, byref(pd))
         # print(pd)
 
     def request_stream_buffer(self, stream_id: int) -> int:
-        return lib_l_comp.requestStreamBuffer(self._instance, stream_id)
+        return lib_l791.requestStreamBuffer(self._instance, stream_id)
 
     def fill_adc_parameters(self, ap: ADCParameters) -> int:
-        return lib_l_comp.fillADCParameters(self._instance, byref(ap))
+        return lib_l791.fillADCParameters(self._instance, byref(ap))
 
     def fill_dac_parameters(self, dp: DACParameters) -> int:
-        return lib_l_comp.fillDACParameters(self._instance, byref(dp))
+        return lib_l791.fillDACParameters(self._instance, byref(dp))
 
     def set_stream_parameters(self, sp: DAQParameters, stream_id: int) -> int:
-        return lib_l_comp.setStreamParameters(self._instance, byref(sp), stream_id)
+        return lib_l791.setStreamParameters(self._instance, byref(sp), stream_id)
 
     def get_io_buffer_pointer(self, stream_id: int) -> POINTER(c_uint16):
-        get_io_buffer = lib_l_comp.getIOBuffer
+        get_io_buffer = lib_l791.getIOBuffer
         get_io_buffer.restype = POINTER(c_uint16)
         return get_io_buffer(self._instance, stream_id)
 
     def get_io_buffer_size(self, stream_id: int) -> int:
-        return lib_l_comp.getIOBufferSize(self._instance, stream_id)
+        return lib_l791.getIOBufferSize(self._instance, stream_id)
 
     def get_io_buffer(self, stream_id: int) -> list[int]:
         return typing.cast(list, self.get_io_buffer_pointer(stream_id)[:self.get_io_buffer_size(stream_id)])
 
     def get_reg_buffer_pointer(self) -> POINTER(c_uint32):
-        get_reg_buffer = lib_l_comp.getRegBuffer
+        get_reg_buffer = lib_l791.getRegBuffer
         get_reg_buffer.restype = POINTER(c_uint32)
         return get_reg_buffer(self._instance)
 
     def get_reg_buffer_size(self) -> int:
-        return lib_l_comp.getRegBufferSize(self._instance)
+        return lib_l791.getRegBufferSize(self._instance)
 
     def get_reg_buffer(self) -> list[int]:
         return typing.cast(list, self.get_reg_buffer_pointer()[:self.get_reg_buffer_size()])
 
     def init_start(self) -> int:
-        return lib_l_comp.initStart(self._instance)
+        return lib_l791.initStart(self._instance)
 
     def start(self) -> int:
-        return lib_l_comp.start(self._instance)
+        return lib_l791.start(self._instance)
 
     def stop(self) -> int:
-        return lib_l_comp.stop(self._instance)
+        return lib_l791.stop(self._instance)
 
 
 class L791(ADC):
