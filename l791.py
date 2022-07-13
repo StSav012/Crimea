@@ -177,6 +177,8 @@ class _L791:
         create_instance = lib_l_comp.createInstance
         create_instance.restype = _L791.PCL791
         self._instance: _L791.PCL791 = create_instance(c_ulong(slot))
+        if not self._instance:
+            raise RuntimeError('Failed to connect to an L791 board')
 
     def __bool__(self) -> bool:
         return bool(self._instance)

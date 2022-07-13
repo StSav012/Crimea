@@ -89,7 +89,8 @@ int main(int argc, char **argv) {
 
     pI->FillADCParameters(adcPar);
 
-    pI->SetStreamParameters(adcPar, size, STREAM_ADC);
+    pI->SetStreamParameters(adcPar, STREAM_ADC);
+    size = pI->GetIOBufferSize(STREAM_ADC);
     uint16_t *data = pI->GetIOBuffer(STREAM_ADC);
     uint32_t *sync = pI->GetRegBuffer();
 

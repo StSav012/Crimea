@@ -3,7 +3,7 @@
 
 // Board Type macro definitions
 #define NONE  0 // no board in slot
-#define L791  19
+#define L791 19
 
 // ERROR CODES
 #define SUCCESS 0
@@ -20,10 +20,10 @@
 
 #define ASYNC_ADC_INP 6
 #define ASYNC_TTL_INP 7
-//
+
 #define ASYNC_TTL_OUT 8
 #define ASYNC_DAC_OUT 9
-//
+
 #define STREAM_ADC 1
 #define STREAM_DAC 2
 
@@ -32,219 +32,218 @@
 // internal
 typedef struct _PORT_PARAM_
 {
-   ULONG port;
-   ULONG datatype;
+    ULONG port;
+    ULONG datatype;
 } PORT_PAR, *PPORT_PAR;
 
 // exported
 typedef struct __SLOT_PARAM
 {
-   ULONG Base;
-   ULONG BaseL;
-   ULONG Base1;
-   ULONG BaseL1;
-   ULONG Mem;
-   ULONG MemL;
-   ULONG Mem1;
-   ULONG MemL1;
-   ULONG Irq;
-   ULONG BoardType;
-   ULONG DSPType;
-   ULONG Dma;
-   ULONG DmaDac;
-   ULONG DTA_REG;
-   ULONG IDMA_REG;
-   ULONG CMD_REG;
-   ULONG IRQ_RST;
-   ULONG DTA_ARRAY;
-   ULONG RDY_REG;
-   ULONG CFG_REG;
+    ULONG Base;
+    ULONG BaseL;
+    ULONG Base1;
+    ULONG BaseL1;
+    ULONG Mem;
+    ULONG MemL;
+    ULONG Mem1;
+    ULONG MemL1;
+    ULONG Irq;
+    ULONG BoardType;
+    ULONG DSPType;
+    ULONG Dma;
+    ULONG DmaDac;
+    ULONG DTA_REG;
+    ULONG IDMA_REG;
+    ULONG CMD_REG;
+    ULONG IRQ_RST;
+    ULONG DTA_ARRAY;
+    ULONG RDY_REG;
+    ULONG CFG_REG;
 } SLOT_PAR, *PSLOT_PAR;
 
 
 typedef struct _DAQ_PARAM_
 {
-   ULONG s_Type;
-   ULONG FIFO;
-   ULONG IrqStep;
-   ULONG Pages;
+    ULONG s_Type;
+    ULONG FIFO;
+    ULONG IrqStep;
+    ULONG Pages;
 } DAQ_PAR, *PDAQ_PAR;
 
 
 // descr async i/o routines for adc, dac & ttl
 typedef struct _ASYNC_PARAM_ : public DAQ_PAR
 {
-   double dRate;
-   ULONG Rate;
-   ULONG NCh;
-   ULONG Chn[128];
-   ULONG Data[128];
-   ULONG Mode;
+    double dRate;
+    ULONG Rate;
+    ULONG NCh;
+    ULONG Chn[128];
+    ULONG Data[128];
+    ULONG Mode;
 } ASYNC_PAR, *PASYNC_PAR;
 
 
 typedef struct _DAC_PARAM : public DAQ_PAR
 {
-   ULONG AutoInit;
+    ULONG AutoInit;
 
-   double dRate;
-   ULONG Rate;
+    double dRate;
+    ULONG Rate;
 
-   ULONG IrqEna;
-   ULONG DacEna;
-   ULONG Reserved1;
+    ULONG IrqEna;
+    ULONG DacEna;
+    ULONG Reserved1;
 } DAC_PAR, *PDAC_PAR;
 
 
 typedef struct W_DAC_PARAM
 {
-   ULONG s_Type;
-   ULONG FIFO;
-   ULONG IrqStep;
-   ULONG Pages;
+    ULONG s_Type;
+    ULONG FIFO;
+    ULONG IrqStep;
+    ULONG Pages;
 
-   ULONG AutoInit;
+    ULONG AutoInit;
 
-   double dRate;
-   ULONG Rate;
+    double dRate;
+    ULONG Rate;
 
-   ULONG IrqEna;
-   ULONG DacEna;
-   ULONG Reserved1;
+    ULONG IrqEna;
+    ULONG DacEna;
+    ULONG Reserved1;
 } WDAC_PAR, *PWDAC_PAR;
 
 
 typedef struct _ADC_PARAM : public DAQ_PAR
 {
-   ULONG AutoInit;
+    ULONG AutoInit;
 
-   double dRate;
-   double dFrame;
-   USHORT Reserved1;
-   USHORT DigRate;
-   ULONG DM_Ena;    // data marker ena/dis
+    double dRate;
+    double dFrame;
+    USHORT Reserved1;
+    USHORT DigRate;
+    ULONG DM_Ena;    // data marker ena/dis
 
-   ULONG Rate;
-   ULONG Frame;
-   ULONG StartCnt;    // задержка сбора при старте в количестве кадров
-   ULONG StopCnt;     // остановка сбора после количества кадров
+    ULONG Rate;
+    ULONG Frame;
+    ULONG StartCnt;    // задержка сбора при старте в количестве кадров
+    ULONG StopCnt;     // остановка сбора после количества кадров
 
-   ULONG SynchroType;   // in e20-10 start type
-   ULONG SynchroMode;    // advanced synchro mode + chan number
-   ULONG SyncThreshold;         // порог синхронизации
-   ULONG SynchroSrc;    // in e20-10 clock source
-   ULONG AdcIMask;  // cange from Reserved4 to AdcIMask for e20-10 adc input config
+    ULONG SynchroType;   // in e20-10 start type
+    ULONG SynchroMode;    // advanced synchro mode + chan number
+    ULONG SyncThreshold;         // порог синхронизации
+    ULONG SynchroSrc;    // in e20-10 clock source
+    ULONG AdcIMask;  // cange from Reserved4 to AdcIMask for e20-10 adc input config
 
-   ULONG NCh;
-   ULONG Chn[128];
-   ULONG IrqEna;
-   ULONG AdcEna;
+    ULONG NCh;
+    ULONG Chn[128];
+    ULONG IrqEna;
+    ULONG AdcEna;
 } ADC_PAR, *PADC_PAR;
 
 
 typedef struct W_ADC_PARAM
 {
-   ULONG s_Type;
-   ULONG FIFO;
-   ULONG IrqStep;
-   ULONG Pages;
+    ULONG s_Type;
+    ULONG FIFO;
+    ULONG IrqStep;
+    ULONG Pages;
 
-   ULONG AutoInit;
+    ULONG AutoInit;
 
-   double dRate;
-   double dFrame;
-   USHORT Reserved1;
-   USHORT DigRate;
-   ULONG DM_Ena;    // data marker ena/dis
+    double dRate;
+    double dFrame;
+    USHORT Reserved1;
+    USHORT DigRate;
+    ULONG DM_Ena;    // data marker ena/dis
 
-   ULONG Rate;
-   ULONG Frame;
-   ULONG StartCnt;    // задержка сбора при старте в количестве кадров
-   ULONG StopCnt;     // остановка сбора после количества кадров
+    ULONG Rate;
+    ULONG Frame;
+    ULONG StartCnt;    // задержка сбора при старте в количестве кадров
+    ULONG StopCnt;     // остановка сбора после количества кадров
 
-   ULONG SynchroType;
-   ULONG SynchroMode;    // advanced synchro mode + chan number
-   ULONG SyncThreshold;
-   ULONG SynchroSrc;
-   ULONG AdcIMask;
+    ULONG SynchroType;
+    ULONG SynchroMode;    // advanced synchro mode + chan number
+    ULONG SyncThreshold;
+    ULONG SynchroSrc;
+    ULONG AdcIMask;
 
-   ULONG NCh;
-   ULONG Chn[128];
-   ULONG IrqEna;
-   ULONG AdcEna;
+    ULONG NCh;
+    ULONG Chn[128];
+    ULONG IrqEna;
+    ULONG AdcEna;
 } WADC_PAR, *PWADC_PAR;
 
 
 typedef union W_DAQ_PARAM
 {
-   WDAC_PAR dac_par;
-   WADC_PAR adc_par;
+    WDAC_PAR dac_par;
+    WADC_PAR adc_par;
 } WDAQ_PAR, *PWDAQ_PAR;
 
 
-//exported
 typedef struct __BOARD_DESCR_L791
 {
-   USHORT CRC16;
-   char SerNum[16];
-   char BrdName[16];
-   char Rev;
-   char DspType[5];
-   unsigned int Quartz;
-   USHORT IsDacPresent;
-   float ADCFactor[16];
-   float DACFactor[4];
-   USHORT Custom;
+    USHORT CRC16;
+    char SerNum[16];
+    char BrdName[16];
+    char Rev;
+    char DspType[5];
+    unsigned int Quartz;
+    USHORT IsDacPresent;
+    float ADCFactor[16];
+    float DACFactor[4];
+    USHORT Custom;
 } BOARD_DESCR_L791, *PBOARD_DESCR_L791;
 
 typedef struct __WORD_IMAGE
 {
-   USHORT data[64];
+    USHORT data[64];
 } WORD_IMAGE, *PWORD_IMAGE;
 
 typedef struct __BYTE_IMAGE
 {
-   UCHAR data[128];
+    UCHAR data[128];
 } BYTE_IMAGE, *PBYTE_IMAGE;
 
 typedef union __BOARD_DESCR_U
 {
-   BOARD_DESCR_L791 par;
+    BOARD_DESCR_L791 par;
 
-   WORD_IMAGE wi;
-   BYTE_IMAGE bi;
+    WORD_IMAGE wi;
+    BYTE_IMAGE bi;
 } BOARD_DESCR_U, *PBOARD_DESCR_U;
 
 // ioctl struct for ioctl access...
 typedef struct __IOCTL_BUFFER
 {
-   int inSize; // size in bytes
-   int outSize; // size in bytes
-   unsigned char inBuffer[4096];
-   unsigned char outBuffer[4096];
+    size_t inSize;  // size in bytes
+    size_t outSize; // size in bytes
+    unsigned char inBuffer[4096];
+    unsigned char outBuffer[4096];
 } IOCTL_BUFFER, *PIOCTL_BUFFER;
 
 #pragma pack()
 
-#define DIOC_SETUP                  _IOWR(0x97,  1, IOCTL_BUFFER)
-#define DIOC_START                  _IOWR(0x97,  3, IOCTL_BUFFER)
-#define DIOC_STOP                   _IOWR(0x97,  4, IOCTL_BUFFER)
-#define DIOC_OUTP                   _IOWR(0x97,  5, IOCTL_BUFFER)
-#define DIOC_INP                    _IOWR(0x97,  6, IOCTL_BUFFER)
-#define DIOC_OUTM                   _IOWR(0x97,  7, IOCTL_BUFFER)
-#define DIOC_INM                    _IOWR(0x97,  8, IOCTL_BUFFER)
-#define DIOC_SETBUFFER_ADC          _IOWR(0x97,  9, IOCTL_BUFFER)
-#define DIOC_INIT_SYNC              _IOWR(0x97, 12, IOCTL_BUFFER)
-#define DIOC_GET_PARAMS             _IOWR(0x97, 23, IOCTL_BUFFER)
-#define DIOC_SETBUFFER_DAC          _IOWR(0x97, 25, IOCTL_BUFFER)
-#define DIOC_SETUP_DAC              _IOWR(0x97, 26, IOCTL_BUFFER)
-#define DIOC_READ_FLASH_WORD        _IOWR(0x97, 27, IOCTL_BUFFER)
-#define DIOC_WRITE_FLASH_WORD       _IOWR(0x97, 28, IOCTL_BUFFER)
-#define DIOC_ENABLE_FLASH_WRITE     _IOWR(0x97, 29, IOCTL_BUFFER)
-#define DIOC_ADCSAMPLE              _IOWR(0x97, 35, IOCTL_BUFFER)
-#define DIOC_TTL_IN                 _IOWR(0x97, 37, IOCTL_BUFFER)
-#define DIOC_TTL_OUT                _IOWR(0x97, 38, IOCTL_BUFFER)
-#define DIOC_TTL_CFG                _IOWR(0x97, 39, IOCTL_BUFFER)
-#define DIOC_DAC_OUT                _IOWR(0x97, 40, IOCTL_BUFFER)
+#define DIOC_SETUP                   _IOWR(0x97,  1, IOCTL_BUFFER)
+#define DIOC_START                   _IOWR(0x97,  3, IOCTL_BUFFER)
+#define DIOC_STOP                    _IOWR(0x97,  4, IOCTL_BUFFER)
+#define DIOC_OUTP                    _IOWR(0x97,  5, IOCTL_BUFFER)
+#define DIOC_INP                     _IOWR(0x97,  6, IOCTL_BUFFER)
+#define DIOC_OUTM                    _IOWR(0x97,  7, IOCTL_BUFFER)
+#define DIOC_INM                     _IOWR(0x97,  8, IOCTL_BUFFER)
+#define DIOC_SET_BUFFER_ADC          _IOWR(0x97,  9, IOCTL_BUFFER)
+#define DIOC_INIT_SYNC               _IOWR(0x97, 12, IOCTL_BUFFER)
+#define DIOC_GET_PARAMS              _IOWR(0x97, 23, IOCTL_BUFFER)
+#define DIOC_SET_BUFFER_DAC          _IOWR(0x97, 25, IOCTL_BUFFER)
+#define DIOC_SETUP_DAC               _IOWR(0x97, 26, IOCTL_BUFFER)
+#define DIOC_READ_FLASH_WORD         _IOWR(0x97, 27, IOCTL_BUFFER)
+#define DIOC_WRITE_FLASH_WORD        _IOWR(0x97, 28, IOCTL_BUFFER)
+#define DIOC_ENABLE_FLASH_WRITE      _IOWR(0x97, 29, IOCTL_BUFFER)
+#define DIOC_ADC_SAMPLE              _IOWR(0x97, 35, IOCTL_BUFFER)
+#define DIOC_TTL_IN                  _IOWR(0x97, 37, IOCTL_BUFFER)
+#define DIOC_TTL_OUT                 _IOWR(0x97, 38, IOCTL_BUFFER)
+#define DIOC_TTL_CFG                 _IOWR(0x97, 39, IOCTL_BUFFER)
+#define DIOC_DAC_OUT                 _IOWR(0x97, 40, IOCTL_BUFFER)
 
 #endif

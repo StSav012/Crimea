@@ -1,10 +1,9 @@
-#include "../include/stubs.h"
-#include "../include/ioctl.h"
-
 #include <stdio.h>
-
 #include <dlfcn.h>
 #include <string.h>
+
+#include "../include/stubs.h"
+#include "../include/ioctl.h"
 
 // 0 sucess 1 error
 
@@ -23,7 +22,7 @@ void *GetProcAddress(HINSTANCE handle, const char *szProcName)
     dlerror();
     void *ptr = dlsym(handle, szProcName);
     if (dlerror() == NULL) {
-       return ptr;
+        return ptr;
     }
     return NULL;
 }
@@ -48,19 +47,18 @@ BOOL IoControl(HANDLE hDevice,
                ULONG nInBufferSize,
                LPVOID lpOutBuffer,
                ULONG nOutBufferSize,
-               PULONG lpBytesReturned,
-               LPOVERLAPPED lpOverlapped)
+               PULONG lpBytesReturned)
 {
     BOOL status = FALSE;
     IOCTL_BUFFER ibuf;
     unsigned int i;
     do {
         if (nInBufferSize > 4096) {
-            printf("err");
+            printf("in buffer size > 4096");
             break;
         }
         if (nOutBufferSize > 4096) {
-            printf("err1");
+            printf("out buffer size > 4096");
             break;
         }
 
@@ -68,13 +66,13 @@ BOOL IoControl(HANDLE hDevice,
 
         if (lpOutBuffer) {
             ibuf.outSize = nOutBufferSize;
-            for (i = 0; i < nOutBufferSize; i++) {
+            for (i = 0; i < nOutBufferSize; ++i) {
                 ibuf.outBuffer[i] = ((PUCHAR)lpOutBuffer)[i];
             }
         }
 
         if (lpInBuffer) {
-            for (i = 0; i < nInBufferSize; i++) {
+            for (i = 0; i < nInBufferSize; ++i) {
                 ibuf.inBuffer[i] = ((PUCHAR)lpInBuffer)[i];
             }
             ibuf.inSize = nInBufferSize;
@@ -84,12 +82,12 @@ BOOL IoControl(HANDLE hDevice,
             break;
         }
         if (lpOutBuffer) {
-            for (i = 0; i < nOutBufferSize; i++) {
+            for (i = 0; i < nOutBufferSize; ++i) {
                 ((PUCHAR)lpOutBuffer)[i] = ibuf.outBuffer[i];
             }
         }
         *lpBytesReturned = ibuf.outSize;
         status = TRUE;
-    } while (status==FALSE);
+    } while (status == FALSE);
     return status;
 }

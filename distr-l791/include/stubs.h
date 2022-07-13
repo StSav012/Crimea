@@ -5,17 +5,15 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <atomic_ops.h>
+#include <atomic>
 
-
-typedef struct { volatile AO_t counter; } atomic_t;
+typedef struct { volatile std::atomic<size_t> counter; } atomic_t;
 
 // windows types...
 
 #include "../include/guiddef.h"
 
 #define __stdcall
-
 
 typedef void *LPVOID;
 typedef void *PVOID;
@@ -35,8 +33,8 @@ typedef LONG HRESULT;
 typedef struct _OVERLAPPED {
     ULONG Internal;
     ULONG InternalHigh;
-    union {
-        struct {
+    union _Location{
+        struct _Offset {
             ULONG Offset;
             ULONG OffsetHigh;
         };
@@ -52,7 +50,6 @@ typedef struct _OVERLAPPED {
 #define FALSE 0
 #define INVALID_HANDLE_VALUE ((HANDLE)(-1))
 
-
 #define ERROR_INVALID_FUNCTION           1L    // dderror
 #define ERROR_FILE_NOT_FOUND             2L
 #define ERROR_PATH_NOT_FOUND             3L
@@ -66,16 +63,12 @@ typedef struct _OVERLAPPED {
 #define _HRESULT_TYPEDEF_(_sc) ((HRESULT)_sc)
 #endif // RC_INVOKED
 
-#define E_NOINTERFACE                    _HRESULT_TYPEDEF_(0x80004002L)
+#define E_NO_INTERFACE                   _HRESULT_TYPEDEF_(0x80004002L)
 #define S_OK                             ((HRESULT)0x00000000L)
 
 
 #ifndef NULL
-#ifdef __cplusplus
-#define NULL    0
-#else
-#define NULL    ((void *)0)
-#endif
+#define NULL    nullptr
 #endif
 
 
@@ -98,8 +91,7 @@ BOOL IoControl(HANDLE hDevice,
                ULONG nInBufferSize,
                LPVOID lpOutBuffer,
                ULONG nOutBufferSize,
-               PULONG lpBytesReturned,
-               LPOVERLAPPED lpOverlapped);
+               PULONG lpBytesReturned);
 
 #endif
 

@@ -6,129 +6,123 @@
 #include "../include/ifc_ldev.h"
 #include "../include/791.h"
 
-void LSetLastError(unsigned long Err)
+void LSetLastError(int err)
 {
-   errno = (int)Err;
+    errno = err;
 }
 
 unsigned long LGetLastError(void)
 {
-   return errno;
+    return errno;
 }
 
 extern "C" {
 
-   // main function of dll
-   DaqL791* createInstance(ULONG Slot)
-   {
-      LSetLastError(SUCCESS);
-      DaqL791 *pL = new DaqL791(Slot);
-      if (pL == nullptr) {
-         LSetLastError(ERROR);
-         return nullptr;
-      }
-      HANDLE hVxd = pL->Open();
-      if (hVxd == INVALID_HANDLE_VALUE) {
-         if (LGetLastError() == ERROR_FILE_NOT_FOUND) {
-            LSetLastError(ERROR_NO_BOARD);
-         }
-         if (LGetLastError() == ERROR_ACCESS_DENIED) {
-            LSetLastError(ERROR_IN_USE);
-         }
-         return nullptr;
-      }
+    // main function of dll
+    DaqL791* createInstance(ULONG Slot)
+    {
+        LSetLastError(SUCCESS);
+        DaqL791 *pL = new DaqL791(Slot);
 
-      SLOT_PAR sl;
-      pL->GetSlotParam(&sl);
+        if (pL == nullptr) {
+            LSetLastError(ERROR);
+            return nullptr;
+        }
+        HANDLE hVxd = pL->Open();
+        if (hVxd == INVALID_HANDLE_VALUE) {
+            if (LGetLastError() == ERROR_FILE_NOT_FOUND) {
+                LSetLastError(ERROR_NO_BOARD);
+            }
+            if (LGetLastError() == ERROR_ACCESS_DENIED) {
+                LSetLastError(ERROR_IN_USE);
+            }
+            return nullptr;
+        }
 
-      pL->Close();
-      delete pL;
+        SLOT_PAR sl;
+        pL->GetSlotParam(&sl);
 
-      DaqL791* pI;
-      switch(sl.BoardType)
-      {
-         case L791:
-         {
-            pI = new DaqL791(Slot);
-            pI->AddRef();
-         } break;
-         default:
-         {
-            pI = nullptr;
+        pL->Close();
+        if (sl.BoardType != L791) {
+            delete pL;
+            pL = nullptr;
             LSetLastError(NOT_SUPPORTED);
-         }
-      }
-      return pI;
-   }
+        }
+        else {
+            pL->AddRef();
+        }
 
-   FDF(HANDLE) openBoard(DaqL791* board)
-   {
-      return board->Open();
-   }
+        return pL;
+    }
 
-   FDF(ULONG) closeBoard(DaqL791* board)
-   {
-      return board->Close();
-   }
+    FDF(HANDLE) openBoard(DaqL791* board)
+    {
+        return board->Open();
+    }
 
-   FDF(ULONG) readBoardDescription(DaqL791* board, BOARD_DESCR_L791 &pd)
-   {
-      return board->ReadBoardDescr(pd);
-   }
+    FDF(ULONG) closeBoard(DaqL791* board)
+    {
+        return board->Close();
+    }
 
-   FDF(ULONG) requestStreamBuffer(DaqL791* board, ULONG streamID)
-   {
-      return board->RequestStreamBuffer(streamID);
-   }
+    FDF(ULONG) readBoardDescription(DaqL791* board, BOARD_DESCR_L791 &pd)
+    {
+        return board->ReadBoardDescr(pd);
+    }
 
-   FDF(ULONG) fillADCParameters(DaqL791* board, ADC_PAR &ap)
-   {
-      return board->FillADCParameters(ap);
-   }
+    FDF(ULONG) requestStreamBuffer(DaqL791* board, ULONG streamID)
+    {
+        return board->RequestStreamBuffer(streamID);
+    }
 
-   FDF(ULONG) fillDACParameters(DaqL791* board, DAC_PAR &dp)
-   {
-      return board->FillDACParameters(dp);
-   }
+    FDF(ULONG) fillADCParameters(DaqL791* board, ADC_PAR &ap)
+    {
+        return board->FillADCParameters(ap);
+    }
 
-   FDF(ULONG) setStreamParameters(DaqL791* board, DAQ_PAR &sp, ULONG streamID)
-   {
-      return board->SetStreamParameters(sp, streamID);
-   }
+    FDF(ULONG) fillDACParameters(DaqL791* board, DAC_PAR &dp)
+    {
+        return board->FillDACParameters(dp);
+    }
 
-   FDF(uint16_t*) getIOBuffer(DaqL791* board, ULONG streamID)
-   {
-      return board->GetIOBuffer(streamID);
-   }
+    FDF(ULONG) setStreamParameters(DaqL791* board, DAQ_PAR &sp, ULONG streamID)
+    {
+        return board->SetStreamParameters(sp, streamID);
+    }
 
-   FDF(size_t) getIOBufferSize(DaqL791* board, ULONG streamID)
-   {
-      return board->GetIOBufferSize(streamID);
-   }
+    FDF(uint16_t*) getIOBuffer(DaqL791* board, ULONG streamID)
+    {
+        return board->GetIOBuffer(streamID);
+    }
 
-   FDF(uint32_t*) getRegBuffer(DaqL791* board)
-   {
-      return board->GetRegBuffer();
-   }
+    FDF(size_t) getIOBufferSize(DaqL791* board, ULONG streamID)
+    {
+        return board->GetIOBufferSize(streamID);
+    }
 
-   FDF(size_t) getRegBufferSize(DaqL791* board)
-   {
-      return board->GetRegBufferSize();
-   }
+    FDF(uint32_t*) getRegBuffer(DaqL791* board)
+    {
+        return board->GetRegBuffer();
+    }
 
-   FDF(ULONG) initStart(DaqL791* board)
-   {
-      return board->InitStart();
-   }
+    FDF(size_t) getRegBufferSize(DaqL791* board)
+    {
+        return board->GetRegBufferSize();
+    }
 
-   FDF(ULONG) start(DaqL791* board)
-   {
-      return board->Start();
-   }
+    FDF(ULONG) initStart(DaqL791* board)
+    {
+        return board->InitStart();
+    }
 
-   FDF(ULONG) stop(DaqL791* board)
-   {
-      return board->Stop();
-   }
+    FDF(ULONG) start(DaqL791* board)
+    {
+        return board->Start();
+    }
+
+    FDF(ULONG) stop(DaqL791* board)
+    {
+        return board->Stop();
+    }
 
 }
