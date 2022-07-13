@@ -321,8 +321,6 @@ class L780(ADC):
         if error:
             raise RuntimeError(f'setStreamParameters failed with code {error}')
         self._data_p = self._board.get_io_buffer_pointer(stream_id=_L780.STREAM_ADC)
-        sync_p = self._board.get_reg_buffer_pointer()
-        print(f'Current Firmware Version: {hex(typing.cast(int, sync_p[1021]))}')
 
         self._board.init_start()
         print('init device started')
