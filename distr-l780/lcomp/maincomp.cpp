@@ -115,7 +115,7 @@ extern "C" {
         return board->Stop();
     }
 
-    FDF(ULONG) loadFimware(DaqL780* board, char firmwareFileName[] = nullptr)
+    FDF(ULONG) loadFirmware(DaqL780* board, char firmwareFileName[] = nullptr)
     {
         return board->LoadBios(firmwareFileName);
     }
