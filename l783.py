@@ -248,11 +248,11 @@ class _L780:
         if not firmware_file:
             return lib_l780.loadFimware(self._instance)
         else:
-            if not Path(firmware_file).exists():
-                raise FileNotFoundError(f'No file called "{firmware_file}".found')
             firmware_file = str(firmware_file)
             if firmware_file.casefold().endswith('.bio'):
                 firmware_file = firmware_file[:-4]
+            if not Path(firmware_file + '.bio').exists():
+                raise FileNotFoundError(f'No file called "{firmware_file}.bio".found')
             return lib_l780.loadFimware(self._instance, c_char_p(firmware_file.encode()))
 
     def test(self) -> int:
