@@ -14,7 +14,7 @@
 #define ERROR_NO_BOARD 3
 #define ERROR_IN_USE 4
 
-// define s_Type for FillDAQparameters
+// define s_Type for FillDAQParameters
 #define ADC_PARAM 1
 #define DAC_PARAM 2
 
