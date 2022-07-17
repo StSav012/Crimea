@@ -207,10 +207,10 @@ class _L780:
     def close(self) -> int:
         return lib_l780.closeBoard(self._instance)
 
-    def read_description(self):
+    def read_description(self) -> _L780.L780BoardDescription:
         pd: _L780.L780BoardDescription = _L780.L780BoardDescription()
         lib_l780.readBoardDescription(self._instance, byref(pd))
-        # print(pd)
+        return pd
 
     def request_stream_buffer(self, stream_id: int) -> int:
         return lib_l780.requestStreamBuffer(self._instance, stream_id)
@@ -285,9 +285,9 @@ class L780(ADC):
         sl, error = self._board.get_slot_parameters()
         if error:
             raise RuntimeError(f'getSlotParameters failed with code {error}')
-        self._board.load_firmware()
+        self._board.load_firmware('l783')  # FIXME: determine the board type somehow: L783 is 3833:4c37
         self._board.test()
-        self._board.read_description()
+        print(self._board.read_description())
         error = self._board.request_stream_buffer(stream_id=_L780.STREAM_ADC)
         if error:
             raise RuntimeError(f'requestStreamBuffer failed with code {error}')

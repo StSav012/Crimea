@@ -236,7 +236,7 @@ class L791:
 error: int
 board: L791 = L791()
 board.open()
-board.read_description()
+print(board.read_description())
 error = board.request_stream_buffer(stream_id=L791.STREAM_ADC)
 if error:
     raise RuntimeError(f'requestStreamBuffer failed with code {error}')

@@ -189,10 +189,10 @@ class _L791:
     def close(self) -> int:
         return lib_l791.closeBoard(self._instance)
 
-    def read_description(self):
+    def read_description(self) -> _L791.L791BoardDescription:
         pd: _L791.L791BoardDescription = _L791.L791BoardDescription()
         lib_l791.readBoardDescription(self._instance, byref(pd))
-        # print(pd)
+        return pd
 
     def request_stream_buffer(self, stream_id: int) -> int:
         return lib_l791.requestStreamBuffer(self._instance, stream_id)
@@ -251,7 +251,7 @@ class L791(ADC):
             raise RuntimeError('Failed to initialize L791')
 
         self._board.open()
-        self._board.read_description()
+        print(self._board.read_description())
         error = self._board.request_stream_buffer(stream_id=_L791.STREAM_ADC)
         if error:
             raise RuntimeError(f'requestStreamBuffer failed with code {error}')

@@ -285,10 +285,10 @@ print(f'MemL    {sl.MemL}')
 print(f'Type    {sl.BoardType}')
 print(f'DSPType {sl.DSPType}')
 print(f'Irq     {sl.Irq}')
-print(f'Load Firmware {board.load_firmware()}')
+print(f'Load Firmware {board.load_firmware("l783")}')
 print(f'Board Test    {board.test()}')
 
-board.read_description()
+print(board.read_description())
 error = board.request_stream_buffer(stream_id=L780.STREAM_ADC)
 if error:
     raise RuntimeError(f'requestStreamBuffer failed with code {error}')
