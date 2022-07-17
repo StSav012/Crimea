@@ -208,10 +208,10 @@ class L780:
     def close(self) -> int:
         return lib_l780.closeBoard(self._instance)
 
-    def read_description(self):
+    def read_description(self) -> L780BoardDescription:
         pd: L780BoardDescription = L780BoardDescription()
         lib_l780.readBoardDescription(self._instance, byref(pd))
-        # print(pd)
+        return pd
 
     def request_stream_buffer(self, stream_id: int) -> int:
         return lib_l780.requestStreamBuffer(self._instance, stream_id)

@@ -184,10 +184,10 @@ class L791:
     def close(self) -> int:
         return liblcomp.closeBoard(self._instance)
 
-    def read_description(self):
+    def read_description(self) -> L791BoardDescription:
         pd = L791BoardDescription()
         liblcomp.readBoardDescription(self._instance, byref(pd))
-        # print(pd)
+        return pd
 
     def request_stream_buffer(self, stream_id: int) -> int:
         return liblcomp.requestStreamBuffer(self._instance, stream_id)
