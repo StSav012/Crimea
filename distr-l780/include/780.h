@@ -38,7 +38,7 @@ public:
     IFC(ULONG) Start();
     IFC(ULONG) Stop();
 
-    IFC(ULONG) LoadBios(char *FileName = nullptr);
+    IFC(ULONG) LoadBios(char *FileName);
 
     IFC(ULONG) EnableCorrection(USHORT Ena = 1);
 

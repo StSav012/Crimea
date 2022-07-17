@@ -837,14 +837,7 @@ FDF(ULONG) DaqL780::LoadBios(char *FileName)
     CHAR    FName[255];
     ULONG   cbRet;
 
-    if (!FileName) {
-        BOARD_DESCR pd;
-        ReadBoardDescr(pd);
-        snprintf(FName, 255, "%s.bio", pd.BrdName);
-    }
-    else {
-        snprintf(FName, 255, "%s.bio", FileName);
-    }
+    snprintf(FName, 255, "%s.bio", FileName);
     printf("loading %s\n", FName);
 
     int status = ERROR;
