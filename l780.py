@@ -249,7 +249,7 @@ class _L780:
             from subprocess import Popen, PIPE
 
             proc: Popen
-            with Popen(('ls''pci', '-v',), shell=True, stdout=PIPE) as proc:
+            with Popen('ls''pci -v', shell=True, stdout=PIPE) as proc:
                 proc_out: bytes = proc.stdout.read()
             found_ids: tuple[bool, ...] = (b'3631:4c37' in proc_out, b'3833:4c37' in proc_out, b'3931:4c37' in proc_out)
             if found_ids == (True, False, False):

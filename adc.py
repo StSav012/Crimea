@@ -43,7 +43,7 @@ else:
         from subprocess import Popen, PIPE
 
         proc: Popen
-        with Popen(('ls''pci', '-n',), shell=True, stdout=PIPE) as proc:
+        with Popen('ls''pci -n', shell=True, stdout=PIPE) as proc:
             proc_out: bytes = proc.stdout.read()
 
         if b'10b5:9050' in proc_out and b'1172:0791' not in proc_out:
