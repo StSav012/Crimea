@@ -254,11 +254,11 @@ class L780:
                 proc_out: bytes = proc.stdout.read()
             found_ids: tuple[bool, ...] = (b'3631:4c37' in proc_out, b'3833:4c37' in proc_out, b'3931:4c37' in proc_out)
             if found_ids == (True, False, False):
-                firmware_file = 'l761'
+                firmware_file = 'L761'
             elif found_ids == (False, True, False):
-                firmware_file = 'l783'
+                firmware_file = 'L783'
             elif found_ids == (False, False, True):
-                firmware_file = 'l791'  # doesn't need a firmware, but may still be present and mess the loading up
+                firmware_file = 'L791'  # doesn't need a firmware, but may still be present and mess the loading up
             else:
                 raise RuntimeError('Can not determine the firmware to load')
         else:
