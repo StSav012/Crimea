@@ -40,6 +40,21 @@ else:
 
         ADCDevice = ldev_dummy.LDevDummy
     except ImportError:
-        import l791
+        from subprocess import Popen, PIPE
 
-        ADCDevice = l791.L791
+        proc: Popen
+        with Popen(('ls''pci', '-n',), shell=True, stdout=PIPE) as proc:
+            proc_out: bytes = proc.stdout.read()
+
+        if b'10b5:9050' in proc_out and b'1172:0791' not in proc_out:
+            import l780
+
+            ADCDevice = l780.L780
+        elif b'10b5:9050' not in proc_out and b'1172:0791' in proc_out:
+            import l791
+
+            ADCDevice = l791.L791
+        elif b'10b5:9050' in proc_out and b'1172:0791' in proc_out:
+            raise SystemError('Can not determine ADC device conclusively')
+        else:
+            raise SystemError('No ADC device found')
