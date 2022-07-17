@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     cout << "DSPType " << sl.DSPType << endl;
     cout << "Irq     " << sl.Irq << endl;
 
-    cout << "Load Firmware " << pI->LoadBios() << endl;
+    cout << "Load Firmware " << pI->LoadBios("l783") << endl;
     cout << "Board Test    " << pI->Test() << endl;
 
     cout << endl << "Read FLASH" << endl;
