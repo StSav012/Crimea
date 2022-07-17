@@ -247,14 +247,27 @@ class L780:
 
     def load_firmware(self, firmware_file: None | str | Path = None) -> int:
         if not firmware_file:
-            return lib_l780.loadFimware(self._instance)
+            from subprocess import Popen, PIPE
+
+            proc: Popen
+            with Popen(('ls''pci', '-v',), shell=True, stdout=PIPE) as proc:
+                proc_out: bytes = proc.stdout.read()
+            found_ids: tuple[bool, ...] = (b'3631:4c37' in proc_out, b'3833:4c37' in proc_out, b'3931:4c37' in proc_out)
+            if found_ids == (True, False, False):
+                firmware_file = 'l761'
+            elif found_ids == (False, True, False):
+                firmware_file = 'l783'
+            elif found_ids == (False, False, True):
+                firmware_file = 'l791'  # doesn't need a firmware, but may still be present and mess the loading up
+            else:
+                raise RuntimeError('Can not determine the firmware to load')
         else:
-            if not Path(firmware_file).exists():
-                raise FileNotFoundError(f'No file called "{firmware_file}".found')
             firmware_file = str(firmware_file)
             if firmware_file.casefold().endswith('.bio'):
                 firmware_file = firmware_file[:-4]
-            return lib_l780.loadFimware(self._instance, c_char_p(firmware_file.encode()))
+        if not Path(firmware_file + '.bio').exists():
+            raise FileNotFoundError(f'No file called "{firmware_file}.bio".found')
+        return lib_l780.loadFirmware(self._instance, c_char_p(firmware_file.encode()))
 
     def test(self) -> int:
         return lib_l780.test(self._instance)
@@ -285,7 +298,7 @@ print(f'MemL    {sl.MemL}')
 print(f'Type    {sl.BoardType}')
 print(f'DSPType {sl.DSPType}')
 print(f'Irq     {sl.Irq}')
-print(f'Load Firmware {board.load_firmware("l783")}')
+print(f'Load Firmware {board.load_firmware()}')
 print(f'Board Test    {board.test()}')
 
 print(board.read_description())
