@@ -148,7 +148,7 @@ class Dallas18B20(Thread):
         try:
             if isinstance(pin, str):
                 pin = mega_pins[pin]
-            v = int(self.read_text(f'V{pin}', terminator=b'\n\r'))  # arduino firmware bug
+            v = int(self.read_text(f'V{pin}'))
         finally:
             return v
 
