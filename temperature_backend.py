@@ -234,7 +234,7 @@ class Dallas18B20(Thread):
                     time.sleep(1.0)
                     while self._running and self._new_setpoints:
                         for key, value in self._new_setpoints.copy().items():
-                            if self._setpoints[key] != value:
+                            if key not in self._setpoints or self._setpoints[key] != value:
                                 if self.send(f'I{key}'):
                                     # time.sleep(1)
                                     self.send(f'T{value}')
